@@ -1,0 +1,198 @@
+# Expert React Native + Supabase Development Guide
+
+You are an expert in TypeScript, React Native, Expo, Supabase, and Mobile UI development.
+
+## Code Style and Structure
+
+- Write concise, technical TypeScript code with accurate examples.
+- Use functional and declarative programming patterns; avoid classes.
+- Prefer iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError, isAuthenticated).
+- Structure files: exported component, subcomponents, helpers, static content, types.
+- Follow Expo's official documentation for setting up and configuring projects: https://docs.expo.dev/
+
+## Naming Conventions
+
+- Use lowercase with dashes for directories (e.g., components/auth-wizard, services/supabase-client).
+- Favor named exports for components and services.
+- Use PascalCase for React components and interfaces.
+- Use camelCase for functions, variables, and database table/column names.
+
+## TypeScript Usage
+
+- Use TypeScript for all code; prefer interfaces over types.
+- Define database schema types that match your Supabase tables.
+- Create type-safe API response interfaces.
+- Avoid enums; use const objects or union types instead.
+- Use functional components with TypeScript interfaces.
+- Use strict mode in TypeScript for better type safety.
+
+## Supabase Integration
+
+### Setup and Configuration
+
+- Install required packages: `@supabase/supabase-js`, `react-native-url-polyfill`.
+- Create a dedicated `lib/supabase.ts` file for client configuration.
+- Use environment variables for Supabase URL and anon key via `expo-constants`.
+- Initialize Supabase client with proper TypeScript generic types for your database schema.
+
+### Authentication
+
+- Implement Supabase Auth with social providers (Google, Apple, GitHub) and email/password.
+- Use `supabase.auth.onAuthStateChange()` for handling authentication state.
+- Create an AuthContext with useContext hook for global auth state management.
+- Handle email verification, password reset, and account confirmation flows.
+- Implement proper session management and token refresh handling.
+
+### Database Operations
+
+- Use Supabase's TypeScript client for type-safe database operations.
+- Implement CRUD operations with proper error handling using try-catch blocks.
+- Use Supabase's real-time subscriptions for live data updates.
+- Implement optimistic updates for better user experience.
+- Handle database constraints, foreign keys, and cascading operations properly.
+- Use Supabase's built-in pagination with `range()` for large datasets.
+
+### Storage and File Management
+
+- Use Supabase Storage for file uploads (images, documents, etc.).
+- Implement image optimization and compression before upload.
+- Handle file upload progress and error states.
+- Use signed URLs for secure file access and temporary links.
+- Implement proper file deletion and cleanup procedures.
+
+### Real-time Features
+
+- Implement real-time subscriptions using `supabase.channel()`.
+- Handle connection states and reconnection logic.
+- Use real-time for chat, notifications, collaborative features.
+- Optimize subscription performance by filtering at the database level.
+
+### Security and RLS
+
+- Implement Row Level Security (RLS) policies in Supabase.
+- Use Supabase's built-in authorization patterns.
+- Validate user permissions before database operations.
+- Sanitize inputs and use parameterized queries (handled by Supabase client).
+- Implement proper CORS and security headers.
+
+## UI and Styling
+
+- Use Expo's built-in components for common UI patterns and layouts.
+- Implement responsive design with Flexbox and Expo's useWindowDimensions.
+- Use styled-components, Tailwind CSS, or NativeWind for component styling.
+- Implement dark mode support using Expo's useColorScheme.
+- Ensure high accessibility (a11y) standards using ARIA roles and native accessibility props.
+- Use react-native-reanimated and react-native-gesture-handler for performant animations.
+
+## Safe Area Management
+
+- Use SafeAreaProvider from react-native-safe-area-context globally.
+- Wrap top-level components with SafeAreaView for notches and status bars.
+- Use SafeAreaScrollView for scrollable content respecting safe boundaries.
+- Avoid hardcoding padding/margins; rely on SafeAreaView and context hooks.
+
+## Performance Optimization
+
+- Minimize useState and useEffect; prefer context and reducers for state management.
+- Use React Query or SWR with Supabase for efficient data fetching and caching.
+- Implement optimistic updates for database mutations.
+- Use Expo's AppLoading and SplashScreen for optimized startup.
+- Optimize images: use WebP format, include size data, implement lazy loading with expo-image.
+- Implement code splitting and lazy loading with React's Suspense and dynamic imports.
+- Profile performance using React Native's tools and Expo's debugging features.
+- Memoize components and use useMemo/useCallback appropriately.
+
+## Navigation
+
+- Use react-navigation or expo-router for routing and navigation.
+- Implement protected routes based on authentication state.
+- Handle deep linking and universal links for better user engagement.
+- Use dynamic routes with expo-router for better navigation handling.
+- Implement proper navigation guards for authenticated/unauthenticated users.
+
+## State Management
+
+- Use React Context and useReducer for global state management.
+- Create separate contexts for auth, user data, and app settings.
+- Use React Query/SWR for server state management with Supabase.
+- For complex client state, consider Zustand or Redux Toolkit.
+- Handle URL search parameters using expo-linking.
+- Implement proper loading and error states for all async operations.
+
+## Error Handling and Validation
+
+- Use Zod for runtime validation and error handling.
+- Implement comprehensive error handling for Supabase operations.
+- Handle network errors, timeouts, and offline scenarios gracefully.
+- Use Sentry or similar service for error logging and monitoring.
+- Prioritize error handling and edge cases:
+  - Handle errors at the beginning of functions.
+  - Use early returns for error conditions.
+  - Avoid unnecessary else statements; use if-return pattern.
+  - Implement global error boundaries for unexpected errors.
+- Create user-friendly error messages for database and auth errors.
+
+## Testing
+
+- Write unit tests using Jest and React Native Testing Library.
+- Mock Supabase client for testing components and services.
+- Test authentication flows, database operations, and real-time features.
+- Implement integration tests for critical user flows using Detox.
+- Use Expo's testing tools for different environments.
+- Consider snapshot testing for UI consistency.
+
+## Security Best Practices
+
+- Never expose service role keys or sensitive credentials in client code.
+- Use Supabase's built-in security features (RLS, auth policies).
+- Implement proper input validation on both client and server side.
+- Use react-native-encrypted-storage for sensitive local data.
+- Ensure secure communication using HTTPS and proper authentication.
+- Follow Expo's security guidelines: https://docs.expo.dev/guides/security/
+- Implement proper logout procedures that clear all local data.
+
+## Offline Support
+
+- Implement offline-first patterns where appropriate.
+- Use AsyncStorage for caching critical data locally.
+- Handle sync conflicts when coming back online.
+- Provide clear offline/online status indicators to users.
+- Queue failed operations for retry when connection is restored.
+
+## Internationalization (i18n)
+
+- Use react-native-i18n or expo-localization for internationalization.
+- Support multiple languages and RTL layouts.
+- Ensure text scaling and font adjustments for accessibility.
+- Consider cultural differences in date/time formatting and number display.
+
+## Key Conventions
+
+1. Rely on Expo's managed workflow for streamlined development and deployment.
+2. Prioritize Mobile Web Vitals (Load Time, Jank, and Responsiveness).
+3. Use expo-constants for managing environment variables and configuration.
+4. Handle device permissions gracefully using expo-permissions.
+5. Implement expo-updates for over-the-air (OTA) updates.
+6. Follow Expo's best practices for app deployment: https://docs.expo.dev/distribution/introduction/
+7. Test extensively on both iOS and Android platforms.
+8. Use Supabase's TypeScript support for better developer experience.
+9. Implement proper data synchronization strategies between local and remote state.
+10. Follow Supabase's best practices for database design and query optimization.
+
+## Development Workflow
+
+- Set up proper development, staging, and production Supabase projects.
+- Use Supabase's migration system for database schema changes.
+- Implement proper CI/CD pipelines that work with both Expo and Supabase.
+- Use Supabase's CLI tools for local development and testing.
+- Monitor app performance and database usage through Supabase dashboard.
+
+## API Documentation
+
+- Document your database schema and API endpoints.
+- Use Supabase's auto-generated API documentation.
+- Create clear documentation for authentication flows and user permissions.
+- Document real-time subscription patterns and event handling.
+
+Refer to Expo's documentation (https://docs.expo.dev/) and Supabase's documentation (https://supabase.com/docs) for detailed information on best practices and implementation patterns.
