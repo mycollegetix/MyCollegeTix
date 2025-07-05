@@ -6,14 +6,15 @@ import {
   TextInput,
   Alert,
   Modal,
-  Animated,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  View,
+  Text,
 } from "react-native";
-import { Text, View } from "@/src/components/Themed";
 import { UserAvatar } from "@/src/components/UserAvatar";
 import Colors from "@/src/constants/Colors";
 import { useColorScheme } from "@/src/components/useColorScheme";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
@@ -104,26 +105,6 @@ export default function ProfileScreen() {
     );
   };
 
-  const QuickActionCard = ({
-    icon,
-    title,
-    onPress,
-    color = "#18453b",
-  }: {
-    icon: string;
-    title: string;
-    onPress: () => void;
-    color?: string;
-  }) => (
-    <TouchableOpacity style={styles.actionCard} onPress={onPress}>
-      <BlurView intensity={20} style={styles.actionCardBlur}>
-        <Ionicons name={icon as any} size={24} color={color} />
-        <Text style={[styles.actionCardText, { color }]}>{title}</Text>
-        <Ionicons name="chevron-forward" size={16} color={color} />
-      </BlurView>
-    </TouchableOpacity>
-  );
-
   const PasswordStrengthIndicator = ({ password }: { password: string }) => {
     const getStrength = () => {
       if (password.length < 6)
@@ -152,243 +133,346 @@ export default function ProfileScreen() {
     );
   };
 
+  const InfoCard = ({
+    icon,
+    label,
+    value,
+  }: {
+    icon: string;
+    label: string;
+    value: string;
+  }) => (
+    <View style={styles.infoCard}>
+      <View style={styles.infoIconContainer}>
+        <Ionicons name={icon as any} size={20} color="#18453b" />
+      </View>
+      <View style={styles.infoContent}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={styles.infoValue}>{value}</Text>
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={["#0f2f28", "#18453b", "#2a6b5a"]}
+        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
         style={styles.background}
       />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+      {/* Floating elements */}
+      <View style={styles.floatingElement1} />
+      <View style={styles.floatingElement2} />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardContainer}
       >
-        {/* Header Section */}
-        <View style={styles.headerSection}>
-          <View style={styles.avatarContainer}>
-            <LinearGradient
-              colors={["#ffd700", "#ffed4a"]}
-              style={styles.avatarGradient}
-            >
-              <UserAvatar
-                size={80}
-                name={profile?.full_name || user?.email || ""}
-              />
-            </LinearGradient>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header Section */}
+          <View style={styles.headerSection}>
+            <View style={styles.logoContainer}>
+              <LinearGradient
+                colors={["#ffd700", "#ffed4a"]}
+                style={styles.logo}
+              >
+                <Ionicons
+                  name="person-circle-outline"
+                  size={32}
+                  color="#18453b"
+                />
+              </LinearGradient>
+            </View>
+            <Text style={styles.headerTitle}>
+              {profile?.full_name || "MSU Student"}
+            </Text>
+            <Text style={styles.headerSubtitle}>{user?.email}</Text>
           </View>
 
-          <Text style={styles.userName}>
-            {profile?.full_name || "MSU Student"}
-          </Text>
-          <Text style={styles.userEmail}>{user?.email}</Text>
-        </View>
-
-        {/* Section Tabs */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeSection === "profile" && styles.activeTab,
-            ]}
-            onPress={() => setActiveSection("profile")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeSection === "profile" && styles.activeTabText,
-              ]}
-            >
-              Profile
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeSection === "settings" && styles.activeTab,
-            ]}
-            onPress={() => setActiveSection("settings")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeSection === "settings" && styles.activeTabText,
-              ]}
-            >
-              Settings
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Content Section */}
-        <View style={styles.contentSection}>
-          {activeSection === "profile" ? (
-            <View style={styles.profileContent}>
-              <Text style={styles.sectionTitle}>Account Information</Text>
-
-              <View style={styles.infoCard}>
-                <View style={styles.infoItem}>
-                  <Ionicons name="person-outline" size={20} color="#18453b" />
-                  <View style={styles.infoTextContainer}>
-                    <Text style={styles.infoLabel}>Full Name</Text>
-                    <Text style={styles.infoValue}>
-                      {profile?.full_name || "Not set"}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.infoItem}>
-                  <Ionicons name="mail-outline" size={20} color="#18453b" />
-                  <View style={styles.infoTextContainer}>
-                    <Text style={styles.infoLabel}>Email Address</Text>
-                    <Text style={styles.infoValue}>{user?.email}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.infoItem}>
-                  <Ionicons name="calendar-outline" size={20} color="#18453b" />
-                  <View style={styles.infoTextContainer}>
-                    <Text style={styles.infoLabel}>Member Since</Text>
-                    <Text style={styles.infoValue}>
-                      {user?.created_at
-                        ? new Date(user.created_at).toLocaleDateString()
-                        : "Unknown"}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.settingsContent}>
-              <Text style={styles.sectionTitle}>Security Settings</Text>
-
-              {/* Password Update Form */}
-              <View style={styles.formCard}>
-                <Text style={styles.formTitle}>Update Password</Text>
-                <Text style={styles.formSubtitle}>
-                  Enter a new password to update your account security
-                </Text>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>New Password</Text>
-                  <View style={styles.inputWrapper}>
-                    <Ionicons
-                      name="lock-closed-outline"
-                      size={20}
-                      color="#9ca3af"
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter new password"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                      placeholderTextColor="#9ca3af"
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                      style={styles.eyeIcon}
-                    >
-                      <Ionicons
-                        name={showPassword ? "eye-outline" : "eye-off-outline"}
-                        size={20}
-                        color="#9ca3af"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  {password.length > 0 && (
-                    <PasswordStrengthIndicator password={password} />
-                  )}
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Confirm Password</Text>
-                  <View style={styles.inputWrapper}>
-                    <Ionicons
-                      name="lock-closed-outline"
-                      size={20}
-                      color="#9ca3af"
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Confirm new password"
-                      value={confirmPassword}
-                      onChangeText={setConfirmPassword}
-                      secureTextEntry={!showConfirmPassword}
-                      placeholderTextColor="#9ca3af"
-                    />
-                    <TouchableOpacity
-                      onPress={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
-                      style={styles.eyeIcon}
-                    >
-                      <Ionicons
-                        name={
-                          showConfirmPassword
-                            ? "eye-outline"
-                            : "eye-off-outline"
-                        }
-                        size={20}
-                        color="#9ca3af"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  {confirmPassword.length > 0 &&
-                    confirmPassword !== password && (
-                      <Text style={styles.errorText}>
-                        Passwords do not match
-                      </Text>
-                    )}
-                </View>
-
-                <TouchableOpacity
+          {/* Tab Section */}
+          <View style={styles.tabSection}>
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.tab,
+                  activeSection === "profile" && styles.activeTab,
+                ]}
+                onPress={() => setActiveSection("profile")}
+              >
+                <Ionicons
+                  name="person-circle-outline"
+                  size={20}
+                  color={activeSection === "profile" ? "white" : "#6b7280"}
+                />
+                <Text
                   style={[
-                    styles.updateButton,
-                    isLoading && styles.loadingButton,
+                    styles.tabText,
+                    activeSection === "profile" && styles.activeTabText,
                   ]}
-                  onPress={handlePasswordUpdate}
-                  disabled={
-                    isLoading || !password || password !== confirmPassword
-                  }
                 >
-                  <LinearGradient
-                    colors={["#18453b", "#2a6b5a"]}
-                    style={styles.buttonGradient}
-                  >
-                    <Text style={styles.buttonText}>
-                      {isLoading ? "Updating..." : "Update Password"}
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
+                  Profile
+                </Text>
+              </TouchableOpacity>
 
-              {/* Danger Zone */}
-              <View style={styles.dangerZone}>
-                <Text style={styles.dangerTitle}>Danger Zone</Text>
-                <Text style={styles.dangerSubtitle}>
-                  These actions cannot be undone
+              <TouchableOpacity
+                style={[
+                  styles.tab,
+                  activeSection === "settings" && styles.activeTab,
+                ]}
+                onPress={() => setActiveSection("settings")}
+              >
+                <Ionicons
+                  name="settings-outline"
+                  size={20}
+                  color={activeSection === "settings" ? "white" : "#6b7280"}
+                />
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeSection === "settings" && styles.activeTabText,
+                  ]}
+                >
+                  Settings
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Content Section */}
+          <View style={styles.contentSection}>
+            {activeSection === "profile" ? (
+              <View style={styles.profileContent}>
+                <Text style={styles.sectionTitle}>Account Information</Text>
+                <Text style={styles.sectionSubtitle}>
+                  Your personal account details
                 </Text>
 
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => setDeleteModalVisible(true)}
-                >
-                  <Ionicons name="trash-outline" size={20} color="#fff" />
-                  <Text style={styles.deleteButtonText}>Delete Account</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+                <View style={styles.infoGrid}>
+                  <InfoCard
+                    icon="person-outline"
+                    label="Full Name"
+                    value={profile?.full_name || "Not set"}
+                  />
+                  <InfoCard
+                    icon="mail-outline"
+                    label="Email Address"
+                    value={user?.email || ""}
+                  />
+                  <InfoCard
+                    icon="calendar-outline"
+                    label="Member Since"
+                    value={
+                      user?.created_at
+                        ? new Date(user.created_at).toLocaleDateString()
+                        : "Unknown"
+                    }
+                  />
+                </View>
 
-          {/* Logout Button */}
-          <TouchableOpacity style={styles.logoutButton} onPress={handleSignOut}>
-            <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-            <Text style={styles.logoutText}>Sign Out</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+                {/* Quick Actions */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Quick Actions</Text>
+                  <Text style={styles.sectionSubtitle}>
+                    Manage your account preferences
+                  </Text>
+
+                  <View style={styles.quickActionsGrid}>
+                    <TouchableOpacity style={styles.quickActionCard}>
+                      <View style={styles.quickActionIcon}>
+                        <Ionicons
+                          name="notifications-outline"
+                          size={24}
+                          color="#18453b"
+                        />
+                      </View>
+                      <Text style={styles.quickActionText}>Notifications</Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color="#6b7280"
+                      />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.quickActionCard}>
+                      <View style={styles.quickActionIcon}>
+                        <Ionicons
+                          name="help-circle-outline"
+                          size={24}
+                          color="#18453b"
+                        />
+                      </View>
+                      <Text style={styles.quickActionText}>Help & Support</Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color="#6b7280"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.settingsContent}>
+                <Text style={styles.sectionTitle}>Security Settings</Text>
+                <Text style={styles.sectionSubtitle}>
+                  Manage your account security and privacy
+                </Text>
+
+                {/* Password Update Form */}
+                <View style={styles.formCard}>
+                  <Text style={styles.formTitle}>Update Password</Text>
+                  <Text style={styles.formSubtitle}>
+                    Enter a new password to update your account security
+                  </Text>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>New Password</Text>
+                    <View style={styles.inputWrapper}>
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={20}
+                        color="#9ca3af"
+                        style={styles.inputIcon}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Enter new password"
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry={!showPassword}
+                        placeholderTextColor="#9ca3af"
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowPassword(!showPassword)}
+                        style={styles.eyeIcon}
+                      >
+                        <Ionicons
+                          name={
+                            showPassword ? "eye-outline" : "eye-off-outline"
+                          }
+                          size={20}
+                          color="#9ca3af"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    {password.length > 0 && (
+                      <PasswordStrengthIndicator password={password} />
+                    )}
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Confirm Password</Text>
+                    <View style={styles.inputWrapper}>
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={20}
+                        color="#9ca3af"
+                        style={styles.inputIcon}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Confirm new password"
+                        value={confirmPassword}
+                        onChangeText={setConfirmPassword}
+                        secureTextEntry={!showConfirmPassword}
+                        placeholderTextColor="#9ca3af"
+                      />
+                      <TouchableOpacity
+                        onPress={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                        style={styles.eyeIcon}
+                      >
+                        <Ionicons
+                          name={
+                            showConfirmPassword
+                              ? "eye-outline"
+                              : "eye-off-outline"
+                          }
+                          size={20}
+                          color="#9ca3af"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    {confirmPassword.length > 0 &&
+                      confirmPassword !== password && (
+                        <Text style={styles.errorText}>
+                          Passwords do not match
+                        </Text>
+                      )}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.updateButton,
+                      isLoading && styles.loadingButton,
+                    ]}
+                    onPress={handlePasswordUpdate}
+                    disabled={
+                      isLoading || !password || password !== confirmPassword
+                    }
+                  >
+                    <LinearGradient
+                      colors={["#18453b", "#2a6b5a"]}
+                      style={styles.buttonGradient}
+                    >
+                      <Text style={styles.buttonText}>
+                        {isLoading ? "Updating..." : "Update Password"}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Danger Zone */}
+                <View style={styles.dangerZone}>
+                  <Text style={styles.dangerTitle}>Danger Zone</Text>
+                  <Text style={styles.dangerSubtitle}>
+                    These actions cannot be undone
+                  </Text>
+
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => setDeleteModalVisible(true)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#fff" />
+                    <Text style={styles.deleteButtonText}>Delete Account</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Sign Out Button */}
+            <TouchableOpacity
+              style={styles.signOutButton}
+              onPress={handleSignOut}
+            >
+              <Ionicons name="log-out-outline" size={20} color="#ef4444" />
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+
+            {/* Security Info */}
+            <BlurView intensity={20} style={styles.infoBox}>
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={24}
+                color="#18453b"
+              />
+              <View style={styles.infoBoxContent}>
+                <Text style={styles.infoBoxTitle}>Secure & Protected</Text>
+                <Text style={styles.infoBoxText}>
+                  Your personal information is encrypted and secure with MSU
+                  Ticket Exchange.
+                </Text>
+              </View>
+            </BlurView>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Delete Account Modal */}
       <Modal
@@ -448,69 +532,103 @@ const styles = StyleSheet.create({
   },
   background: {
     position: "absolute",
+    top: 0,
     left: 0,
     right: 0,
-    top: 0,
     bottom: 0,
+  },
+  floatingElement1: {
+    position: "absolute",
+    top: "15%",
+    left: "10%",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255, 215, 0, 0.08)",
+  },
+  floatingElement2: {
+    position: "absolute",
+    bottom: "30%",
+    right: "15%",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  keyboardContainer: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    flexGrow: 1,
+    paddingTop: 50,
   },
   headerSection: {
     alignItems: "center",
-    paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 30,
   },
-  avatarContainer: {
+  logoContainer: {
     marginBottom: 20,
   },
-  avatarGradient: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  logo: {
+    width: 70,
+    height: 70,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#ffd700",
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 8,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  userName: {
-    fontSize: 28,
+  headerTitle: {
+    fontSize: 32,
     fontWeight: "800",
     color: "white",
     marginBottom: 8,
     textAlign: "center",
   },
-  userEmail: {
+  headerSubtitle: {
     fontSize: 16,
-    color: "rgba(255, 255, 255, 0.8)",
-    marginBottom: 40,
+    color: "rgba(255, 255, 255, 0.9)",
+    textAlign: "center",
+    paddingHorizontal: 20,
+    lineHeight: 22,
+  },
+  tabSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   tabContainer: {
     flexDirection: "row",
     backgroundColor: "white",
-    marginHorizontal: 20,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 20,
+    borderRadius: 16,
+    padding: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     alignItems: "center",
-    borderRadius: 8,
+    borderRadius: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
   },
   activeTab: {
     backgroundColor: "#18453b",
   },
   tabText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: "#6b7280",
   },
@@ -519,69 +637,122 @@ const styles = StyleSheet.create({
   },
   contentSection: {
     backgroundColor: "white",
-    marginHorizontal: 20,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 40,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
   },
   profileContent: {
-    gap: 20,
+    gap: 32,
   },
   settingsContent: {
-    gap: 20,
+    gap: 32,
+  },
+  section: {
+    marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "700",
     color: "#18453b",
-    marginBottom: 16,
+    marginBottom: 4,
   },
-  infoCard: {
+  sectionSubtitle: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 20,
+  },
+  infoGrid: {
     gap: 16,
   },
-  infoItem: {
+  infoCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
   },
-  infoTextContainer: {
+  infoIconContainer: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#f0f9ff",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  infoContent: {
     flex: 1,
   },
   infoLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#6b7280",
+    fontWeight: "500",
     marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   infoValue: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#111827",
+    color: "#1e293b",
+  },
+  quickActionsGrid: {
+    gap: 12,
+  },
+  quickActionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  quickActionIcon: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#f0f9ff",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  quickActionText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1e293b",
   },
   formCard: {
-    backgroundColor: "#f8f9fa",
-    borderRadius: 12,
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
     padding: 20,
-    gap: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
   },
   formTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     color: "#18453b",
+    marginBottom: 4,
   },
   formSubtitle: {
     fontSize: 14,
     color: "#6b7280",
+    marginBottom: 20,
   },
   inputGroup: {
-    gap: 8,
+    marginBottom: 20,
   },
   inputLabel: {
     fontSize: 12,
     fontWeight: "600",
     color: "#18453b",
+    marginBottom: 8,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -610,7 +781,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginTop: 4,
+    marginTop: 8,
   },
   strengthBar: {
     flex: 1,
@@ -631,14 +802,20 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     color: "#ef4444",
-    marginTop: 4,
+    marginTop: 8,
   },
   updateButton: {
     borderRadius: 12,
     marginTop: 8,
+    shadowColor: "#18453b",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   loadingButton: {
-    opacity: 0.8,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   buttonGradient: {
     paddingVertical: 16,
@@ -654,20 +831,21 @@ const styles = StyleSheet.create({
   },
   dangerZone: {
     backgroundColor: "#fef2f2",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
     borderWidth: 1,
     borderColor: "#fecaca",
-    gap: 12,
   },
   dangerTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#dc2626",
+    marginBottom: 4,
   },
   dangerSubtitle: {
     fontSize: 14,
     color: "#991b1b",
+    marginBottom: 16,
   },
   deleteButton: {
     flexDirection: "row",
@@ -683,20 +861,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  logoutButton: {
+  signOutButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: "#f3f4f6",
+    borderTopColor: "#f1f5f9",
     marginTop: 20,
+    marginBottom: 20,
   },
-  logoutText: {
+  signOutText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#ef4444",
+  },
+  infoBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(24, 69, 59, 0.2)",
+    gap: 12,
+  },
+  infoBoxContent: {
+    flex: 1,
+  },
+  infoBoxTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#18453b",
+    marginBottom: 4,
+  },
+  infoBoxText: {
+    fontSize: 12,
+    color: "#6b7280",
+    lineHeight: 16,
   },
   modalOverlay: {
     flex: 1,
