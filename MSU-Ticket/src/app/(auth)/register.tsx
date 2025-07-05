@@ -9,11 +9,14 @@ import {
   Platform,
   ScrollView,
   Dimensions,
+  Alert,
 } from "react-native";
 import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import { useAuth } from "@/src/providers/AuthProvider";
+import { supabase } from "@/src/lib/supabase";
 
 const { width, height } = Dimensions.get("window");
 
@@ -26,15 +29,20 @@ export default function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const { signUp } = useAuth();
+
   const handleRegister = async () => {
     setIsLoading(true);
-    // Simulate loading
-    setTimeout(() => {
-      setIsLoading(false);
-      console.log("Register pressed");
-    }, 2000);
+    const { error } = await signUp(email, password, name);
+    if (error) {
+      Alert.alert("Registration Failed", error.message);
+    } else {
+      // Optionally, you can navigate the user to the login screen
+      // or directly to the main app area upon successful registration.
+      Alert.alert("Success", "Your account has been created successfully!");
+    }
+    setIsLoading(false);
   };
-
   const getPasswordStrength = (password: string) => {
     if (password.length < 6) return { color: "#ef4444", text: "Weak" };
     if (password.length < 10) return { color: "#f59e0b", text: "Medium" };

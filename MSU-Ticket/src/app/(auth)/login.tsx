@@ -15,6 +15,7 @@ import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import { useAuth } from "@/src/providers/AuthProvider";
 
 const { width, height } = Dimensions.get("window");
 
@@ -25,13 +26,15 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
+  const { signIn } = useAuth();
+
   const handleLogin = async () => {
     setIsLoading(true);
-    // Simulate loading
-    setTimeout(() => {
-      setIsLoading(false);
-      console.log("Login pressed");
-    }, 2000);
+    const { error } = await signIn(email, password);
+    if (error) {
+      Alert.alert("Login Failed", error.message);
+    }
+    setIsLoading(false);
   };
 
   const StatCard = ({ number, label }: { number: string; label: string }) => (
