@@ -10,12 +10,15 @@ import {
   ScrollView,
   Animated,
   Dimensions,
+  Alert,
+  Modal,
 } from "react-native";
 import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { supabase } from "@/src/lib/supabase";
 
 const { width, height } = Dimensions.get("window");
 
@@ -25,16 +28,114 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [forgotPasswordVisible, setForgotPasswordVisible] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [isResetLoading, setIsResetLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   const { signIn } = useAuth();
 
   const handleLogin = async () => {
-    setIsLoading(true);
-    const { error } = await signIn(email, password);
-    if (error) {
-      Alert.alert("Login Failed", error.message);
+    // Clear any previous errors
+    setLoginError("");
+
+    if (!email || !password) {
+      setLoginError("Please enter both email and password");
+      return;
     }
-    setIsLoading(false);
+
+    setIsLoading(true);
+    try {
+      const { error } = await signIn(email, password);
+      if (error) {
+        console.error("Login error:", error);
+
+        // Handle specific error types
+        if (error.message.includes("Invalid login credentials")) {
+          setLoginError(
+            "Invalid email or password. Please check your credentials and try again."
+          );
+        } else if (error.message.includes("Email not confirmed")) {
+          setLoginError(
+            "Please check your email and confirm your account before signing in."
+          );
+        } else if (error.message.includes("Too many requests")) {
+          setLoginError(
+            "Too many login attempts. Please wait a moment and try again."
+          );
+        } else {
+          setLoginError(
+            "Login failed. Please check your credentials and try again."
+          );
+        }
+      }
+    } catch (error: any) {
+      console.error("Unexpected login error:", error);
+      setLoginError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!resetEmail) {
+      Alert.alert("Error", "Please enter your email address");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(resetEmail)) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+
+    setIsResetLoading(true);
+    try {
+      console.log("🔐 Sending password reset email to:", resetEmail);
+
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: "your-app://reset-password", // You can customize this
+      });
+
+      if (error) {
+        console.error("❌ Password reset error:", error);
+        throw error;
+      }
+
+      console.log("✅ Password reset email sent successfully");
+
+      Alert.alert(
+        "Password Reset Email Sent",
+        `We've sent a password reset link to ${resetEmail}. Please check your email and follow the instructions to reset your password.`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              setForgotPasswordVisible(false);
+              setResetEmail("");
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error("❌ Password reset failed:", error);
+
+      if (error.message.includes("User not found")) {
+        Alert.alert(
+          "Email Not Found",
+          "No account found with this email address. Please check the email or create a new account."
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          error.message ||
+            "Failed to send password reset email. Please try again."
+        );
+      }
+    } finally {
+      setIsResetLoading(false);
+    }
   };
 
   const StatCard = ({ number, label }: { number: string; label: string }) => (
@@ -60,6 +161,7 @@ export default function LoginScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
         bounces={true}
+        keyboardShouldPersistTaps="handled"
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -101,10 +203,24 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.formContainer}>
+              {/* Error Message */}
+              {loginError ? (
+                <View style={styles.errorContainer}>
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={20}
+                    color="#ef4444"
+                  />
+                  <Text style={styles.errorText}>{loginError}</Text>
+                </View>
+              ) : null}
+
               {/* Email Input */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Email Address</Text>
-                <View style={styles.inputWrapper}>
+                <View
+                  style={[styles.inputWrapper, loginError && styles.inputError]}
+                >
                   <Ionicons
                     name="mail-outline"
                     size={20}
@@ -114,7 +230,10 @@ export default function LoginScreen() {
                   <TextInput
                     placeholder="Enter your email"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      if (loginError) setLoginError(""); // Clear error when user types
+                    }}
                     style={styles.input}
                     autoCapitalize="none"
                     keyboardType="email-address"
@@ -126,7 +245,9 @@ export default function LoginScreen() {
               {/* Password Input */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Password</Text>
-                <View style={styles.inputWrapper}>
+                <View
+                  style={[styles.inputWrapper, loginError && styles.inputError]}
+                >
                   <Ionicons
                     name="lock-closed-outline"
                     size={20}
@@ -136,7 +257,10 @@ export default function LoginScreen() {
                   <TextInput
                     placeholder="Enter your password"
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (loginError) setLoginError(""); // Clear error when user types
+                    }}
                     secureTextEntry={!showPassword}
                     style={[styles.input, { flex: 1 }]}
                     autoCapitalize="none"
@@ -171,7 +295,9 @@ export default function LoginScreen() {
                   <Text style={styles.rememberText}>Remember me</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setForgotPasswordVisible(true)}
+                >
                   <Text style={styles.forgotPassword}>Forgot password?</Text>
                 </TouchableOpacity>
               </View>
@@ -245,6 +371,100 @@ export default function LoginScreen() {
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
+
+      {/* Forgot Password Modal */}
+      <Modal
+        visible={forgotPasswordVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setForgotPasswordVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={50} style={styles.modalBlur}>
+            <View style={styles.modal}>
+              <View style={styles.modalHeader}>
+                <View style={styles.modalIcon}>
+                  <Ionicons name="mail-outline" size={32} color="#18453b" />
+                </View>
+                <Text style={styles.modalTitle}>Reset Password</Text>
+                <Text style={styles.modalSubtitle}>
+                  Enter your email to receive a password reset link
+                </Text>
+              </View>
+
+              <View style={styles.modalContent}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Email Address</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons
+                      name="mail-outline"
+                      size={20}
+                      color="#9ca3af"
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter your email address"
+                      value={resetEmail}
+                      onChangeText={setResetEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      placeholderTextColor="#9ca3af"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.modalInfo}>
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={20}
+                    color="#6b7280"
+                  />
+                  <Text style={styles.infoText}>
+                    We'll send a secure link to reset your password to this
+                    email address.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => {
+                    setForgotPasswordVisible(false);
+                    setResetEmail("");
+                  }}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.resetButton,
+                    isResetLoading && styles.loadingButton,
+                  ]}
+                  onPress={handleForgotPassword}
+                  disabled={isResetLoading}
+                >
+                  <LinearGradient
+                    colors={["#18453b", "#2a6b5a"]}
+                    style={styles.buttonGradient}
+                  >
+                    {isResetLoading ? (
+                      <View style={styles.loadingContainer}>
+                        <Text style={styles.buttonText}>Sending...</Text>
+                        <View style={styles.spinner} />
+                      </View>
+                    ) : (
+                      <Text style={styles.buttonText}>Send Reset Link</Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </BlurView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -381,6 +601,23 @@ const styles = StyleSheet.create({
   formContainer: {
     paddingHorizontal: 20,
   },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#dc2626",
+    fontWeight: "500",
+  },
   inputGroup: {
     marginBottom: 20,
   },
@@ -401,6 +638,9 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
     paddingHorizontal: 16,
     height: 56,
+  },
+  inputError: {
+    borderColor: "#ef4444",
   },
   inputIcon: {
     marginRight: 12,
@@ -558,5 +798,87 @@ const styles = StyleSheet.create({
     color: "#18453b",
     fontWeight: "500",
     textAlign: "center",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalBlur: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modal: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 30,
+    width: "100%",
+    maxWidth: 400,
+  },
+  modalHeader: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  modalIcon: {
+    width: 60,
+    height: 60,
+    backgroundColor: "#f0f9ff",
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#18453b",
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: "#6b7280",
+    textAlign: "center",
+  },
+  modalContent: {
+    marginBottom: 24,
+  },
+  modalInfo: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 12,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#6b7280",
+    lineHeight: 16,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 16,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  resetButton: {
+    flex: 1,
+    borderRadius: 12,
   },
 });

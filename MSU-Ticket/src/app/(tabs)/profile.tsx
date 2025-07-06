@@ -3,7 +3,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  TextInput,
   Alert,
   Modal,
   Dimensions,
@@ -20,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useRouter } from "expo-router";
+import { supabase } from "@/src/lib/supabase";
 
 const { width, height } = Dimensions.get("window");
 
@@ -32,10 +32,6 @@ export default function ProfileScreen() {
   const [activeSection, setActiveSection] = useState<"profile" | "settings">(
     "profile"
   );
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
@@ -46,39 +42,92 @@ export default function ProfileScreen() {
     router.replace("/(auth)/login");
   };
 
-  const handlePasswordUpdate = async () => {
-    if (!password) {
-      Alert.alert("Error", "Please enter a new password");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
+  const handlePasswordReset = async () => {
+    if (!user?.email) {
+      Alert.alert("Error", "No email address found for your account");
       return;
     }
 
     setIsLoading(true);
     try {
-      // Here you would implement password update with Supabase
-      // const { error } = await supabase.auth.updateUser({ password });
-      // if (error) throw error;
+      console.log("🔐 Sending password reset email to:", user.email);
 
-      Alert.alert("Success", "Password updated successfully");
-      setPassword("");
-      setConfirmPassword("");
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email);
+
+      if (error) {
+        console.error("❌ Password reset error:", error);
+        throw error;
+      }
+
+      console.log("✅ Password reset email sent successfully");
+
+      Alert.alert(
+        "Password Reset Email Sent",
+        `We've sent a password reset link to ${user.email}. Please check your email and follow the instructions to reset your password.`,
+        [{ text: "OK" }]
+      );
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to update password");
+      console.error("❌ Password reset failed:", error);
+      Alert.alert(
+        "Error",
+        error.message ||
+          "Failed to send password reset email. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
+    try {
+      console.log("🗑️ Starting account deletion...");
+
+      if (!user?.id) {
+        throw new Error("No user found");
+      }
+
+      // Call the delete_user function
+      console.log("📝 Calling delete_user function...");
+      const { error: deleteError } = await supabase.rpc("delete_user");
+
+      if (deleteError) {
+        console.error("❌ Account deletion error:", deleteError);
+        throw deleteError;
+      }
+
+      console.log("✅ Account deleted successfully");
+
+      Alert.alert(
+        "Account Deleted",
+        "Your account has been deleted successfully. You will now be signed out.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              await signOut();
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error("❌ Account deletion failed:", error);
+
+      // Provide more specific error messages
+      if (
+        error.message.includes("permission denied") ||
+        error.message.includes("not found")
+      ) {
+        Alert.alert(
+          "Error",
+          "Unable to delete account. Please contact support for assistance."
+        );
+      } else {
+        Alert.alert("Error", error.message || "Failed to delete account");
+      }
+    }
+  };
+
+  const confirmDeleteAccount = () => {
     Alert.alert(
       "Final Confirmation",
       "Are you absolutely sure you want to delete your account? This action cannot be undone and will permanently remove all your data.",
@@ -87,49 +136,9 @@ export default function ProfileScreen() {
         {
           text: "Delete Account",
           style: "destructive",
-          onPress: async () => {
-            try {
-              // Here you would implement account deletion
-              // await deleteUserAccount();
-              Alert.alert(
-                "Account Deleted",
-                "Your account has been deleted successfully"
-              );
-              await signOut();
-            } catch (error: any) {
-              Alert.alert("Error", "Failed to delete account");
-            }
-          },
+          onPress: handleDeleteAccount,
         },
       ]
-    );
-  };
-
-  const PasswordStrengthIndicator = ({ password }: { password: string }) => {
-    const getStrength = () => {
-      if (password.length < 6)
-        return { color: "#ef4444", text: "Weak", flex: 0.25 };
-      if (password.length < 10)
-        return { color: "#f59e0b", text: "Medium", flex: 0.6 };
-      return { color: "#10b981", text: "Strong", flex: 1 };
-    };
-
-    const strength = getStrength();
-
-    return (
-      <View style={styles.strengthContainer}>
-        <View style={styles.strengthBar}>
-          <View
-            style={[
-              styles.strengthFill,
-              { backgroundColor: strength.color, flex: strength.flex },
-            ]}
-          />
-        </View>
-        <Text style={[styles.strengthText, { color: strength.color }]}>
-          {strength.text}
-        </Text>
-      </View>
     );
   };
 
@@ -323,107 +332,45 @@ export default function ProfileScreen() {
                   Manage your account security and privacy
                 </Text>
 
-                {/* Password Update Form */}
+                {/* Password Reset Card */}
                 <View style={styles.formCard}>
-                  <Text style={styles.formTitle}>Update Password</Text>
+                  <Text style={styles.formTitle}>Reset Password</Text>
                   <Text style={styles.formSubtitle}>
-                    Enter a new password to update your account security
+                    Send a secure password reset link to your email address
                   </Text>
 
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>New Password</Text>
-                    <View style={styles.inputWrapper}>
-                      <Ionicons
-                        name="lock-closed-outline"
-                        size={20}
-                        color="#9ca3af"
-                        style={styles.inputIcon}
-                      />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Enter new password"
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry={!showPassword}
-                        placeholderTextColor="#9ca3af"
-                      />
-                      <TouchableOpacity
-                        onPress={() => setShowPassword(!showPassword)}
-                        style={styles.eyeIcon}
-                      >
-                        <Ionicons
-                          name={
-                            showPassword ? "eye-outline" : "eye-off-outline"
-                          }
-                          size={20}
-                          color="#9ca3af"
-                        />
-                      </TouchableOpacity>
+                  <View style={styles.resetInfoBox}>
+                    <Ionicons name="mail-outline" size={24} color="#18453b" />
+                    <View style={styles.resetInfoContent}>
+                      <Text style={styles.resetInfoTitle}>Email Reset</Text>
+                      <Text style={styles.resetInfoText}>
+                        We'll send a secure link to{" "}
+                        {user?.email || "your email"} to reset your password
+                        safely.
+                      </Text>
                     </View>
-                    {password.length > 0 && (
-                      <PasswordStrengthIndicator password={password} />
-                    )}
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Confirm Password</Text>
-                    <View style={styles.inputWrapper}>
-                      <Ionicons
-                        name="lock-closed-outline"
-                        size={20}
-                        color="#9ca3af"
-                        style={styles.inputIcon}
-                      />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Confirm new password"
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        secureTextEntry={!showConfirmPassword}
-                        placeholderTextColor="#9ca3af"
-                      />
-                      <TouchableOpacity
-                        onPress={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
-                        style={styles.eyeIcon}
-                      >
-                        <Ionicons
-                          name={
-                            showConfirmPassword
-                              ? "eye-outline"
-                              : "eye-off-outline"
-                          }
-                          size={20}
-                          color="#9ca3af"
-                        />
-                      </TouchableOpacity>
-                    </View>
-                    {confirmPassword.length > 0 &&
-                      confirmPassword !== password && (
-                        <Text style={styles.errorText}>
-                          Passwords do not match
-                        </Text>
-                      )}
                   </View>
 
                   <TouchableOpacity
                     style={[
-                      styles.updateButton,
+                      styles.resetButton,
                       isLoading && styles.loadingButton,
                     ]}
-                    onPress={handlePasswordUpdate}
-                    disabled={
-                      isLoading || !password || password !== confirmPassword
-                    }
+                    onPress={handlePasswordReset}
+                    disabled={isLoading}
                   >
                     <LinearGradient
                       colors={["#18453b", "#2a6b5a"]}
                       style={styles.buttonGradient}
                     >
-                      <Text style={styles.buttonText}>
-                        {isLoading ? "Updating..." : "Update Password"}
-                      </Text>
+                      <View style={styles.buttonContent}>
+                        <Ionicons name="mail-outline" size={20} color="white" />
+                        <Text style={styles.buttonText}>
+                          {isLoading
+                            ? "Sending Reset Link..."
+                            : "Send Password Reset Email"}
+                        </Text>
+                      </View>
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>
@@ -512,7 +459,7 @@ export default function ProfileScreen() {
                   style={styles.confirmDeleteButton}
                   onPress={() => {
                     setDeleteModalVisible(false);
-                    handleDeleteAccount();
+                    confirmDeleteAccount();
                   }}
                 >
                   <Text style={styles.confirmDeleteText}>Delete Account</Text>
@@ -745,68 +692,33 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginBottom: 20,
   },
-  inputGroup: {
+  resetInfoBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f9ff",
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    gap: 12,
   },
-  inputLabel: {
-    fontSize: 12,
+  resetInfoContent: {
+    flex: 1,
+  },
+  resetInfoTitle: {
+    fontSize: 14,
     fontWeight: "600",
     color: "#18453b",
-    marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    marginBottom: 4,
   },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "white",
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
-    paddingHorizontal: 16,
-    height: 52,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: "#333",
-  },
-  eyeIcon: {
-    padding: 4,
-  },
-  strengthContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 8,
-  },
-  strengthBar: {
-    flex: 1,
-    height: 3,
-    backgroundColor: "#e5e7eb",
-    borderRadius: 2,
-    flexDirection: "row",
-  },
-  strengthFill: {
-    height: "100%",
-    borderRadius: 2,
-  },
-  strengthText: {
+  resetInfoText: {
     fontSize: 12,
-    fontWeight: "600",
-    minWidth: 50,
+    color: "#6b7280",
+    lineHeight: 16,
   },
-  errorText: {
-    fontSize: 12,
-    color: "#ef4444",
-    marginTop: 8,
-  },
-  updateButton: {
+  resetButton: {
     borderRadius: 12,
-    marginTop: 8,
     shadowColor: "#18453b",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -822,6 +734,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   buttonText: {
     color: "white",
