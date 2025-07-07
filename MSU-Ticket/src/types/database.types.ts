@@ -39,6 +39,9 @@ export interface Database {
           event_date: string;
           location: string;
           image_url: string | null;
+          section: string | null;
+          row_number: string | null;
+          seat_number: string | null;
         };
         Insert: {
           title: string;
@@ -48,6 +51,9 @@ export interface Database {
           event_date: string;
           location: string;
           image_url?: string | null;
+          section?: string | null;
+          row_number?: string | null;
+          seat_number?: string | null;
         };
         Update: {
           title?: string;
@@ -57,6 +63,9 @@ export interface Database {
           event_date?: string;
           location?: string;
           image_url?: string | null;
+          section?: string | null;
+          row_number?: string | null;
+          seat_number?: string | null;
         };
       };
     };

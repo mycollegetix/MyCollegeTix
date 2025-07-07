@@ -14,12 +14,14 @@ export class TicketService {
     sortBy = "event_date",
     limit = 50,
     offset = 0,
+    excludeUserId,
   }: {
     sport?: string;
     searchQuery?: string;
     sortBy?: "price_asc" | "price_desc" | "event_date" | "created_at";
     limit?: number;
     offset?: number;
+    excludeUserId?: string;
   } = {}): Promise<{ data: TicketWithSeller[]; error: any }> {
     try {
       let query = supabase
@@ -48,6 +50,12 @@ export class TicketService {
         query = query.or(
           `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,location.ilike.%${searchQuery}%`
         );
+      }
+
+      // Exclude user's own tickets
+      if (excludeUserId) {
+        console.log("🚫 Excluding tickets from user:", excludeUserId);
+        query = query.not("seller_id", "eq", excludeUserId);
       }
 
       // Sorting
@@ -111,16 +119,16 @@ export class TicketService {
 
   // Create new ticket listing
   static async createTicket(ticketData: {
-      title: string;
-      description: string;
-      price: number;
-      event_date: string;
-      location: string;
-      image_url?: string;
-      section?: string;
-      row_number?: string;
-      seat_number?: string;
-    }): Promise<{ data: Ticket | null; error: any }> {
+    title: string;
+    description: string;
+    price: number;
+    event_date: string;
+    location: string;
+    image_url?: string;
+    section?: string;
+    row_number?: string;
+    seat_number?: string;
+  }): Promise<{ data: Ticket | null; error: any }> {
     try {
       const {
         data: { user },

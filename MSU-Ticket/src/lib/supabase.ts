@@ -3,14 +3,29 @@ import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "../types/database.types";
+import { Platform } from "react-native";
 
 const supabaseUrl = "https://jcbsvogibivndsubxusm.supabase.co";
 const supabaseAnonKey =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjYnN2b2dpYml2bmRzdWJ4dXNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjk3NjEsImV4cCI6MjA2NjkwNTc2MX0.gVNGAXyERGmW6V2xs_da6NPCigmjam3jDclrMmu3KqA";
 
+// Define a mock storage for SSR
+const noopStorage = {
+  getItem: (_key: string) => Promise.resolve(null),
+  setItem: (_key: string, _value: string) => Promise.resolve(),
+  removeItem: (_key: string) => Promise.resolve(),
+};
+
+const storage =
+  Platform.OS === 'web'
+    ? typeof window !== 'undefined'
+      ? window.localStorage
+      : noopStorage // Use noopStorage during SSR
+    : AsyncStorage;
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
+    storage: storage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

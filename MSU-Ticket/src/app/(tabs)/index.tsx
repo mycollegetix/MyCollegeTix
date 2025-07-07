@@ -19,6 +19,7 @@ import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { TicketService } from "@/src/services/ticketService";
 import { TicketWithSeller } from "@/src/types/database.types";
+import { useAuth } from "@/src/providers/AuthProvider";
 
 const { width, height } = Dimensions.get("window");
 
@@ -40,6 +41,7 @@ const sortOptions = [
 
 export default function BrowseScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSport, setSelectedSport] = useState("All Sports");
   const [sortBy, setSortBy] = useState<
@@ -57,7 +59,9 @@ export default function BrowseScreen() {
 
     setLoading(true);
     const currentOffset = reset ? 0 : offset;
-
+    // ADD THIS DEBUG LINE:
+    console.log("🔍 Current user ID:", user?.id);
+    console.log("🎯 Exclude user ID:", user?.id);
     try {
       const { data, error } = await TicketService.getTickets({
         sport: selectedSport,
@@ -65,13 +69,35 @@ export default function BrowseScreen() {
         sortBy,
         limit: 20,
         offset: currentOffset,
+        excludeUserId: user?.id,
       });
+      // ADD THIS DEBUG LINE TOO:
+      console.log("📊 Tickets received:", data.length);
+      console.log(
+        "🎫 First few tickets seller IDs:",
+        data.slice(0, 3).map((t) => t.seller_id)
+      );
+      if (!user) {
+        console.log("⚠️ User not loaded yet, skipping ticket load");
+        setLoading(false);
+        return;
+      }
 
       if (error) {
         console.error("Error loading tickets:", error);
         Alert.alert("Error", "Failed to load tickets. Please try again.");
         return;
       }
+      // FRONTEND FILTER - Remove tickets from current user
+      const filteredData = data.filter(
+        (ticket) => ticket.seller_id !== user.id
+      );
+      console.log(
+        "📊 Tickets received:",
+        data.length,
+        "After filter:",
+        filteredData.length
+      );
 
       if (reset) {
         setTickets(data);
@@ -93,22 +119,31 @@ export default function BrowseScreen() {
 
   // Load tickets on mount and when filters change
   useEffect(() => {
-    loadTickets(true);
-  }, [selectedSport, sortBy]);
+    if (user?.id) {
+      // Only load when user is authenticated
+      loadTickets(true);
+    }
+  }, [selectedSport, sortBy, user?.id]);
 
   // Search with debounce
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      loadTickets(true);
-    }, 500);
+    if (user?.id) {
+      // Only search when user is authenticated
+      const timeoutId = setTimeout(() => {
+        loadTickets(true);
+      }, 500);
 
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchQuery, user?.id]);
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadTickets(true);
-  }, [selectedSport, sortBy, searchQuery]);
+    if (user?.id) {
+      // Only refresh when user is authenticated
+      setRefreshing(true);
+      loadTickets(true);
+    }
+  }, [selectedSport, sortBy, searchQuery, user?.id]);
 
   const loadMore = () => {
     if (hasMore && !loading) {
@@ -187,20 +222,15 @@ export default function BrowseScreen() {
       hour12: true,
     });
 
-    // Extract section, row, seat from description if available
-    const sectionMatch = ticket.description.match(/section\s*(\w+)/i);
-    const rowMatch = ticket.description.match(/row\s*(\w+)/i);
-    const seatMatch = ticket.description.match(/seat\s*(\w+)/i);
-
     return {
       id: ticket.id,
       sport: getSportFromTitle(ticket.title),
       event: ticket.title,
       date: `${dateStr} • ${timeStr}`,
       price: ticket.price,
-      section: sectionMatch?.[1] || "N/A",
-      row: rowMatch?.[1] || "N/A",
-      seat: seatMatch?.[1] || "N/A",
+      section: ticket.section || "N/A",
+      row: ticket.row_number || "N/A",
+      seat: ticket.seat_number || "N/A",
       location: ticket.location,
       seller: ticket.seller,
     };
@@ -226,9 +256,9 @@ export default function BrowseScreen() {
           event={formattedTicket.event}
           date={formattedTicket.date}
           price={formattedTicket.price}
-          section={formattedTicket.section}
-          row={formattedTicket.row}
-          seat={formattedTicket.seat}
+          section={item.section || "N/A"}
+          row={item.row_number || "N/A"}
+          seat={item.seat_number || "N/A"}
           onPress={() => handleTicketPress(item)}
         />
         <View style={styles.sportBadge}>

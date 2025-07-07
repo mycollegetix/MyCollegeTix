@@ -184,22 +184,9 @@ export default function OrdersScreen() {
     }
   };
 
-  const extractSeatInfo = (description: string) => {
-    const sectionMatch = description.match(/section\s*(\w+)/i);
-    const rowMatch = description.match(/row\s*(\w+)/i);
-    const seatMatch = description.match(/seat\s*(\w+)/i);
-
-    return {
-      section: sectionMatch?.[1] || "N/A",
-      row: rowMatch?.[1] || "N/A",
-      seat: seatMatch?.[1] || "N/A",
-    };
-  };
-
   const renderOrder = ({ item }: { item: TicketWithSeller }) => {
     const statusConfig = getStatusConfig(item.status);
     const sport = getSportFromTitle(item.title);
-    const seatInfo = extractSeatInfo(item.description);
     const formattedDate = formatEventDate(item.event_date);
 
     return (
@@ -239,8 +226,8 @@ export default function OrdersScreen() {
             <View style={styles.detailItem}>
               <Ionicons name="location-outline" size={16} color="#6b7280" />
               <Text style={styles.detailText}>
-                Section {seatInfo.section} • Row {seatInfo.row} • Seat{" "}
-                {seatInfo.seat}
+                Section {item.section} • Row {item.row_number} • Seat{" "}
+                {item.seat_number}
               </Text>
             </View>
           </View>
@@ -430,7 +417,7 @@ export default function OrdersScreen() {
                 style={styles.emptyActionButton}
                 onPress={() => {
                   if (activeTab === "buying") {
-                    router.push("/(tabs)/");
+                    router.push("/"); // Changed from "/(tabs)/" to just "/"
                   } else {
                     router.push("/(tabs)/sell");
                   }

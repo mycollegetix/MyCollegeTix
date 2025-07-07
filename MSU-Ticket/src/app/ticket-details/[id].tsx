@@ -65,7 +65,7 @@ export default function TicketDetailsScreen() {
   const handlePurchase = async () => {
     if (!ticket || !user) return;
 
-    if (ticket.seller_id === user.id) {
+    if (ticket.seller.id === user.id) {
       Alert.alert("Error", "You cannot purchase your own ticket.");
       return;
     }
@@ -189,18 +189,6 @@ export default function TicketDetailsScreen() {
     }
   };
 
-  const extractSeatInfo = (description: string) => {
-    const sectionMatch = description.match(/section\s*(\w+)/i);
-    const rowMatch = description.match(/row\s*(\w+)/i);
-    const seatMatch = description.match(/seat\s*(\w+)/i);
-
-    return {
-      section: sectionMatch?.[1] || "N/A",
-      row: rowMatch?.[1] || "N/A",
-      seat: seatMatch?.[1] || "N/A",
-    };
-  };
-
   if (loading) {
     return (
       <View style={styles.container}>
@@ -215,7 +203,7 @@ export default function TicketDetailsScreen() {
     );
   }
 
-  if (!ticket) {
+  if (!ticket || !ticket.seller) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -237,9 +225,8 @@ export default function TicketDetailsScreen() {
   }
 
   const sport = getSportFromTitle(ticket.title);
-  const seatInfo = extractSeatInfo(ticket.description);
   const { dateStr, timeStr } = formatEventDate(ticket.event_date);
-  const isOwnTicket = user?.id === ticket.seller_id;
+  const isOwnTicket = user?.id === ticket.seller.id;
   const isAvailable = ticket.status === "available";
 
   return (
@@ -324,51 +311,55 @@ export default function TicketDetailsScreen() {
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Seat Location</Text>
                 <Text style={styles.detailValue}>
-                  Section {seatInfo.section}, Row {seatInfo.row}, Seat{" "}
-                  {seatInfo.seat}
+                  Section {ticket.section}, Row {ticket.row_number}, Seat{" "}
+                  {ticket.seat_number}
                 </Text>
               </View>
             </View>
           </View>
 
           {/* Description */}
-          {ticket.description && (
-            <View style={styles.descriptionSection}>
-              <Text style={styles.sectionTitle}>Description</Text>
-              <Text style={styles.descriptionText}>{ticket.description}</Text>
-            </View>
-          )}
+          <View style={styles.descriptionSection}>
+            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.descriptionText}>
+              {ticket.description || "No description provided"}
+            </Text>
+          </View>
 
           {/* Seller Info */}
-          <View style={styles.sellerSection}>
-            <Text style={styles.sectionTitle}>Seller Information</Text>
-            <View style={styles.sellerCard}>
-              <View style={styles.sellerAvatar}>
-                <Text style={styles.sellerInitials}>
-                  {ticket.seller.full_name.charAt(0).toUpperCase()}
-                </Text>
+          {ticket.seller && (
+            <View style={styles.sellerSection}>
+              <Text style={styles.sectionTitle}>Seller Information</Text>
+              <View style={styles.sellerCard}>
+                <View style={styles.sellerAvatar}>
+                  <Text style={styles.sellerInitials}>
+                    {ticket.seller.full_name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.sellerInfo}>
+                  <Text style={styles.sellerName}>
+                    {ticket.seller.full_name}
+                  </Text>
+                  <Text style={styles.sellerUsername}>
+                    @{ticket.seller.username}
+                  </Text>
+                </View>
+                {!isOwnTicket && (
+                  <TouchableOpacity
+                    style={styles.contactButton}
+                    onPress={handleContactSeller}
+                  >
+                    <Ionicons
+                      name="chatbubble-outline"
+                      size={16}
+                      color="#18453b"
+                    />
+                    <Text style={styles.contactButtonText}>Contact</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-              <View style={styles.sellerInfo}>
-                <Text style={styles.sellerName}>{ticket.seller.full_name}</Text>
-                <Text style={styles.sellerUsername}>
-                  @{ticket.seller.username}
-                </Text>
-              </View>
-              {!isOwnTicket && (
-                <TouchableOpacity
-                  style={styles.contactButton}
-                  onPress={handleContactSeller}
-                >
-                  <Ionicons
-                    name="chatbubble-outline"
-                    size={16}
-                    color="#18453b"
-                  />
-                  <Text style={styles.contactButtonText}>Contact</Text>
-                </TouchableOpacity>
-              )}
             </View>
-          </View>
+          )}
 
           {/* Price Section */}
           <View style={styles.priceSection}>

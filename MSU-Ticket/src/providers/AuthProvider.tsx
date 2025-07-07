@@ -37,34 +37,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function initialize() {
       try {
-        console.log("🚀 Initializing auth...");
+        
         const {
           data: { session: initialSession },
           error: sessionError,
         } = await supabase.auth.getSession();
 
         if (sessionError) {
-          console.error("Error getting session:", sessionError.message);
+          
         }
 
         if (mounted) {
-          console.log("📱 Setting initial session:", !!initialSession);
+          
           setSession(initialSession);
           setUser(initialSession?.user ?? null);
           // Don't block loading on profile fetch
           if (initialSession?.user) {
             fetchProfile(initialSession.user.id).catch((error) => {
-              console.error("Error fetching initial profile:", error);
+              
             });
           }
         }
       } catch (error) {
-        console.error("Error initializing auth:", error);
+        
       } finally {
         if (mounted) {
-          console.log(
-            "✅ Auth initialization complete, setting isLoading to false"
-          );
+          
           setIsLoading(false);
         }
       }
@@ -75,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("🔄 Auth state changed:", event, !!session);
+      
       if (mounted) {
         setSession(session);
         setUser(session?.user ?? null);
@@ -83,14 +81,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Don't block on profile fetch
         if (session?.user) {
           fetchProfile(session.user.id).catch((error) => {
-            console.error("Error fetching profile on auth change:", error);
+            
           });
         } else {
           setProfile(null);
         }
 
         // Make sure isLoading is false after auth state changes
-        console.log("✅ Setting isLoading to false after auth state change");
+        
         setIsLoading(false);
       }
     });
@@ -103,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
-      console.log("🔍 Fetching profile for user:", userId);
+      
 
       // Add a timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) => {
@@ -122,15 +120,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ])) as any;
 
       if (error) {
-        console.warn("Error fetching profile:", error.message);
+        
         return null;
       }
 
       if (data) {
-        console.log("✅ Profile fetched successfully");
+        
         setProfile(data);
       } else {
-        console.log("⚠️ No profile data found");
+        
       }
       return data;
     } catch (error) {

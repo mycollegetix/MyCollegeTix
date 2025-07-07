@@ -41,8 +41,8 @@ export default function SellScreen() {
     date: "",
     time: "",
     section: "",
-    row: "",
-    seat: "",
+    row_number: "",
+    seat_number: "",
     price: "",
     location: "",
     description: "",
@@ -103,7 +103,7 @@ export default function SellScreen() {
       const eventDateTimeISO = eventDateTime.toISOString();
 
       // Create description with seat details
-      const seatInfo = `Section ${formData.section}, Row ${formData.row}, Seat ${formData.seat}`;
+      const seatInfo = `Section ${formData.section}, Row ${formData.row_number}, Seat ${formData.seat_number}`;
       const fullDescription = formData.description
         ? `${formData.description}\n\nSeat Details: ${seatInfo}`
         : `Seat Details: ${seatInfo}`;
@@ -115,8 +115,8 @@ export default function SellScreen() {
         event_date: eventDateTimeISO,
         location: formData.location,
         section: formData.section,
-        row_number: formData.row,
-        seat_number: formData.seat,
+        row_number: formData.row_number,
+        seat_number: formData.seat_number,
       });
 
       if (error) {
@@ -128,18 +128,19 @@ export default function SellScreen() {
           text: "View Listing",
           onPress: () => router.push(`/ticket-details/${data.id}`),
         },
+        // In sell.tsx, find the "List Another" section and fix it:
         {
           text: "List Another",
           onPress: () => {
-            // Reset form
+            // Reset form - REMOVE the 'row' and 'seat' fields
             setFormData({
               sport: "",
               event: "",
               date: "",
               time: "",
               section: "",
-              row: "",
-              seat: "",
+              row_number: "", // Use row_number, not row
+              seat_number: "", // Use seat_number, not seat
               price: "",
               location: "",
               description: "",
@@ -169,8 +170,8 @@ export default function SellScreen() {
       "date",
       "time",
       "section",
-      "row",
-      "seat",
+      "row_number",
+      "seat_number",
       "price",
       "location",
     ];
@@ -396,22 +397,18 @@ export default function SellScreen() {
                     <TextInput
                       style={[styles.input, { paddingLeft: 16 }]}
                       placeholder="Row"
-                      value={formData.row}
-                      onChangeText={(row) => setFormData({ ...formData, row })}
+                      value={formData.row_number}
+                      onChangeText={(row_number) =>
+                        setFormData({ ...formData, row_number })
+                      }
                       placeholderTextColor="#9ca3af"
                     />
-                  </View>
-                </View>
-
-                <View style={[styles.inputGroup, styles.thirdWidth]}>
-                  <Text style={styles.inputLabel}>Seat *</Text>
-                  <View style={styles.inputWrapper}>
                     <TextInput
                       style={[styles.input, { paddingLeft: 16 }]}
                       placeholder="Seat"
-                      value={formData.seat}
-                      onChangeText={(seat) =>
-                        setFormData({ ...formData, seat })
+                      value={formData.seat_number}
+                      onChangeText={(seat_number) =>
+                        setFormData({ ...formData, seat_number })
                       }
                       placeholderTextColor="#9ca3af"
                     />
