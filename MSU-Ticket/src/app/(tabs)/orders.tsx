@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// screens/orders.tsx - Updated Orders Screen
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   TouchableOpacity,
@@ -7,148 +8,163 @@ import {
   Text,
   Dimensions,
   ScrollView,
+  RefreshControl,
+  Alert,
 } from "react-native";
-import { TicketCard } from "@/src/components/TicketCard";
 import Colors from "@/src/constants/Colors";
 import { useColorScheme } from "@/src/components/useColorScheme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import { useRouter } from "expo-router";
+import { TicketService } from "@/src/services/ticketService";
+import { TicketWithSeller } from "@/src/types/database.types";
+import { useAuth } from "@/src/providers/AuthProvider";
 
 const { width, height } = Dimensions.get("window");
-
-// Mock data - we'll replace this with real data from Supabase later
-const mockOrders = {
-  buying: [
-    {
-      id: "1",
-      sport: "Football",
-      event: "MSU vs Michigan",
-      date: "Oct 21, 2024 • 7:30 PM",
-      price: 150.0,
-      section: "25",
-      row: "G",
-      seat: "12",
-      status: "Confirmed",
-    },
-    {
-      id: "2",
-      sport: "Basketball",
-      event: "MSU vs Ohio State",
-      date: "Nov 15, 2024 • 8:00 PM",
-      price: 75.0,
-      section: "118",
-      row: "C",
-      seat: "5",
-      status: "Pending",
-    },
-  ],
-  selling: [
-    {
-      id: "3",
-      sport: "Hockey",
-      event: "MSU vs Notre Dame",
-      date: "Dec 5, 2024 • 6:00 PM",
-      price: 45.0,
-      section: "8",
-      row: "K",
-      seat: "15",
-      status: "Listed",
-    },
-  ],
-};
 
 type OrderType = "buying" | "selling";
 
 export default function OrdersScreen() {
   const [activeTab, setActiveTab] = useState<OrderType>("buying");
+  const [purchases, setPurchases] = useState<TicketWithSeller[]>([]);
+  const [listings, setListings] = useState<TicketWithSeller[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const loadData = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      // Load both purchases and listings
+      const [purchasesResult, listingsResult] = await Promise.all([
+        TicketService.getUserPurchases(),
+        TicketService.getUserTickets(),
+      ]);
+
+      if (purchasesResult.error) {
+        console.error("Error loading purchases:", purchasesResult.error);
+      } else {
+        setPurchases(purchasesResult.data);
+      }
+
+      if (listingsResult.error) {
+        console.error("Error loading listings:", listingsResult.error);
+      } else {
+        setListings(listingsResult.data);
+      }
+    } catch (error) {
+      console.error("Error loading orders:", error);
+      Alert.alert("Error", "Failed to load your orders. Please try again.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [user]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData();
+  }, [user]);
 
   const getStatusConfig = (status: string) => {
     switch (status.toLowerCase()) {
-      case "confirmed":
+      case "sold":
         return {
           color: "#10b981",
           icon: "checkmark-circle-outline",
-          text: "Confirmed",
+          text: "Sold",
         };
-      case "pending":
-        return { color: "#f59e0b", icon: "time-outline", text: "Pending" };
-      case "listed":
-        return { color: "#3b82f6", icon: "pricetag-outline", text: "Listed" };
+      case "available":
+        return {
+          color: "#3b82f6",
+          icon: "pricetag-outline",
+          text: "Listed",
+        };
+      case "cancelled":
+        return {
+          color: "#ef4444",
+          icon: "close-circle-outline",
+          text: "Cancelled",
+        };
       default:
-        return { color: "#6b7280", icon: "help-circle-outline", text: status };
+        return {
+          color: "#6b7280",
+          icon: "help-circle-outline",
+          text: status,
+        };
     }
   };
 
   const getTabStats = (tab: OrderType) => {
-    const orders = mockOrders[tab];
+    const orders = tab === "buying" ? purchases : listings;
     const total = orders.reduce((sum, order) => sum + order.price, 0);
     return { count: orders.length, total };
   };
 
-  const renderOrder = ({ item }: { item: (typeof mockOrders.buying)[0] }) => {
-    const statusConfig = getStatusConfig(item.status);
-
-    return (
-      <View style={styles.orderCard}>
-        <View style={styles.orderHeader}>
-          <View style={styles.sportIconContainer}>
-            <Ionicons
-              name={getSportIcon(item.sport)}
-              size={24}
-              color="#18453b"
-            />
-          </View>
-          <View style={styles.orderInfo}>
-            <Text style={styles.eventName}>{item.event}</Text>
-            <Text style={styles.sportName}>{item.sport}</Text>
-          </View>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: statusConfig.color },
-            ]}
-          >
-            <Ionicons name={statusConfig.icon as any} size={12} color="white" />
-            <Text style={styles.statusText}>{statusConfig.text}</Text>
-          </View>
-        </View>
-
-        <View style={styles.orderDetails}>
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="calendar-outline" size={16} color="#6b7280" />
-              <Text style={styles.detailText}>{item.date}</Text>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="location-outline" size={16} color="#6b7280" />
-              <Text style={styles.detailText}>
-                Section {item.section} • Row {item.row} • Seat {item.seat}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.orderFooter}>
-          <View style={styles.priceContainer}>
-            <Text style={styles.priceLabel}>
-              {activeTab === "buying" ? "Paid" : "Listed for"}
-            </Text>
-            <Text style={styles.priceValue}>${item.price.toFixed(2)}</Text>
-          </View>
-
-          <TouchableOpacity style={styles.actionButton}>
-            <Text style={styles.actionButtonText}>View Details</Text>
-            <Ionicons name="chevron-forward" size={16} color="#18453b" />
-          </TouchableOpacity>
-        </View>
-      </View>
+  const handleCancelListing = async (ticketId: string) => {
+    Alert.alert(
+      "Cancel Listing",
+      "Are you sure you want to cancel this ticket listing?",
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { error } = await TicketService.cancelTicket(ticketId);
+              if (error) {
+                throw error;
+              }
+              Alert.alert("Success", "Listing cancelled successfully");
+              loadData(); // Refresh data
+            } catch (error) {
+              console.error("Error cancelling ticket:", error);
+              Alert.alert(
+                "Error",
+                "Failed to cancel listing. Please try again."
+              );
+            }
+          },
+        },
+      ]
     );
+  };
+
+  const formatEventDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const dateStr = date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    const timeStr = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    return `${dateStr} • ${timeStr}`;
+  };
+
+  const getSportFromTitle = (title: string): string => {
+    const lowerTitle = title.toLowerCase();
+    if (lowerTitle.includes("football")) return "Football";
+    if (lowerTitle.includes("basketball")) return "Basketball";
+    if (lowerTitle.includes("hockey")) return "Hockey";
+    if (lowerTitle.includes("soccer")) return "Soccer";
+    if (lowerTitle.includes("volleyball")) return "Volleyball";
+    return "Sports";
   };
 
   const getSportIcon = (sport: string) => {
@@ -168,8 +184,111 @@ export default function OrdersScreen() {
     }
   };
 
+  const extractSeatInfo = (description: string) => {
+    const sectionMatch = description.match(/section\s*(\w+)/i);
+    const rowMatch = description.match(/row\s*(\w+)/i);
+    const seatMatch = description.match(/seat\s*(\w+)/i);
+
+    return {
+      section: sectionMatch?.[1] || "N/A",
+      row: rowMatch?.[1] || "N/A",
+      seat: seatMatch?.[1] || "N/A",
+    };
+  };
+
+  const renderOrder = ({ item }: { item: TicketWithSeller }) => {
+    const statusConfig = getStatusConfig(item.status);
+    const sport = getSportFromTitle(item.title);
+    const seatInfo = extractSeatInfo(item.description);
+    const formattedDate = formatEventDate(item.event_date);
+
+    return (
+      <View style={styles.orderCard}>
+        <View style={styles.orderHeader}>
+          <View style={styles.sportIconContainer}>
+            <Ionicons
+              name={getSportIcon(sport) as any}
+              size={24}
+              color="#18453b"
+            />
+          </View>
+          <View style={styles.orderInfo}>
+            <Text style={styles.eventName}>{item.title}</Text>
+            <Text style={styles.sportName}>{sport}</Text>
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: statusConfig.color },
+            ]}
+          >
+            <Ionicons name={statusConfig.icon as any} size={12} color="white" />
+            <Text style={styles.statusText}>{statusConfig.text}</Text>
+          </View>
+        </View>
+
+        <View style={styles.orderDetails}>
+          <View style={styles.detailRow}>
+            <View style={styles.detailItem}>
+              <Ionicons name="calendar-outline" size={16} color="#6b7280" />
+              <Text style={styles.detailText}>{formattedDate}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailItem}>
+              <Ionicons name="location-outline" size={16} color="#6b7280" />
+              <Text style={styles.detailText}>
+                Section {seatInfo.section} • Row {seatInfo.row} • Seat{" "}
+                {seatInfo.seat}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailItem}>
+              <Ionicons name="business-outline" size={16} color="#6b7280" />
+              <Text style={styles.detailText}>{item.location}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.orderFooter}>
+          <View style={styles.priceContainer}>
+            <Text style={styles.priceLabel}>
+              {activeTab === "buying" ? "Paid" : "Listed for"}
+            </Text>
+            <Text style={styles.priceValue}>${item.price.toFixed(2)}</Text>
+          </View>
+
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => router.push(`/ticket-details/${item.id}`)}
+            >
+              <Text style={styles.actionButtonText}>View Details</Text>
+              <Ionicons name="chevron-forward" size={16} color="#18453b" />
+            </TouchableOpacity>
+
+            {/* Show cancel button for active listings */}
+            {activeTab === "selling" && item.status === "available" && (
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => handleCancelListing(item.id)}
+              >
+                <Ionicons name="close-outline" size={16} color="#ef4444" />
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   const buyingStats = getTabStats("buying");
   const sellingStats = getTabStats("selling");
+  const currentData = activeTab === "buying" ? purchases : listings;
 
   return (
     <View style={styles.container}>
@@ -185,6 +304,9 @@ export default function OrdersScreen() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header Section */}
         <View style={styles.headerSection}>
@@ -207,6 +329,9 @@ export default function OrdersScreen() {
               <View style={styles.statContent}>
                 <Text style={styles.statNumber}>{buyingStats.count}</Text>
                 <Text style={styles.statLabel}>Purchases</Text>
+                <Text style={styles.statValue}>
+                  ${buyingStats.total.toFixed(2)}
+                </Text>
               </View>
             </View>
             <View style={styles.statDivider} />
@@ -215,6 +340,9 @@ export default function OrdersScreen() {
               <View style={styles.statContent}>
                 <Text style={styles.statNumber}>{sellingStats.count}</Text>
                 <Text style={styles.statLabel}>Listings</Text>
+                <Text style={styles.statValue}>
+                  ${sellingStats.total.toFixed(2)}
+                </Text>
               </View>
             </View>
           </View>
@@ -265,9 +393,13 @@ export default function OrdersScreen() {
 
         {/* Orders List */}
         <View style={styles.ordersSection}>
-          {mockOrders[activeTab].length > 0 ? (
+          {loading ? (
+            <BlurView intensity={20} style={styles.loadingState}>
+              <Text style={styles.loadingText}>Loading your orders...</Text>
+            </BlurView>
+          ) : currentData.length > 0 ? (
             <FlatList
-              data={mockOrders[activeTab]}
+              data={currentData}
               renderItem={renderOrder}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
@@ -294,7 +426,16 @@ export default function OrdersScreen() {
                   ? "Start browsing tickets to make your first purchase"
                   : "List your first ticket to start selling"}
               </Text>
-              <TouchableOpacity style={styles.emptyActionButton}>
+              <TouchableOpacity
+                style={styles.emptyActionButton}
+                onPress={() => {
+                  if (activeTab === "buying") {
+                    router.push("/(tabs)/");
+                  } else {
+                    router.push("/(tabs)/sell");
+                  }
+                }}
+              >
                 <LinearGradient
                   colors={["#18453b", "#2a6b5a"]}
                   style={styles.emptyButtonGradient}
@@ -417,9 +558,14 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontWeight: "500",
   },
+  statValue: {
+    fontSize: 12,
+    color: "#10b981",
+    fontWeight: "600",
+  },
   statDivider: {
     width: 1,
-    height: 40,
+    height: 50,
     backgroundColor: "#e2e8f0",
     marginHorizontal: 20,
   },
@@ -556,6 +702,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#18453b",
   },
+  actionButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -569,6 +719,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#18453b",
+  },
+  cancelButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#fef2f2",
+    borderRadius: 12,
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#ef4444",
+  },
+  loadingState: {
+    alignItems: "center",
+    padding: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#6b7280",
+    fontStyle: "italic",
   },
   emptyState: {
     alignItems: "center",

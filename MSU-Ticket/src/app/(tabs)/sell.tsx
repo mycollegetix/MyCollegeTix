@@ -1,3 +1,4 @@
+// screens/sell.tsx - Updated Sell Screen
 import React, { useState } from "react";
 import {
   StyleSheet,
@@ -9,12 +10,15 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import Colors from "@/src/constants/Colors";
 import { useColorScheme } from "@/src/components/useColorScheme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import { useRouter } from "expo-router";
+import { TicketService } from "@/src/services/ticketService";
 
 const { width, height } = Dimensions.get("window");
 
@@ -29,6 +33,7 @@ const sports = [
 export default function SellScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
+  const router = useRouter();
 
   const [formData, setFormData] = useState({
     sport: "",
@@ -39,19 +44,139 @@ export default function SellScreen() {
     row: "",
     seat: "",
     price: "",
+    location: "",
+    description: "",
   });
 
   const [isLoading, setIsLoading] = useState(false);
 
+  const parseDateTime = (date: string, time: string): Date | null => {
+    const [month, day, year] = date.split("/").map(Number);
+    const [timePart, ampm] = time.split(" ");
+    let [hours, minutes] = timePart.split(":").map(Number);
+
+    if (ampm.toLowerCase() === "pm" && hours < 12) {
+      hours += 12;
+    } else if (ampm.toLowerCase() === "am" && hours === 12) {
+      hours = 0;
+    }
+
+    if (
+      isNaN(year) ||
+      isNaN(month) ||
+      isNaN(day) ||
+      isNaN(hours) ||
+      isNaN(minutes)
+    ) {
+      return null;
+    }
+
+    return new Date(year, month - 1, day, hours, minutes);
+  };
+
   const handleSubmit = async () => {
+    if (!isFormValid()) {
+      Alert.alert("Error", "Please fill in all required fields");
+      return;
+    }
+
     setIsLoading(true);
-    // We'll implement this with Supabase later
-    console.log("Form submitted:", formData);
-    setTimeout(() => setIsLoading(false), 2000); // Simulate API call
+
+    try {
+      const eventDateTime = parseDateTime(formData.date, formData.time);
+
+      if (!eventDateTime) {
+        Alert.alert(
+          "Error",
+          "Invalid date or time format. Please use MM/DD/YYYY and HH:MM AM/PM."
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      if (eventDateTime <= new Date()) {
+        Alert.alert("Error", "The event date must be in the future.");
+        setIsLoading(false);
+        return;
+      }
+
+      const eventDateTimeISO = eventDateTime.toISOString();
+
+      // Create description with seat details
+      const seatInfo = `Section ${formData.section}, Row ${formData.row}, Seat ${formData.seat}`;
+      const fullDescription = formData.description
+        ? `${formData.description}\n\nSeat Details: ${seatInfo}`
+        : `Seat Details: ${seatInfo}`;
+
+      const { data, error } = await TicketService.createTicket({
+        title: `${formData.sport}: ${formData.event}`,
+        description: fullDescription,
+        price: parseFloat(formData.price),
+        event_date: eventDateTimeISO,
+        location: formData.location,
+        section: formData.section,
+        row_number: formData.row,
+        seat_number: formData.seat,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      Alert.alert("Success!", "Your ticket has been listed successfully!", [
+        {
+          text: "View Listing",
+          onPress: () => router.push(`/ticket-details/${data.id}`),
+        },
+        {
+          text: "List Another",
+          onPress: () => {
+            // Reset form
+            setFormData({
+              sport: "",
+              event: "",
+              date: "",
+              time: "",
+              section: "",
+              row: "",
+              seat: "",
+              price: "",
+              location: "",
+              description: "",
+            });
+          },
+        },
+        {
+          text: "Go to My Listings",
+          onPress: () => router.push("/(tabs)/orders"),
+        },
+      ]);
+    } catch (error: any) {
+      console.error("Error creating ticket:", error);
+      Alert.alert(
+        "Error",
+        error.message || "Failed to create ticket listing. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const isFormValid = () => {
-    return Object.values(formData).every((value) => value.trim() !== "");
+    const requiredFields = [
+      "sport",
+      "event",
+      "date",
+      "time",
+      "section",
+      "row",
+      "seat",
+      "price",
+      "location",
+    ];
+    return requiredFields.every(
+      (field) => formData[field as keyof typeof formData].trim() !== ""
+    );
   };
 
   const SportCard = ({ sport, icon }: { sport: string; icon: string }) => (
@@ -150,7 +275,7 @@ export default function SellScreen() {
               </Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Event Name</Text>
+                <Text style={styles.inputLabel}>Event Name *</Text>
                 <View style={styles.inputWrapper}>
                   <Ionicons
                     name="calendar-outline"
@@ -170,9 +295,30 @@ export default function SellScreen() {
                 </View>
               </View>
 
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Venue/Location *</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons
+                    name="location-outline"
+                    size={20}
+                    color="#9ca3af"
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g., Spartan Stadium, Breslin Center"
+                    value={formData.location}
+                    onChangeText={(location) =>
+                      setFormData({ ...formData, location })
+                    }
+                    placeholderTextColor="#9ca3af"
+                  />
+                </View>
+              </View>
+
               <View style={styles.row}>
                 <View style={[styles.inputGroup, styles.halfWidth]}>
-                  <Text style={styles.inputLabel}>Date</Text>
+                  <Text style={styles.inputLabel}>Date *</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons
                       name="calendar-outline"
@@ -193,7 +339,7 @@ export default function SellScreen() {
                 </View>
 
                 <View style={[styles.inputGroup, styles.halfWidth]}>
-                  <Text style={styles.inputLabel}>Time</Text>
+                  <Text style={styles.inputLabel}>Time *</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons
                       name="time-outline"
@@ -224,7 +370,7 @@ export default function SellScreen() {
 
               <View style={styles.row}>
                 <View style={[styles.inputGroup, styles.thirdWidth]}>
-                  <Text style={styles.inputLabel}>Section</Text>
+                  <Text style={styles.inputLabel}>Section *</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons
                       name="location-outline"
@@ -245,7 +391,7 @@ export default function SellScreen() {
                 </View>
 
                 <View style={[styles.inputGroup, styles.thirdWidth]}>
-                  <Text style={styles.inputLabel}>Row</Text>
+                  <Text style={styles.inputLabel}>Row *</Text>
                   <View style={styles.inputWrapper}>
                     <TextInput
                       style={[styles.input, { paddingLeft: 16 }]}
@@ -258,7 +404,7 @@ export default function SellScreen() {
                 </View>
 
                 <View style={[styles.inputGroup, styles.thirdWidth]}>
-                  <Text style={styles.inputLabel}>Seat</Text>
+                  <Text style={styles.inputLabel}>Seat *</Text>
                   <View style={styles.inputWrapper}>
                     <TextInput
                       style={[styles.input, { paddingLeft: 16 }]}
@@ -274,6 +420,32 @@ export default function SellScreen() {
               </View>
             </View>
 
+            {/* Additional Description */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Additional Details</Text>
+              <Text style={styles.sectionSubtitle}>
+                Add any extra information about your ticket (optional)
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Description</Text>
+                <View style={[styles.inputWrapper, styles.textAreaWrapper]}>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="e.g., Great view, aisle seats, parking included..."
+                    value={formData.description}
+                    onChangeText={(description) =>
+                      setFormData({ ...formData, description })
+                    }
+                    placeholderTextColor="#9ca3af"
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </View>
+              </View>
+            </View>
+
             {/* Price */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Set Your Price</Text>
@@ -282,7 +454,7 @@ export default function SellScreen() {
               </Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Price</Text>
+                <Text style={styles.inputLabel}>Price *</Text>
                 <View style={styles.inputWrapper}>
                   <View style={styles.dollarContainer}>
                     <Text style={styles.dollarSign}>$</Text>
@@ -512,6 +684,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 52,
   },
+  textAreaWrapper: {
+    height: 100,
+    alignItems: "flex-start",
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
   inputIcon: {
     marginRight: 12,
   },
@@ -519,6 +697,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: "#333",
+  },
+  textArea: {
+    height: 68,
+    textAlignVertical: "top",
   },
   row: {
     flexDirection: "row",

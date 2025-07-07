@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// src/app/(tabs)/index.tsx - Complete Updated Browse Screen
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   FlatList,
@@ -8,78 +9,18 @@ import {
   Text,
   Dimensions,
   ScrollView,
+  RefreshControl,
+  Alert,
 } from "react-native";
 import { TicketCard } from "@/src/components/TicketCard";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import { useRouter } from "expo-router";
+import { TicketService } from "@/src/services/ticketService";
+import { TicketWithSeller } from "@/src/types/database.types";
 
 const { width, height } = Dimensions.get("window");
-
-interface Ticket {
-  id: string;
-  sport: string;
-  event: string;
-  date: string;
-  price: number;
-  section: string;
-  row: string;
-  seat: string;
-}
-
-// Sample data - we'll replace this with real data from Supabase later
-const sampleTickets: Ticket[] = [
-  {
-    id: "1",
-    sport: "Football",
-    event: "MSU vs Michigan",
-    date: "Oct 21, 2024 • 7:30 PM",
-    price: 150.0,
-    section: "25",
-    row: "G",
-    seat: "12",
-  },
-  {
-    id: "2",
-    sport: "Basketball",
-    event: "MSU vs Ohio State",
-    date: "Nov 15, 2024 • 8:00 PM",
-    price: 75.0,
-    section: "118",
-    row: "C",
-    seat: "5",
-  },
-  {
-    id: "3",
-    sport: "Hockey",
-    event: "MSU vs Notre Dame",
-    date: "Dec 5, 2024 • 6:00 PM",
-    price: 45.0,
-    section: "8",
-    row: "K",
-    seat: "15",
-  },
-  {
-    id: "4",
-    sport: "Basketball",
-    event: "MSU vs Purdue",
-    date: "Jan 8, 2025 • 7:00 PM",
-    price: 85.0,
-    section: "110",
-    row: "F",
-    seat: "8",
-  },
-  {
-    id: "5",
-    sport: "Football",
-    event: "MSU vs Penn State",
-    date: "Nov 30, 2024 • 3:30 PM",
-    price: 125.0,
-    section: "18",
-    row: "M",
-    seat: "20",
-  },
-];
 
 const sports = [
   { name: "All Sports", icon: "grid-outline" },
@@ -93,15 +34,87 @@ const sports = [
 const sortOptions = [
   { label: "Price: Low to High", value: "price_asc" },
   { label: "Price: High to Low", value: "price_desc" },
-  { label: "Date: Soonest", value: "date_asc" },
-  { label: "Event Name", value: "name" },
+  { label: "Date: Soonest", value: "event_date" },
+  { label: "Recently Added", value: "created_at" },
 ];
 
 export default function BrowseScreen() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSport, setSelectedSport] = useState("All Sports");
-  const [sortBy, setSortBy] = useState("date_asc");
+  const [sortBy, setSortBy] = useState<
+    "price_asc" | "price_desc" | "event_date" | "created_at"
+  >("event_date");
   const [showSortModal, setShowSortModal] = useState(false);
+  const [tickets, setTickets] = useState<TicketWithSeller[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  const loadTickets = async (reset = false) => {
+    if (loading && !reset) return;
+
+    setLoading(true);
+    const currentOffset = reset ? 0 : offset;
+
+    try {
+      const { data, error } = await TicketService.getTickets({
+        sport: selectedSport,
+        searchQuery: searchQuery.trim() || undefined,
+        sortBy,
+        limit: 20,
+        offset: currentOffset,
+      });
+
+      if (error) {
+        console.error("Error loading tickets:", error);
+        Alert.alert("Error", "Failed to load tickets. Please try again.");
+        return;
+      }
+
+      if (reset) {
+        setTickets(data);
+        setOffset(data.length);
+      } else {
+        setTickets((prev) => [...prev, ...data]);
+        setOffset((prev) => prev + data.length);
+      }
+
+      setHasMore(data.length === 20);
+    } catch (error) {
+      console.error("Error loading tickets:", error);
+      Alert.alert("Error", "Failed to load tickets. Please try again.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Load tickets on mount and when filters change
+  useEffect(() => {
+    loadTickets(true);
+  }, [selectedSport, sortBy]);
+
+  // Search with debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadTickets(true);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadTickets(true);
+  }, [selectedSport, sortBy, searchQuery]);
+
+  const loadMore = () => {
+    if (hasMore && !loading) {
+      loadTickets(false);
+    }
+  };
 
   const getSportIcon = (sport: string) => {
     switch (sport.toLowerCase()) {
@@ -120,40 +133,8 @@ export default function BrowseScreen() {
     }
   };
 
-  const filteredAndSortedTickets = () => {
-    let filtered = sampleTickets;
-
-    // Filter by sport
-    if (selectedSport !== "All Sports") {
-      filtered = filtered.filter((ticket) => ticket.sport === selectedSport);
-    }
-
-    // Filter by search query
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (ticket) =>
-          ticket.event.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          ticket.sport.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Sort
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "price_asc":
-          return a.price - b.price;
-        case "price_desc":
-          return b.price - a.price;
-        case "date_asc":
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
-        case "name":
-          return a.event.localeCompare(b.event);
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
+  const handleTicketPress = (ticket: TicketWithSeller) => {
+    router.push(`/ticket-details/${ticket.id}`);
   };
 
   const SportFilterCard = ({
@@ -193,7 +174,84 @@ export default function BrowseScreen() {
     </TouchableOpacity>
   );
 
-  const ticketsData = filteredAndSortedTickets();
+  const formatTicketForCard = (ticket: TicketWithSeller) => {
+    const eventDate = new Date(ticket.event_date);
+    const dateStr = eventDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    const timeStr = eventDate.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    // Extract section, row, seat from description if available
+    const sectionMatch = ticket.description.match(/section\s*(\w+)/i);
+    const rowMatch = ticket.description.match(/row\s*(\w+)/i);
+    const seatMatch = ticket.description.match(/seat\s*(\w+)/i);
+
+    return {
+      id: ticket.id,
+      sport: getSportFromTitle(ticket.title),
+      event: ticket.title,
+      date: `${dateStr} • ${timeStr}`,
+      price: ticket.price,
+      section: sectionMatch?.[1] || "N/A",
+      row: rowMatch?.[1] || "N/A",
+      seat: seatMatch?.[1] || "N/A",
+      location: ticket.location,
+      seller: ticket.seller,
+    };
+  };
+
+  const getSportFromTitle = (title: string): string => {
+    const lowerTitle = title.toLowerCase();
+    if (lowerTitle.includes("football")) return "Football";
+    if (lowerTitle.includes("basketball")) return "Basketball";
+    if (lowerTitle.includes("hockey")) return "Hockey";
+    if (lowerTitle.includes("soccer")) return "Soccer";
+    if (lowerTitle.includes("volleyball")) return "Volleyball";
+    return "Sports";
+  };
+
+  const renderTicket = ({ item }: { item: TicketWithSeller }) => {
+    const formattedTicket = formatTicketForCard(item);
+
+    return (
+      <View style={styles.ticketCardContainer}>
+        <TicketCard
+          sport={formattedTicket.sport}
+          event={formattedTicket.event}
+          date={formattedTicket.date}
+          price={formattedTicket.price}
+          section={formattedTicket.section}
+          row={formattedTicket.row}
+          seat={formattedTicket.seat}
+          onPress={() => handleTicketPress(item)}
+        />
+        <View style={styles.sportBadge}>
+          <Ionicons
+            name={getSportIcon(formattedTicket.sport) as any}
+            size={14}
+            color="#18453b"
+          />
+          <Text style={styles.sportBadgeText}>{formattedTicket.sport}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderFooter = () => {
+    if (!loading) return null;
+
+    return (
+      <View style={styles.footerLoader}>
+        <Text style={styles.footerLoaderText}>Loading more tickets...</Text>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -209,6 +267,9 @@ export default function BrowseScreen() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header Section */}
         <View style={styles.headerSection}>
@@ -283,8 +344,8 @@ export default function BrowseScreen() {
           {/* Results Header */}
           <View style={styles.resultsHeader}>
             <Text style={styles.resultsCount}>
-              {ticketsData.length} ticket{ticketsData.length !== 1 ? "s" : ""}{" "}
-              found
+              {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} found
+              {hasMore && !loading && " (scroll for more)"}
             </Text>
             <Text style={styles.currentSort}>
               Sorted by:{" "}
@@ -295,56 +356,42 @@ export default function BrowseScreen() {
 
         {/* Tickets List */}
         <View style={styles.ticketsSection}>
-          {ticketsData.length > 0 ? (
-            <FlatList<Ticket>
-              data={ticketsData}
-              renderItem={({ item }) => (
-                <View style={styles.ticketCardContainer}>
-                  <TicketCard
-                    sport={item.sport}
-                    event={item.event}
-                    date={item.date}
-                    price={item.price}
-                    section={item.section}
-                    row={item.row}
-                    seat={item.seat}
-                    onPress={() => {
-                      // We'll implement ticket details navigation later
-                      console.log("Ticket pressed:", item.id);
-                    }}
-                  />
-                  <View style={styles.sportBadge}>
-                    <Ionicons
-                      name={getSportIcon(item.sport) as any}
-                      size={14}
-                      color="#18453b"
-                    />
-                    <Text style={styles.sportBadgeText}>{item.sport}</Text>
-                  </View>
-                </View>
-              )}
-              keyExtractor={(item: Ticket) => item.id}
+          {tickets.length > 0 ? (
+            <FlatList
+              data={tickets}
+              renderItem={renderTicket}
+              keyExtractor={(item) => item.id}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={renderFooter}
             />
           ) : (
             <BlurView intensity={20} style={styles.emptyState}>
               <View style={styles.emptyIconContainer}>
                 <Ionicons name="search-outline" size={48} color="#6b7280" />
               </View>
-              <Text style={styles.emptyStateTitle}>No tickets found</Text>
-              <Text style={styles.emptyStateText}>
-                Try adjusting your filters or search terms to find more tickets
+              <Text style={styles.emptyStateTitle}>
+                {loading ? "Loading tickets..." : "No tickets found"}
               </Text>
-              <TouchableOpacity
-                style={styles.clearFiltersButton}
-                onPress={() => {
-                  setSearchQuery("");
-                  setSelectedSport("All Sports");
-                }}
-              >
-                <Text style={styles.clearFiltersText}>Clear Filters</Text>
-              </TouchableOpacity>
+              {!loading && (
+                <>
+                  <Text style={styles.emptyStateText}>
+                    Try adjusting your filters or search terms to find more
+                    tickets
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.clearFiltersButton}
+                    onPress={() => {
+                      setSearchQuery("");
+                      setSelectedSport("All Sports");
+                    }}
+                  >
+                    <Text style={styles.clearFiltersText}>Clear Filters</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </BlurView>
           )}
         </View>
@@ -369,7 +416,7 @@ export default function BrowseScreen() {
                     sortBy === option.value && styles.sortOptionSelected,
                   ]}
                   onPress={() => {
-                    setSortBy(option.value);
+                    setSortBy(option.value as any);
                     setShowSortModal(false);
                   }}
                 >
@@ -650,6 +697,15 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
     fontWeight: "600",
+  },
+  footerLoader: {
+    padding: 20,
+    alignItems: "center",
+  },
+  footerLoaderText: {
+    fontSize: 14,
+    color: "#6b7280",
+    fontStyle: "italic",
   },
   modalOverlay: {
     position: "absolute",
