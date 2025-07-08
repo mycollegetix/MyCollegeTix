@@ -37,7 +37,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function initialize() {
       try {
-        console.log("🚀 Initializing auth...");
         const {
           data: { session: initialSession },
           error: sessionError,
@@ -48,7 +47,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (mounted) {
-          console.log("📱 Setting initial session:", !!initialSession);
           setSession(initialSession);
           setUser(initialSession?.user ?? null);
           // Don't block loading on profile fetch
@@ -75,7 +73,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("🔄 Auth state changed:", event, !!session);
       if (mounted) {
         setSession(session);
         setUser(session?.user ?? null);
@@ -89,8 +86,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(null);
         }
 
-        // Make sure isLoading is false after auth state changes
-        console.log("✅ Setting isLoading to false after auth state change");
         setIsLoading(false);
       }
     });

@@ -312,7 +312,10 @@ export default function ProfileScreen() {
                       />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.quickActionCard}>
+                    <TouchableOpacity
+                      style={styles.quickActionCard}
+                      onPress={() => router.push("/support/helpandsupportpage")}
+                    >
                       <View style={styles.quickActionIcon}>
                         <Ionicons
                           name="help-circle-outline"

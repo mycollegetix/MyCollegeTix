@@ -1,11 +1,9 @@
 import React from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Link, Tabs } from "expo-router";
-import { Pressable } from "react-native";
+import { Tabs } from "expo-router";
 
 import Colors from "@/src/constants/Colors";
 import { useColorScheme } from "@/src/components/useColorScheme";
-import { useClientOnlyValue } from "@/src/components/useClientOnlyValue";
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -26,15 +24,7 @@ export default function TabLayout() {
         tabBarStyle: {
           borderTopColor: Colors[colorScheme ?? "light"].border,
         },
-        headerStyle: {
-          backgroundColor: Colors[colorScheme ?? "light"].primary,
-        },
-        headerTintColor: Colors[colorScheme ?? "light"].background,
-        headerTitleStyle: {
-          fontWeight: "bold",
-        },
-        // Disable the static render of the header on web
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: false,
       }}
     >
       <Tabs.Screen
@@ -42,7 +32,6 @@ export default function TabLayout() {
         options={{
           title: "Browse",
           tabBarIcon: ({ color }) => <TabBarIcon name="ticket" color={color} />,
-          headerTitle: "MSU Tickets",
         }}
       />
       <Tabs.Screen
