@@ -37,6 +37,3 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-#Supabase info
-lib/
-supabase/
