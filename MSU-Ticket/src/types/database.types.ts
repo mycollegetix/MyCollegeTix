@@ -26,6 +26,37 @@ export interface Database {
           email?: string;
         };
       };
+      notifications: {
+        Row: {
+          id: string;
+          created_at: string;
+          user_id: string;
+          title: string;
+          message: string;
+          type: "purchase" | "sale" | "listing" | "system";
+          read: boolean;
+          related_ticket_id: string | null;
+          related_order_id: string | null;
+        };
+        Insert: {
+          user_id: string;
+          title: string;
+          message: string;
+          type?: "purchase" | "sale" | "listing" | "system";
+          read?: boolean;
+          related_ticket_id?: string | null;
+          related_order_id?: string | null;
+        };
+        Update: {
+          user_id?: string;
+          title?: string;
+          message?: string;
+          type?: "purchase" | "sale" | "listing" | "system";
+          read?: boolean;
+          related_ticket_id?: string | null;
+          related_order_id?: string | null;
+        };
+      };
       tickets: {
         Row: {
           id: string;

@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { TicketService } from "@/src/services/ticketService";
+import { NotificationBadge } from "@/src/components/NotificationBadge";
 
 const { width, height } = Dimensions.get("window");
 
@@ -128,19 +129,18 @@ export default function SellScreen() {
           text: "View Listing",
           onPress: () => router.push(`/ticket-details/${data.id}`),
         },
-        // In sell.tsx, find the "List Another" section and fix it:
         {
           text: "List Another",
           onPress: () => {
-            // Reset form - REMOVE the 'row' and 'seat' fields
+            // Reset form
             setFormData({
               sport: "",
               event: "",
               date: "",
               time: "",
               section: "",
-              row_number: "", // Use row_number, not row
-              seat_number: "", // Use seat_number, not seat
+              row_number: "",
+              seat_number: "",
               price: "",
               location: "",
               description: "",
@@ -246,6 +246,16 @@ export default function SellScreen() {
             <Text style={styles.headerSubtitle}>
               List your MSU tickets securely and reach thousands of Spartans
             </Text>
+            <TouchableOpacity
+              style={styles.notificationButton}
+              onPress={() => router.push("/(screens)/notifications")}
+            >
+              <NotificationBadge
+                iconName="notifications-outline"
+                iconSize={24}
+                iconColor="#ffd700"
+              />
+            </TouchableOpacity>
           </View>
 
           {/* Form Section */}
@@ -403,6 +413,12 @@ export default function SellScreen() {
                       }
                       placeholderTextColor="#9ca3af"
                     />
+                  </View>
+                </View>
+
+                <View style={[styles.inputGroup, styles.thirdWidth]}>
+                  <Text style={styles.inputLabel}>Seat *</Text>
+                  <View style={styles.inputWrapper}>
                     <TextInput
                       style={[styles.input, { paddingLeft: 16 }]}
                       placeholder="Seat"
@@ -570,6 +586,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingBottom: 30,
+    position: "relative",
   },
   logoContainer: {
     marginBottom: 20,
@@ -599,6 +616,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
     lineHeight: 22,
+  },
+  notificationButton: {
+    position: "absolute",
+    top: 10,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   formSection: {
     backgroundColor: "white",

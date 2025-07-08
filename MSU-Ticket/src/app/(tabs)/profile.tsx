@@ -20,6 +20,7 @@ import { BlurView } from "expo-blur";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useRouter } from "expo-router";
 import { supabase } from "@/src/lib/supabase";
+import { NotificationBadge } from "@/src/components/NotificationBadge";
 
 const { width, height } = Dimensions.get("window");
 
@@ -291,12 +292,16 @@ export default function ProfileScreen() {
                   </Text>
 
                   <View style={styles.quickActionsGrid}>
-                    <TouchableOpacity style={styles.quickActionCard}>
+                    <TouchableOpacity
+                      style={styles.quickActionCard}
+                      onPress={() =>
+                        router.push("/notifications/NotificationScreen")
+                      }
+                    >
                       <View style={styles.quickActionIcon}>
-                        <Ionicons
-                          name="notifications-outline"
-                          size={24}
-                          color="#18453b"
+                        <NotificationBadge
+                          iconName="notifications-outline"
+                          iconSize={24}
                         />
                       </View>
                       <Text style={styles.quickActionText}>Notifications</Text>

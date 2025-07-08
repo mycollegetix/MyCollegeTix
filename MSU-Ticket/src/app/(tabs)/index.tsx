@@ -20,6 +20,7 @@ import { useRouter } from "expo-router";
 import { TicketService } from "@/src/services/ticketService";
 import { TicketWithSeller } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { NotificationBadge } from "@/src/components/NotificationBadge";
 
 const { width, height } = Dimensions.get("window");
 
@@ -59,9 +60,7 @@ export default function BrowseScreen() {
 
     setLoading(true);
     const currentOffset = reset ? 0 : offset;
-    // ADD THIS DEBUG LINE:
-    console.log("🔍 Current user ID:", user?.id);
-    console.log("🎯 Exclude user ID:", user?.id);
+
     try {
       const { data, error } = await TicketService.getTickets({
         sport: selectedSport,
@@ -71,12 +70,6 @@ export default function BrowseScreen() {
         offset: currentOffset,
         excludeUserId: user?.id,
       });
-      // ADD THIS DEBUG LINE TOO:
-      console.log("📊 Tickets received:", data.length);
-      console.log(
-        "🎫 First few tickets seller IDs:",
-        data.slice(0, 3).map((t) => t.seller_id)
-      );
       if (!user) {
         console.log("⚠️ User not loaded yet, skipping ticket load");
         setLoading(false);
@@ -91,12 +84,6 @@ export default function BrowseScreen() {
       // FRONTEND FILTER - Remove tickets from current user
       const filteredData = data.filter(
         (ticket) => ticket.seller_id !== user.id
-      );
-      console.log(
-        "📊 Tickets received:",
-        data.length,
-        "After filter:",
-        filteredData.length
       );
 
       if (reset) {
@@ -303,6 +290,17 @@ export default function BrowseScreen() {
       >
         {/* Header Section */}
         <View style={styles.headerSection}>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => router.push("../notifications/NotificationScreen")}
+          >
+            <NotificationBadge
+              iconName="notifications-outline"
+              iconSize={24}
+              iconColor="#ffd700"
+            />
+          </TouchableOpacity>
+
           <View style={styles.logoContainer}>
             <LinearGradient colors={["#ffd700", "#ffed4a"]} style={styles.logo}>
               <Ionicons name="search-outline" size={32} color="#18453b" />
@@ -508,6 +506,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 30,
+    position: "relative",
   },
   logoContainer: {
     marginBottom: 20,
@@ -537,6 +536,21 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
     lineHeight: 22,
+  },
+  notificationButton: {
+    position: "absolute",
+    top: 60,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 1000,
+    elevation: 5,
   },
   searchSection: {
     backgroundColor: "white",

@@ -1,6 +1,7 @@
 // services/ticketService.ts
 import { supabase } from "../lib/supabase";
 import { Database, TicketWithSeller } from "../types/database.types";
+import { NotificationService } from "./notificationService";
 
 type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
 type TicketInsert = Database["public"]["Tables"]["tickets"]["Insert"];
@@ -54,7 +55,6 @@ export class TicketService {
 
       // Exclude user's own tickets
       if (excludeUserId) {
-        console.log("🚫 Excluding tickets from user:", excludeUserId);
         query = query.not("seller_id", "eq", excludeUserId);
       }
 
@@ -149,6 +149,16 @@ export class TicketService {
 
       if (error) throw error;
 
+      // Create notification for the seller (lister)
+      await NotificationService.createNotification({
+        title: "Ticket Listed!",
+        message: `Your ticket for '${
+          data.title
+        }' has been successfully listed for ${data.price.toFixed(2)}.`,
+        type: "listing",
+        related_ticket_id: data.id,
+      });
+
       return { data, error: null };
     } catch (error) {
       console.error("Error creating ticket:", error);
@@ -183,11 +193,52 @@ export class TicketService {
     ticketId: string
   ): Promise<{ data: Ticket | null; error: any }> {
     try {
+      const { data: ticket, error: fetchError } = await supabase
+        .from("tickets")
+        .select(
+          `*,
+          seller:profiles!tickets_seller_id_fkey (
+            id,
+            username,
+            full_name
+          )`
+        )
+        .eq("id", ticketId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!ticket) throw new Error("Ticket not found");
+
       const { data, error } = await supabase.rpc("purchase_ticket", {
         ticket_id: ticketId,
       });
 
       if (error) throw error;
+
+      // Create notification for the buyer
+      const { data: buyerUser } = await supabase.auth.getUser();
+      if (buyerUser?.user) {
+        await NotificationService.createNotification({
+          title: "Ticket Purchased!",
+          message: `You successfully purchased a ticket for '${
+            ticket.title
+          }' for ${ticket.price.toFixed(2)}.`,
+          type: "purchase",
+          related_ticket_id: ticket.id,
+          related_order_id: data?.id, // Assuming purchase_ticket RPC returns order ID
+        });
+      }
+
+      // Create notification for the seller
+      await NotificationService.createNotification({
+        title: "Your Ticket Sold!",
+        message: `Your ticket for '${
+          ticket.title
+        }' has been sold for ${ticket.price.toFixed(2)}.`,
+        type: "sale",
+        related_ticket_id: ticket.id,
+        related_order_id: data?.id, // Assuming purchase_ticket RPC returns order ID
+      });
 
       return { data, error: null };
     } catch (error) {
@@ -278,7 +329,35 @@ export class TicketService {
   static async cancelTicket(
     ticketId: string
   ): Promise<{ data: Ticket | null; error: any }> {
-    return this.updateTicket(ticketId, { status: "cancelled" });
+    try {
+      const { data: ticket, error: fetchError } = await supabase
+        .from("tickets")
+        .select("id, title, seller_id")
+        .eq("id", ticketId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!ticket) throw new Error("Ticket not found");
+
+      const { data, error } = await this.updateTicket(ticketId, {
+        status: "cancelled",
+      });
+
+      if (error) throw error;
+
+      // Create notification for the seller
+      await NotificationService.createNotification({
+        title: "Listing Cancelled",
+        message: `Your listing for '${ticket.title}' has been cancelled.`,
+        type: "listing",
+        related_ticket_id: ticket.id,
+      });
+
+      return { data, error: null };
+    } catch (error) {
+      console.error("Error cancelling ticket:", error);
+      return { data: null, error };
+    }
   }
 
   // Get tickets by categories for better UX

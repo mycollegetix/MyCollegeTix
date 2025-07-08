@@ -20,10 +20,18 @@ import { useRouter } from "expo-router";
 import { TicketService } from "@/src/services/ticketService";
 import { TicketWithSeller } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { useNotifications } from "@/src/providers/NotificationProvider";
+import { NotificationBadge } from "@/src/components/NotificationBadge";
 
 const { width, height } = Dimensions.get("window");
 
 type OrderType = "buying" | "selling";
+
+interface StatusConfig {
+  color: string;
+  icon: string;
+  text: string;
+}
 
 export default function OrdersScreen() {
   const [activeTab, setActiveTab] = useState<OrderType>("buying");
@@ -77,7 +85,7 @@ export default function OrdersScreen() {
     loadData();
   }, [user]);
 
-  const getStatusConfig = (status: string) => {
+  const getStatusConfig = (status: string): StatusConfig => {
     switch (status.toLowerCase()) {
       case "sold":
         return {
@@ -306,6 +314,16 @@ export default function OrdersScreen() {
           <Text style={styles.headerSubtitle}>
             Track your ticket purchases and sales
           </Text>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => router.push("/(screens)/notifications")}
+          >
+            <NotificationBadge
+              iconName="notifications-outline"
+              iconSize={24}
+              iconColor="#ffd700"
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Stats Cards */}
@@ -479,6 +497,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 30,
+    position: "relative",
   },
   logoContainer: {
     marginBottom: 20,
@@ -508,6 +527,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
     lineHeight: 22,
+  },
+  notificationButton: {
+    position: "absolute",
+    top: 60,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   statsSection: {
     paddingHorizontal: 20,
