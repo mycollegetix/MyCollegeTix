@@ -248,7 +248,7 @@ export default function SellScreen() {
             </Text>
             <TouchableOpacity
               style={styles.notificationButton}
-              onPress={() => router.push("/(screens)/notifications")}
+              onPress={() => router.push("/notifications/NotificationScreen")}
             >
               <NotificationBadge
                 iconName="notifications-outline"

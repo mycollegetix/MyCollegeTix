@@ -20,7 +20,6 @@ import { useRouter } from "expo-router";
 import { TicketService } from "@/src/services/ticketService";
 import { TicketWithSeller } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { useNotifications } from "@/src/providers/NotificationProvider";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 
 const { width, height } = Dimensions.get("window");
@@ -316,7 +315,7 @@ export default function OrdersScreen() {
           </Text>
           <TouchableOpacity
             style={styles.notificationButton}
-            onPress={() => router.push("/(screens)/notifications")}
+            onPress={() => router.push("/notifications/NotificationScreen")}
           >
             <NotificationBadge
               iconName="notifications-outline"

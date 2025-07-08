@@ -2,7 +2,7 @@ import { AuthProvider, useAuth } from "@/src/providers/AuthProvider";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useColorScheme } from "react-native";
 import { useEffect } from "react";
-import { NotificationProvider } from "../providers/NotificationProvider";
+import { NotificationProvider } from "@/src/providers/NotificationProvider";
 
 function RootLayoutNav() {
   const { session, isLoading } = useAuth();
