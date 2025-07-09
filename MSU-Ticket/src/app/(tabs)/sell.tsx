@@ -127,7 +127,11 @@ export default function SellScreen() {
       Alert.alert("Success!", "Your ticket has been listed successfully!", [
         {
           text: "View Listing",
-          onPress: () => router.push(`/ticket-details/${data.id}`),
+          onPress: () => {
+            if (data) {
+              router.push(`/ticket-details/${data.id}`);
+            }
+          },
         },
         {
           text: "List Another",

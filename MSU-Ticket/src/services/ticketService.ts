@@ -191,7 +191,7 @@ export class TicketService {
   // Purchase ticket
   static async purchaseTicket(
     ticketId: string
-  ): Promise<{ data: Ticket | null; error: any }> {
+  ): Promise<{ data: { id: string } | null; error: any }> {
     try {
       const { data: ticket, error: fetchError } = await supabase
         .from("tickets")
@@ -211,7 +211,7 @@ export class TicketService {
 
       const { data, error } = await supabase.rpc("purchase_ticket", {
         ticket_id: ticketId,
-      });
+      }) as { data: { id: string } | null; error: any };
 
       if (error) throw error;
 
