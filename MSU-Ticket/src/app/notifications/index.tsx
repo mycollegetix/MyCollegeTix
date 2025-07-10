@@ -1,4 +1,4 @@
-// screens/NotificationsScreen.tsx
+// screens/NotificationsScreen.tsx - COMPLETE with message notification support
 import React, { useState } from "react";
 import {
   StyleSheet,
@@ -50,8 +50,12 @@ export default function NotificationsScreen() {
       await markAsRead(notification.id);
     }
 
-    // Navigate based on notification type and related data
-    if (notification.related_ticket_id) {
+    // ✅ UPDATED: Handle message notifications
+    if (notification.type === "message") {
+      // For message notifications, navigate to chat list
+      // In the future, you could parse the notification to get specific conversation ID
+      (router.push as any)("/(tabs)/chat/");
+    } else if (notification.related_ticket_id) {
       (router.push as any)(`/ticket-details/${notification.related_ticket_id}`);
     } else if (
       notification.type === "purchase" ||
@@ -93,6 +97,7 @@ export default function NotificationsScreen() {
     }
   };
 
+  // ✅ UPDATED: Added message notification support
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "purchase":
@@ -101,6 +106,8 @@ export default function NotificationsScreen() {
         return "cash-outline";
       case "listing":
         return "pricetag-outline";
+      case "message":
+        return "chatbubble-outline";
       case "system":
         return "information-circle-outline";
       default:
@@ -108,6 +115,7 @@ export default function NotificationsScreen() {
     }
   };
 
+  // ✅ UPDATED: Added message notification colors
   const getNotificationColors = (type: string) => {
     switch (type) {
       case "purchase":
@@ -127,6 +135,12 @@ export default function NotificationsScreen() {
           primary: "#f59e0b",
           secondary: "#fef3c7",
           gradient: ["#f59e0b", "#d97706"],
+        };
+      case "message":
+        return {
+          primary: "#8b5cf6",
+          secondary: "#ede9fe",
+          gradient: ["#8b5cf6", "#7c3aed"],
         };
       case "system":
         return {
@@ -184,7 +198,7 @@ export default function NotificationsScreen() {
         >
           <View style={styles.notificationContent}>
             <LinearGradient
-              colors={["#18453b", "#2a6b5a", "#0f2f28"] as const}
+              colors={colors.gradient as [string, string]}
               style={styles.notificationIcon}
             >
               <Ionicons
@@ -382,8 +396,8 @@ export default function NotificationsScreen() {
                 </View>
                 <Text style={styles.emptyStateTitle}>No notifications yet</Text>
                 <Text style={styles.emptyStateText}>
-                  You'll see notifications here when you buy, sell, or list
-                  tickets
+                  You'll see notifications here when you buy, sell, list
+                  tickets, or receive messages
                 </Text>
               </LinearGradient>
             </BlurView>

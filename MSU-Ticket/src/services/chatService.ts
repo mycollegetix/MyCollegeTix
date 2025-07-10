@@ -1,5 +1,6 @@
-// services/chatService.ts - FIXED for schema constraints
+// services/chatService.ts - UPDATED with notifications
 import { supabase } from "../lib/supabase";
+import { NotificationService } from "./notificationService"; // ✅ ADDED
 import {
   Database,
   MessageWithSender,
@@ -14,7 +15,134 @@ type ConversationInsert =
 type MessageInsert = Database["public"]["Tables"]["messages"]["Insert"];
 
 export class ChatService {
-  // Get or create a conversation between two users
+  // Send a message - UPDATED to create notifications
+  static async sendMessage(
+    conversationId: string,
+    content: string,
+    messageType: "text" | "system" | "ticket_reference" = "text"
+  ): Promise<{ data: Message | null; error: any }> {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      // ✅ STEP 1: Get conversation details to identify the recipient
+      const { data: conversation, error: convError } = await supabase
+        .from("conversations")
+        .select(
+          `
+          *,
+          participant_1:profiles!conversations_participant_1_fkey(id, full_name, username),
+          participant_2:profiles!conversations_participant_2_fkey(id, full_name, username),
+          ticket:tickets(id, title)
+        `
+        )
+        .eq("id", conversationId)
+        .single();
+
+      if (convError || !conversation) {
+        throw new Error("Conversation not found");
+      }
+
+      // ✅ STEP 2: Determine who is receiving the message
+      const isParticipant1 = conversation.participant_1_id === user.id;
+      const recipient = isParticipant1
+        ? conversation.participant_2
+        : conversation.participant_1;
+      const sender = isParticipant1
+        ? conversation.participant_1
+        : conversation.participant_2;
+
+      console.log(
+        "💬 Sending message from:",
+        sender.full_name,
+        "to:",
+        recipient.full_name
+      );
+
+      // ✅ STEP 3: Send the message
+      const messageData: MessageInsert = {
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content: content.trim(),
+        message_type: messageType,
+      };
+
+      const { data, error } = await supabase
+        .from("messages")
+        .insert(messageData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // ✅ STEP 4: Update conversation's last_message info
+      const { error: updateError } = await supabase
+        .from("conversations")
+        .update({
+          last_message_id: data.id,
+          last_message_at: data.created_at,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", conversationId);
+
+      if (updateError) {
+        console.error(
+          "Warning: Failed to update conversation last_message:",
+          updateError
+        );
+      }
+
+      // ✅ STEP 5: Create notification for the recipient
+      try {
+        // Create a custom notification entry for the recipient
+        const notificationTitle = `New message from ${sender.full_name}`;
+        const notificationMessage =
+          content.length > 50 ? `${content.substring(0, 50)}...` : content;
+
+        const ticketContext = conversation.ticket
+          ? ` about "${conversation.ticket.title}"`
+          : "";
+
+        const { error: notificationError } = await supabase
+          .from("notifications")
+          .insert({
+            user_id: recipient.id,
+            title: notificationTitle,
+            message: `${notificationMessage}${ticketContext}`,
+            type: "message", // ✅ UPDATED: Use specific message type
+            related_ticket_id: conversation.ticket_id,
+            read: false,
+          });
+
+        if (notificationError) {
+          console.error(
+            "Failed to create message notification:",
+            notificationError
+          );
+        } else {
+          console.log("✅ Created notification for:", recipient.full_name);
+        }
+      } catch (notificationError) {
+        console.error(
+          "Error creating message notification:",
+          notificationError
+        );
+        // Don't fail the message send if notification fails
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error("Error sending message:", error);
+      return { data: null, error };
+    }
+  }
+
+  // Get or create a conversation between two users - UNCHANGED
   static async getOrCreateConversation(
     otherUserId: string,
     ticketId?: string
@@ -77,13 +205,13 @@ export class ChatService {
       // Create new conversation if it doesn't exist
       console.log("🆕 Creating new conversation...");
 
-      // FIXED: Don't set last_message_id when creating - leave it null
+      // Always order participants consistently to prevent duplicates
       const conversationData: ConversationInsert = {
         participant_1_id: user.id < otherUserId ? user.id : otherUserId,
         participant_2_id: user.id < otherUserId ? otherUserId : user.id,
         ticket_id: ticketId || null,
-        last_message_id: null, // IMPORTANT: Keep this null initially
-        last_message_at: null, // IMPORTANT: Keep this null initially
+        last_message_id: null,
+        last_message_at: null,
       };
 
       console.log(
@@ -108,7 +236,6 @@ export class ChatService {
 
         // If there's a constraint violation, try to fetch existing conversation again
         if (createError.code === "23505") {
-          // Unique violation
           console.log(
             "🔄 Unique violation, trying to fetch existing conversation..."
           );
@@ -143,63 +270,7 @@ export class ChatService {
     }
   }
 
-  // Send a message - UPDATED to handle last_message updates
-  static async sendMessage(
-    conversationId: string,
-    content: string,
-    messageType: "text" | "system" | "ticket_reference" = "text"
-  ): Promise<{ data: Message | null; error: any }> {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error("User not authenticated");
-      }
-
-      const messageData: MessageInsert = {
-        conversation_id: conversationId,
-        sender_id: user.id,
-        content: content.trim(),
-        message_type: messageType,
-      };
-
-      const { data, error } = await supabase
-        .from("messages")
-        .insert(messageData)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // IMPORTANT: Update the conversation's last_message_id and last_message_at
-      const { error: updateError } = await supabase
-        .from("conversations")
-        .update({
-          last_message_id: data.id,
-          last_message_at: data.created_at,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", conversationId);
-
-      if (updateError) {
-        console.error(
-          "Warning: Failed to update conversation last_message:",
-          updateError
-        );
-        // Don't throw here - the message was created successfully
-      }
-
-      return { data, error: null };
-    } catch (error) {
-      console.error("Error sending message:", error);
-      return { data: null, error };
-    }
-  }
-
   // Rest of your methods remain the same...
-  // Get user's conversations with details - SIMPLIFIED VERSION
   static async getUserConversations(): Promise<{
     data: ConversationWithDetails[];
     error: any;
@@ -215,7 +286,6 @@ export class ChatService {
 
       console.log("🔍 Fetching conversations for user:", user.id);
 
-      // Step 1: Get basic conversations
       const { data: conversations, error: convError } = await supabase
         .from("conversations")
         .select("*")
@@ -233,25 +303,21 @@ export class ChatService {
         return { data: [], error: null };
       }
 
-      // Step 2: Enhance each conversation with details
       const enhancedConversations = await Promise.all(
         conversations.map(async (conv) => {
           try {
-            // Get participant 1
             const { data: participant1 } = await supabase
               .from("profiles")
               .select("*")
               .eq("id", conv.participant_1_id)
               .single();
 
-            // Get participant 2
             const { data: participant2 } = await supabase
               .from("profiles")
               .select("*")
               .eq("id", conv.participant_2_id)
               .single();
 
-            // Get last message if exists
             let lastMessage = null;
             if (conv.last_message_id) {
               const { data: messageData } = await supabase
@@ -262,7 +328,6 @@ export class ChatService {
               lastMessage = messageData;
             }
 
-            // Get ticket if exists
             let ticket = null;
             if (conv.ticket_id) {
               const { data: ticketData } = await supabase
@@ -273,7 +338,6 @@ export class ChatService {
               ticket = ticketData;
             }
 
-            // Get unread count
             const { count } = await supabase
               .from("messages")
               .select("*", { count: "exact", head: true })
@@ -296,7 +360,6 @@ export class ChatService {
         })
       );
 
-      // Filter out null results
       const validConversations = enhancedConversations.filter(
         (conv) => conv !== null
       );
@@ -313,7 +376,7 @@ export class ChatService {
     }
   }
 
-  // Get messages for a conversation - SIMPLIFIED VERSION
+  // Other methods remain the same...
   static async getConversationMessages(
     conversationId: string,
     limit = 50,
@@ -322,7 +385,6 @@ export class ChatService {
     try {
       console.log("🔍 Fetching messages for conversation:", conversationId);
 
-      // Step 1: Get messages
       const { data: messages, error: messagesError } = await supabase
         .from("messages")
         .select("*")
@@ -341,7 +403,6 @@ export class ChatService {
         return { data: [], error: null };
       }
 
-      // Step 2: Get sender details for each message
       const messagesWithSenders = await Promise.all(
         messages.map(async (message) => {
           const { data: sender } = await supabase
@@ -357,7 +418,6 @@ export class ChatService {
         })
       );
 
-      // Reverse to show oldest first
       return {
         data: messagesWithSenders.reverse() as MessageWithSender[],
         error: null,
@@ -368,7 +428,6 @@ export class ChatService {
     }
   }
 
-  // Mark messages as read
   static async markMessagesAsRead(
     conversationId: string
   ): Promise<{ error: any }> {
@@ -400,7 +459,6 @@ export class ChatService {
     }
   }
 
-  // Get unread message count for user
   static async getUnreadMessageCount(): Promise<{ count: number; error: any }> {
     try {
       const {
@@ -411,7 +469,6 @@ export class ChatService {
         return { count: 0, error: null };
       }
 
-      // Get all user's conversations
       const { data: conversations } = await supabase
         .from("conversations")
         .select("id")
@@ -439,7 +496,6 @@ export class ChatService {
     }
   }
 
-  // Subscribe to new messages in a conversation
   static subscribeToConversationMessages(
     conversationId: string,
     onMessage: (message: Message) => void
@@ -465,7 +521,6 @@ export class ChatService {
     };
   }
 
-  // Subscribe to conversation updates
   static subscribeToConversations(
     userId: string,
     onConversationUpdate: (conversation: Conversation) => void
@@ -491,7 +546,6 @@ export class ChatService {
     };
   }
 
-  // Delete a conversation (soft delete by removing messages)
   static async deleteConversation(
     conversationId: string
   ): Promise<{ error: any }> {

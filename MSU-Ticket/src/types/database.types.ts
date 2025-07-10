@@ -1,4 +1,4 @@
-// src/types/database.types.ts
+// src/types/database.types.ts - UPDATED with message notification type
 export type Json =
   | string
   | number
@@ -130,7 +130,7 @@ export type Database = {
           related_order_id: string | null;
           related_ticket_id: string | null;
           title: string;
-          type: string;
+          type: "purchase" | "sale" | "listing" | "system" | "message"; // ✅ UPDATED: Added "message" type
           user_id: string;
         };
         Insert: {
@@ -141,7 +141,7 @@ export type Database = {
           related_order_id?: string | null;
           related_ticket_id?: string | null;
           title: string;
-          type?: string;
+          type?: "purchase" | "sale" | "listing" | "system" | "message"; // ✅ UPDATED: Added "message" type
           user_id: string;
         };
         Update: {
@@ -152,7 +152,7 @@ export type Database = {
           related_order_id?: string | null;
           related_ticket_id?: string | null;
           title?: string;
-          type?: string;
+          type?: "purchase" | "sale" | "listing" | "system" | "message"; // ✅ UPDATED: Added "message" type
           user_id?: string;
         };
         Relationships: [
