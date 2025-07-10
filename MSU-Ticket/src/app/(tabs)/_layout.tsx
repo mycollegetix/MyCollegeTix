@@ -1,4 +1,4 @@
-// app/(tabs)/_layout.tsx - Updated to include Chat tab
+// app/(tabs)/_layout.tsx - FIXED to remove duplicate chat route
 import React from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Tabs } from "expo-router";
@@ -59,6 +59,7 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* ✅ FIXED: Points to chat folder, not chat.tsx */}
       <Tabs.Screen
         name="chat"
         options={{

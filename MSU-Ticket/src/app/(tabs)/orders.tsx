@@ -315,9 +315,7 @@ export default function OrdersScreen() {
           </Text>
           <TouchableOpacity
             style={styles.notificationButton}
-            onPress={() =>
-              (router.push as any)("/notifications/NotificationScreen")
-            }
+            onPress={() => (router.push as any)("/notifications/")}
           >
             <NotificationBadge
               iconName="notifications-outline"

@@ -1,5 +1,5 @@
-// src/app/chat/[id].tsx
-import React, { useState, useEffect, useRef } from "react";
+// src/app/(tabs)/chat/[id].tsx - UPDATED with better navigation
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   StyleSheet,
   FlatList,
@@ -40,32 +40,62 @@ export default function ChatConversationScreen() {
 
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
+  const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  useEffect(() => {
-    if (id) {
+  // Memoized conversation loading
+  const loadConversationData = useCallback(
+    async (conversationId: string) => {
+      console.log("🔄 Loading conversation data for:", conversationId);
+
       // Find conversation from loaded conversations
-      const conversation = conversations.find((c) => c.id === id);
+      const conversation = conversations.find((c) => c.id === conversationId);
       if (conversation) {
+        console.log("✅ Found conversation, setting as current");
         setCurrentConversation(conversation);
-        loadMessages(id);
-        markAsRead(id);
+
+        // Only load messages if we haven't loaded them yet
+        if (!hasLoadedMessages) {
+          console.log("📨 Loading messages for conversation");
+          await loadMessages(conversationId);
+          setHasLoadedMessages(true);
+          await markAsRead(conversationId);
+        }
+      } else {
+        console.log("❌ Conversation not found in loaded conversations");
       }
+    },
+    [
+      conversations,
+      loadMessages,
+      markAsRead,
+      setCurrentConversation,
+      hasLoadedMessages,
+    ]
+  );
+
+  // Effect for loading conversation data
+  useEffect(() => {
+    if (id && conversations.length > 0) {
+      loadConversationData(id);
     }
 
+    // Cleanup function
     return () => {
+      console.log("🧹 Cleaning up conversation screen");
       setCurrentConversation(null);
+      setHasLoadedMessages(false);
     };
-  }, [id, conversations]);
+  }, [id, conversations.length]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && hasLoadedMessages) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages]);
+  }, [messages.length, hasLoadedMessages]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !id || sending) return;
@@ -78,7 +108,7 @@ export default function ChatConversationScreen() {
       const success = await sendMessage(id, content);
       if (!success) {
         Alert.alert("Error", "Failed to send message. Please try again.");
-        setMessageText(content); // Restore message on failure
+        setMessageText(content);
       }
     } catch (error) {
       console.error("Error sending message:", error);
@@ -87,6 +117,12 @@ export default function ChatConversationScreen() {
     } finally {
       setSending(false);
     }
+  };
+
+  // ✅ SIMPLIFIED: Always go back to chat list
+  const handleBackPress = () => {
+    // Always go back to chat list when pressing back from a conversation
+    (router.push as any)("/(tabs)/chat/");
   };
 
   const getOtherParticipant = () => {
@@ -227,11 +263,7 @@ export default function ChatConversationScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() =>
-            (router.push as any)(
-              `/ticket-details/${currentConversation.ticket!.id}`
-            )
-          }
+          onPress={handleBackPress} // ✅ IMPROVED: Smart back navigation
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
@@ -255,8 +287,37 @@ export default function ChatConversationScreen() {
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => {
-            // TODO: Add conversation options (info, delete, etc.)
-            Alert.alert("Chat Options", "Feature coming soon!");
+            Alert.alert("Chat Options", "Choose an action", [
+              {
+                text: "View Profile",
+                onPress: () => {
+                  // TODO: Navigate to user profile
+                  Alert.alert("Profile", "User profile feature coming soon!");
+                },
+              },
+              {
+                text: "View Ticket",
+                onPress: () => {
+                  if (currentConversation.ticket) {
+                    (router.push as any)(
+                      `/ticket-details/${currentConversation.ticket.id}`
+                    );
+                  } else {
+                    Alert.alert(
+                      "No Ticket",
+                      "This conversation is not related to a specific ticket."
+                    );
+                  }
+                },
+              },
+              {
+                text: "Chat List",
+                onPress: () => {
+                  (router.push as any)("/(tabs)/chat/");
+                },
+              },
+              { text: "Cancel", style: "cancel" },
+            ]);
           }}
         >
           <Ionicons name="ellipsis-horizontal" size={24} color="white" />
@@ -274,7 +335,7 @@ export default function ChatConversationScreen() {
               </Text>
               <TouchableOpacity
                 onPress={() =>
-                  router.push(
+                  (router.push as any)(
                     `/ticket-details/${currentConversation.ticket!.id}`
                   )
                 }
@@ -293,7 +354,7 @@ export default function ChatConversationScreen() {
       >
         {/* Messages */}
         <View style={styles.messagesContainer}>
-          {messagesLoading ? (
+          {messagesLoading && !hasLoadedMessages ? (
             <View style={styles.loadingMessages}>
               <Text style={styles.loadingText}>Loading messages...</Text>
             </View>
@@ -306,10 +367,12 @@ export default function ChatConversationScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.messagesList}
               onContentSizeChange={() => {
-                flatListRef.current?.scrollToEnd({ animated: false });
+                if (hasLoadedMessages) {
+                  flatListRef.current?.scrollToEnd({ animated: false });
+                }
               }}
             />
-          ) : (
+          ) : hasLoadedMessages ? (
             <View style={styles.emptyMessages}>
               <View style={styles.emptyMessagesIcon}>
                 <Ionicons
@@ -325,7 +388,7 @@ export default function ChatConversationScreen() {
                 Send a message to {otherParticipant.full_name}
               </Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Message Input */}

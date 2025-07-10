@@ -1,4 +1,4 @@
-// src/app/chat/index.tsx
+// src/app/(tabs)/chat/index.tsx - UPDATED CHAT LIST
 import React, { useEffect } from "react";
 import {
   StyleSheet,
@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import { useChat } from "@/src/providers/ChatProvider";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ConversationWithDetails } from "@/src/types/database.types";
+import { NotificationBadge } from "@/src/components/NotificationBadge";
 
 const { width, height } = Dimensions.get("window");
 
@@ -55,7 +56,7 @@ export default function ChatListScreen() {
 
   const handleConversationPress = (conversation: ConversationWithDetails) => {
     setCurrentConversation(conversation);
-    (router.push as any)(`/chat/${conversation.id}`);
+    (router.push as any)(`/(tabs)/chat/${conversation.id}`);
   };
 
   const renderConversation = ({ item }: { item: ConversationWithDetails }) => {
@@ -140,24 +141,24 @@ export default function ChatListScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-
-        <View style={styles.headerCenter}>
+        <View style={styles.headerLeft}>
+          <View style={styles.logoContainer}>
+            <LinearGradient colors={["#ffd700", "#ffed4a"]} style={styles.logo}>
+              <Ionicons name="chatbubbles" size={20} color="#18453b" />
+            </LinearGradient>
+          </View>
           <Text style={styles.headerTitle}>Messages</Text>
         </View>
 
         <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => {
-            // TODO: Add new conversation functionality
-          }}
+          style={styles.notificationButton}
+          onPress={() => (router.push as any)("/notifications/")}
         >
-          <Ionicons name="add" size={24} color="white" />
+          <NotificationBadge
+            iconName="notifications-outline"
+            iconSize={24}
+            iconColor="#ffd700"
+          />
         </TouchableOpacity>
       </View>
 
@@ -268,7 +269,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  headerButton: {
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  logoContainer: {
+    marginRight: 12,
+  },
+  logo: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#ffd700",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "white",
+  },
+  notificationButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -277,14 +302,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  headerCenter: {
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "white",
   },
   statsContainer: {
     paddingHorizontal: 20,

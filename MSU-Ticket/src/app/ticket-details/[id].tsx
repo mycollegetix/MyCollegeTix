@@ -1,4 +1,4 @@
-// app/ticket-details/[id].tsx - Ticket Details Screen
+// app/ticket-details/[id].tsx - FIXED Hook Usage
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -17,15 +17,15 @@ import { BlurView } from "expo-blur";
 import { TicketService } from "@/src/services/ticketService";
 import { TicketWithSeller } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { useChat } from "@/src/providers/ChatProvider";
+import { useChat } from "@/src/providers/ChatProvider"; // ✅ MOVED TO TOP LEVEL
 
 const { width, height } = Dimensions.get("window");
-const { getOrCreateConversation } = useChat();
 
 export default function TicketDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { getOrCreateConversation } = useChat(); // ✅ CALLED AT TOP LEVEL
 
   const [ticket, setTicket] = useState<TicketWithSeller | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,7 +98,7 @@ export default function TicketDetailsScreen() {
                 [
                   {
                     text: "View My Orders",
-                    onPress: () => router.push("/(tabs)/orders"),
+                    onPress: () => (router.push as any)("/(tabs)/orders"),
                   },
                   {
                     text: "OK",
@@ -125,28 +125,39 @@ export default function TicketDetailsScreen() {
       ]
     );
   };
+
   const handleContactSeller = async () => {
-    if (!ticket || !user) return;
+    if (!ticket || !user) {
+      console.error("❌ Missing ticket or user data");
+      Alert.alert("Error", "Unable to start conversation - missing data");
+      return;
+    }
 
     if (ticket.seller.id === user.id) {
       Alert.alert("Info", "This is your own ticket listing.");
       return;
     }
 
-    try {
-      console.log("🗨️ Starting conversation with seller...");
+    console.log("🗨️ Starting conversation with seller...");
+    console.log("🔍 Current user:", user.id);
+    console.log("🔍 Seller ID:", ticket.seller.id);
+    console.log("🔍 Ticket ID:", ticket.id);
 
+    try {
+      console.log("🔄 Calling getOrCreateConversation...");
       const conversationId = await getOrCreateConversation(
         ticket.seller.id,
         ticket.id
       );
 
+      console.log("🔍 Conversation result:", conversationId);
+
       if (conversationId) {
         console.log("✅ Conversation created/found:", conversationId);
-        // Use type assertion to bypass the strict typing
-        (router.push as any)(`/chat/${conversationId}`);
+        // ✅ UPDATED: Navigate to chat tab first, then to specific conversation
+        (router.push as any)(`/(tabs)/chat/${conversationId}`);
       } else {
-        throw new Error("Failed to create conversation");
+        throw new Error("Failed to create conversation - no ID returned");
       }
     } catch (error) {
       console.error("❌ Error starting conversation:", error);
@@ -355,7 +366,7 @@ export default function TicketDetailsScreen() {
                 {!isOwnTicket && (
                   <TouchableOpacity
                     style={styles.contactButton}
-                    onPress={handleContactSeller}
+                    onPress={handleContactSeller} // ✅ Now properly uses the hook
                   >
                     <Ionicons
                       name="chatbubble-outline"
@@ -416,6 +427,7 @@ export default function TicketDetailsScreen() {
   );
 }
 
+// Your existing styles remain the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,

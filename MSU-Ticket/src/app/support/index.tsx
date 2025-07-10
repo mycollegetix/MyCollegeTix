@@ -81,7 +81,6 @@ export default function HelpAndSupportScreen() {
     priority: "medium",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const contactMethods: ContactMethod[] = [
     {
       id: "form",
@@ -204,7 +203,7 @@ export default function HelpAndSupportScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => router.back()}
+          onPress={() => useRouter().back()}
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>

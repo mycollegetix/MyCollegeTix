@@ -1,4 +1,4 @@
-// services/chatService.ts
+// services/chatService.ts - FIXED for schema constraints
 import { supabase } from "../lib/supabase";
 import {
   Database,
@@ -19,16 +19,35 @@ export class ChatService {
     otherUserId: string,
     ticketId?: string
   ): Promise<{ data: Conversation | null; error: any }> {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    console.log("🔥 ENTERED ChatService.getOrCreateConversation");
 
-      if (!user) {
+    try {
+      console.log("🔍 Getting current user...");
+      const { data: authData, error: authError } =
+        await supabase.auth.getUser();
+
+      if (authError) {
+        console.error("❌ Auth error:", authError);
+        throw authError;
+      }
+
+      if (!authData?.user) {
+        console.error("❌ No user found in auth");
         throw new Error("User not authenticated");
       }
 
+      const user = authData.user;
+      console.log("✅ Got user:", user.id);
+      console.log(
+        "🔍 Creating conversation between:",
+        user.id,
+        "and",
+        otherUserId
+      );
+      console.log("🔍 Ticket ID:", ticketId);
+
       // First, try to find existing conversation (check both directions)
+      console.log("🔍 Searching for existing conversation...");
       const { data: existingConversations, error: findError } = await supabase
         .from("conversations")
         .select("*")
@@ -37,20 +56,40 @@ export class ChatService {
         );
 
       if (findError) {
+        console.error("❌ Error searching for conversation:", findError);
         throw findError;
       }
 
+      console.log(
+        "✅ Search result:",
+        existingConversations?.length || 0,
+        "conversations found"
+      );
+
       if (existingConversations && existingConversations.length > 0) {
+        console.log(
+          "✅ Found existing conversation:",
+          existingConversations[0].id
+        );
         return { data: existingConversations[0], error: null };
       }
 
       // Create new conversation if it doesn't exist
-      // Always order participants consistently to prevent duplicates
+      console.log("🆕 Creating new conversation...");
+
+      // FIXED: Don't set last_message_id when creating - leave it null
       const conversationData: ConversationInsert = {
         participant_1_id: user.id < otherUserId ? user.id : otherUserId,
         participant_2_id: user.id < otherUserId ? otherUserId : user.id,
         ticket_id: ticketId || null,
+        last_message_id: null, // IMPORTANT: Keep this null initially
+        last_message_at: null, // IMPORTANT: Keep this null initially
       };
+
+      console.log(
+        "📝 Conversation data:",
+        JSON.stringify(conversationData, null, 2)
+      );
 
       const { data: newConversation, error: createError } = await supabase
         .from("conversations")
@@ -59,9 +98,20 @@ export class ChatService {
         .single();
 
       if (createError) {
+        console.error("❌ Error creating conversation:", createError);
+        console.error("❌ Supabase error details:", {
+          message: createError.message,
+          details: createError.details,
+          hint: createError.hint,
+          code: createError.code,
+        });
+
         // If there's a constraint violation, try to fetch existing conversation again
         if (createError.code === "23505") {
           // Unique violation
+          console.log(
+            "🔄 Unique violation, trying to fetch existing conversation..."
+          );
           const { data: existingConversation } = await supabase
             .from("conversations")
             .select("*")
@@ -71,19 +121,84 @@ export class ChatService {
             .single();
 
           if (existingConversation) {
+            console.log(
+              "✅ Found existing conversation after unique violation:",
+              existingConversation.id
+            );
             return { data: existingConversation, error: null };
           }
         }
         throw createError;
       }
 
+      console.log(
+        "✅ Successfully created new conversation:",
+        newConversation?.id
+      );
       return { data: newConversation, error: null };
     } catch (error) {
-      console.error("Error getting/creating conversation:", error);
+      console.error("💥 Error in getOrCreateConversation:", error);
+      console.error("💥 Error details:", JSON.stringify(error, null, 2));
       return { data: null, error };
     }
   }
 
+  // Send a message - UPDATED to handle last_message updates
+  static async sendMessage(
+    conversationId: string,
+    content: string,
+    messageType: "text" | "system" | "ticket_reference" = "text"
+  ): Promise<{ data: Message | null; error: any }> {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      const messageData: MessageInsert = {
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content: content.trim(),
+        message_type: messageType,
+      };
+
+      const { data, error } = await supabase
+        .from("messages")
+        .insert(messageData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // IMPORTANT: Update the conversation's last_message_id and last_message_at
+      const { error: updateError } = await supabase
+        .from("conversations")
+        .update({
+          last_message_id: data.id,
+          last_message_at: data.created_at,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", conversationId);
+
+      if (updateError) {
+        console.error(
+          "Warning: Failed to update conversation last_message:",
+          updateError
+        );
+        // Don't throw here - the message was created successfully
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error("Error sending message:", error);
+      return { data: null, error };
+    }
+  }
+
+  // Rest of your methods remain the same...
   // Get user's conversations with details - SIMPLIFIED VERSION
   static async getUserConversations(): Promise<{
     data: ConversationWithDetails[];
@@ -250,43 +365,6 @@ export class ChatService {
     } catch (error) {
       console.error("Error fetching messages:", error);
       return { data: [], error };
-    }
-  }
-
-  // Send a message
-  static async sendMessage(
-    conversationId: string,
-    content: string,
-    messageType: "text" | "system" | "ticket_reference" = "text"
-  ): Promise<{ data: Message | null; error: any }> {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error("User not authenticated");
-      }
-
-      const messageData: MessageInsert = {
-        conversation_id: conversationId,
-        sender_id: user.id,
-        content: content.trim(),
-        message_type: messageType,
-      };
-
-      const { data, error } = await supabase
-        .from("messages")
-        .insert(messageData)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return { data, error: null };
-    } catch (error) {
-      console.error("Error sending message:", error);
-      return { data: null, error };
     }
   }
 

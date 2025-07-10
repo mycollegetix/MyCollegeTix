@@ -1,4 +1,4 @@
-// src/providers/ChatProvider.tsx
+// src/providers/ChatProvider.tsx - FIXED VERSION
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { ChatService } from "../services/chatService";
 import { useAuth } from "./AuthProvider";
@@ -135,21 +135,48 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     otherUserId: string,
     ticketId?: string
   ): Promise<string | null> => {
+    console.log("🚨🚨🚨 ENTERED ChatProvider.getOrCreateConversation 🚨🚨🚨");
+    console.log(
+      "🔍 ChatProvider: Current user in getOrCreateConversation:",
+      user?.id
+    );
+
+    if (!user?.id) {
+      console.error("❌ ChatProvider: No authenticated user found");
+      return null;
+    }
+
     try {
-      const { data, error } = await ChatService.getOrCreateConversation(
+      console.log("🔍 ChatProvider: getOrCreateConversation called");
+      console.log("🔍 ChatProvider: otherUserId:", otherUserId);
+      console.log("🔍 ChatProvider: ticketId:", ticketId);
+
+      const result = await ChatService.getOrCreateConversation(
         otherUserId,
         ticketId
       );
-      if (error || !data) {
-        throw error;
+
+      console.log("🔍 ChatProvider: Raw ChatService result:", result);
+
+      if (result.error || !result.data) {
+        const errorMessage = result.error
+          ? JSON.stringify(result.error)
+          : "No conversation data returned";
+        console.error("❌ ChatProvider: Error from ChatService:", errorMessage);
+        throw new Error(errorMessage);
       }
 
       // Refresh conversations to include the new one
+      console.log("🔄 ChatProvider: Refreshing conversations...");
       await loadConversations();
 
-      return data.id;
+      console.log(
+        "✅ ChatProvider: Returning conversation ID:",
+        result.data.id
+      );
+      return result.data.id;
     } catch (error) {
-      console.error("Error creating conversation:", error);
+      console.error("❌ ChatProvider: getOrCreateConversation error:", error);
       return null;
     }
   };
