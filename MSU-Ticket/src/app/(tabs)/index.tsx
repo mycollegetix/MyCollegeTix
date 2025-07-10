@@ -292,7 +292,9 @@ export default function BrowseScreen() {
         <View style={styles.headerSection}>
           <TouchableOpacity
             style={styles.notificationButton}
-            onPress={() => router.push("../notifications/NotificationScreen")}
+            onPress={() =>
+              (router.push as any)("../notifications/NotificationScreen")
+            }
           >
             <NotificationBadge
               iconName="notifications-outline"

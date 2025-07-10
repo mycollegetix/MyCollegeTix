@@ -17,8 +17,10 @@ import { BlurView } from "expo-blur";
 import { TicketService } from "@/src/services/ticketService";
 import { TicketWithSeller } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { useChat } from "@/src/providers/ChatProvider";
 
 const { width, height } = Dimensions.get("window");
+const { getOrCreateConversation } = useChat();
 
 export default function TicketDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -123,27 +125,33 @@ export default function TicketDetailsScreen() {
       ]
     );
   };
+  const handleContactSeller = async () => {
+    if (!ticket || !user) return;
 
-  const handleContactSeller = () => {
-    if (!ticket) return;
+    if (ticket.seller.id === user.id) {
+      Alert.alert("Info", "This is your own ticket listing.");
+      return;
+    }
 
-    Alert.alert(
-      "Contact Seller",
-      `Would you like to contact ${ticket.seller.full_name}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Contact",
-          onPress: () => {
-            // In a real app, you might implement messaging or show contact info
-            Alert.alert(
-              "Feature Coming Soon",
-              "Direct messaging will be available in a future update."
-            );
-          },
-        },
-      ]
-    );
+    try {
+      console.log("🗨️ Starting conversation with seller...");
+
+      const conversationId = await getOrCreateConversation(
+        ticket.seller.id,
+        ticket.id
+      );
+
+      if (conversationId) {
+        console.log("✅ Conversation created/found:", conversationId);
+        // Use type assertion to bypass the strict typing
+        (router.push as any)(`/chat/${conversationId}`);
+      } else {
+        throw new Error("Failed to create conversation");
+      }
+    } catch (error) {
+      console.error("❌ Error starting conversation:", error);
+      Alert.alert("Error", "Unable to start conversation. Please try again.");
+    }
   };
 
   const formatEventDate = (dateString: string) => {
@@ -354,7 +362,7 @@ export default function TicketDetailsScreen() {
                       size={16}
                       color="#18453b"
                     />
-                    <Text style={styles.contactButtonText}>Contact</Text>
+                    <Text style={styles.contactButtonText}>Message</Text>
                   </TouchableOpacity>
                 )}
               </View>

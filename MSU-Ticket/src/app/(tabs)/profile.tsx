@@ -295,7 +295,9 @@ export default function ProfileScreen() {
                     <TouchableOpacity
                       style={styles.quickActionCard}
                       onPress={() =>
-                        router.push("/notifications/NotificationScreen")
+                        (router.push as any)(
+                          "/notifications/NotificationScreen"
+                        )
                       }
                     >
                       <View style={styles.quickActionIcon}>
@@ -314,7 +316,9 @@ export default function ProfileScreen() {
 
                     <TouchableOpacity
                       style={styles.quickActionCard}
-                      onPress={() => router.push("/support/helpandsupportpage")}
+                      onPress={() =>
+                        (router.push as any)("/support/helpandsupportpage")
+                      }
                     >
                       <View style={styles.quickActionIcon}>
                         <Ionicons

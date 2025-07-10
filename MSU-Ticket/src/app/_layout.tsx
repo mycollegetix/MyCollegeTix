@@ -1,8 +1,10 @@
+// app/_layout.tsx - Updated to include ChatProvider
 import { AuthProvider, useAuth } from "@/src/providers/AuthProvider";
+import { NotificationProvider } from "@/src/providers/NotificationProvider";
+import { ChatProvider } from "@/src/providers/ChatProvider";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useColorScheme } from "react-native";
 import { useEffect } from "react";
-import { NotificationProvider } from "@/src/providers/NotificationProvider";
 
 function RootLayoutNav() {
   const { session, isLoading } = useAuth();
@@ -25,6 +27,10 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="chat" options={{ headerShown: false }} />
+      <Stack.Screen name="ticket-details" options={{ headerShown: false }} />
+      <Stack.Screen name="notifications" options={{ headerShown: false }} />
+      <Stack.Screen name="support" options={{ headerShown: false }} />
     </Stack>
   );
 }
@@ -35,7 +41,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <NotificationProvider>
-        <RootLayoutNav />
+        <ChatProvider>
+          <RootLayoutNav />
+        </ChatProvider>
       </NotificationProvider>
     </AuthProvider>
   );

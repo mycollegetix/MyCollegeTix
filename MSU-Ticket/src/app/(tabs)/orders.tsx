@@ -258,7 +258,7 @@ export default function OrdersScreen() {
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => router.push(`/ticket-details/${item.id}`)}
+              onPress={() => (router.push as any)(`/ticket-details/${item.id}`)}
             >
               <Text style={styles.actionButtonText}>View Details</Text>
               <Ionicons name="chevron-forward" size={16} color="#18453b" />
@@ -315,7 +315,9 @@ export default function OrdersScreen() {
           </Text>
           <TouchableOpacity
             style={styles.notificationButton}
-            onPress={() => router.push("/notifications/NotificationScreen")}
+            onPress={() =>
+              (router.push as any)("/notifications/NotificationScreen")
+            }
           >
             <NotificationBadge
               iconName="notifications-outline"
@@ -434,9 +436,9 @@ export default function OrdersScreen() {
                 style={styles.emptyActionButton}
                 onPress={() => {
                   if (activeTab === "buying") {
-                    router.push("/"); // Changed from "/(tabs)/" to just "/"
+                    (router.push as any)("/"); // Changed from "/(tabs)/" to just "/"
                   } else {
-                    router.push("/(tabs)/sell");
+                    (router.push as any)("/(tabs)/sell");
                   }
                 }}
               >

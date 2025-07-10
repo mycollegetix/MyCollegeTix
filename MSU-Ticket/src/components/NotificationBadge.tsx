@@ -1,41 +1,41 @@
-// components/NotificationBadge.tsx
+// src/components/NotificationBadge.tsx
 import React from "react";
-import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
+import { StyleSheet, View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { useNotifications } from "@/src/providers/NotificationProvider";
+import { useChat } from "@/src/providers/ChatProvider";
 
 interface NotificationBadgeProps {
-  iconName?: string;
+  iconName: string;
   iconSize?: number;
   iconColor?: string;
-  showCount?: boolean;
+  showChatBadge?: boolean;
 }
 
 export function NotificationBadge({
-  iconName = "notifications-outline",
+  iconName,
   iconSize = 24,
-  iconColor = "#18453b",
-  showCount = true,
+  iconColor = "#ffd700",
+  showChatBadge = false,
 }: NotificationBadgeProps) {
-  const router = useRouter();
-  const { unreadCount } = useNotifications();
+  const { unreadCount: notificationUnreadCount } = useNotifications();
+  const { unreadCount: chatUnreadCount } = useChat();
 
-  const handlePress = () => {
-    router.push("/notifications/NotificationScreen");
-  };
+  const totalUnreadCount = showChatBadge
+    ? chatUnreadCount
+    : notificationUnreadCount;
 
   return (
-    <TouchableOpacity style={styles.container} onPress={handlePress}>
+    <View style={styles.container}>
       <Ionicons name={iconName as any} size={iconSize} color={iconColor} />
-      {showCount && unreadCount > 0 && (
+      {totalUnreadCount > 0 && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>
-            {unreadCount > 99 ? "99+" : unreadCount.toString()}
+            {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
           </Text>
         </View>
       )}
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -45,8 +45,8 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: "absolute",
-    top: -8,
-    right: -8,
+    top: -6,
+    right: -6,
     backgroundColor: "#ef4444",
     borderRadius: 10,
     minWidth: 20,
@@ -57,9 +57,9 @@ const styles = StyleSheet.create({
     borderColor: "white",
   },
   badgeText: {
+    fontSize: 11,
+    fontWeight: "600",
     color: "white",
-    fontSize: 12,
-    fontWeight: "700",
     textAlign: "center",
   },
 });

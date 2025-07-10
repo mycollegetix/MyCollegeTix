@@ -129,7 +129,7 @@ export default function SellScreen() {
           text: "View Listing",
           onPress: () => {
             if (data) {
-              router.push(`/ticket-details/${data.id}`);
+              (router.push as any)(`/ticket-details/${data.id}`);
             }
           },
         },
@@ -153,7 +153,7 @@ export default function SellScreen() {
         },
         {
           text: "Go to My Listings",
-          onPress: () => router.push("/(tabs)/orders"),
+          onPress: () => (router.push as any)("/(tabs)/orders"),
         },
       ]);
     } catch (error: any) {
@@ -252,7 +252,9 @@ export default function SellScreen() {
             </Text>
             <TouchableOpacity
               style={styles.notificationButton}
-              onPress={() => router.push("/notifications/NotificationScreen")}
+              onPress={() =>
+                (router.push as any)("/notifications/NotificationScreen")
+              }
             >
               <NotificationBadge
                 iconName="notifications-outline"

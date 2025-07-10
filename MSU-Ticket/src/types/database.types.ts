@@ -1,3 +1,4 @@
+// src/types/database.types.ts
 export type Json =
   | string
   | number
@@ -14,6 +15,112 @@ export type Database = {
   };
   public: {
     Tables: {
+      conversations: {
+        Row: {
+          id: string;
+          created_at: string;
+          updated_at: string;
+          participant_1_id: string;
+          participant_2_id: string;
+          last_message_id: string | null;
+          last_message_at: string | null;
+          ticket_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          participant_1_id: string;
+          participant_2_id: string;
+          last_message_id?: string | null;
+          last_message_at?: string | null;
+          ticket_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          participant_1_id?: string;
+          participant_2_id?: string;
+          last_message_id?: string | null;
+          last_message_at?: string | null;
+          ticket_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conversations_participant_1_fkey";
+            columns: ["participant_1_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_participant_2_fkey";
+            columns: ["participant_2_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "tickets";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      messages: {
+        Row: {
+          id: string;
+          created_at: string;
+          conversation_id: string;
+          sender_id: string;
+          content: string;
+          message_type: string;
+          read_by_recipient: boolean | null;
+          read_at: string | null;
+          edited_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          conversation_id: string;
+          sender_id: string;
+          content: string;
+          message_type?: string;
+          read_by_recipient?: boolean | null;
+          read_at?: string | null;
+          edited_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          conversation_id?: string;
+          sender_id?: string;
+          content?: string;
+          message_type?: string;
+          read_by_recipient?: boolean | null;
+          read_at?: string | null;
+          edited_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey";
+            columns: ["sender_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       notifications: {
         Row: {
           created_at: string;
@@ -263,8 +370,31 @@ export type Database = {
   };
 };
 
-export type TicketWithSeller = Tables<'tickets'> & {
-  seller: Tables<'profiles'>;
+// Extended types for chat functionality
+export type ConversationWithParticipants =
+  Database["public"]["Tables"]["conversations"]["Row"] & {
+    participant_1: Database["public"]["Tables"]["profiles"]["Row"];
+    participant_2: Database["public"]["Tables"]["profiles"]["Row"];
+    last_message?: Database["public"]["Tables"]["messages"]["Row"];
+    unread_count?: number;
+  };
+
+export type MessageWithSender =
+  Database["public"]["Tables"]["messages"]["Row"] & {
+    sender: Database["public"]["Tables"]["profiles"]["Row"];
+  };
+
+export type ConversationWithDetails =
+  Database["public"]["Tables"]["conversations"]["Row"] & {
+    participant_1: Database["public"]["Tables"]["profiles"]["Row"];
+    participant_2: Database["public"]["Tables"]["profiles"]["Row"];
+    last_message?: Database["public"]["Tables"]["messages"]["Row"];
+    ticket?: Database["public"]["Tables"]["tickets"]["Row"];
+    unread_count: number;
+  };
+
+export type TicketWithSeller = Tables<"tickets"> & {
+  seller: Tables<"profiles">;
 };
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;

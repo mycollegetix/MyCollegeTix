@@ -52,12 +52,12 @@ export default function NotificationsScreen() {
 
     // Navigate based on notification type and related data
     if (notification.related_ticket_id) {
-      router.push(`/ticket-details/${notification.related_ticket_id}`);
+      (router.push as any)(`/ticket-details/${notification.related_ticket_id}`);
     } else if (
       notification.type === "purchase" ||
       notification.type === "sale"
     ) {
-      router.push("/(tabs)/orders");
+      (router.push as any)("/(tabs)/orders");
     }
   };
 
@@ -184,7 +184,7 @@ export default function NotificationsScreen() {
         >
           <View style={styles.notificationContent}>
             <LinearGradient
-              colors={colors.gradient}
+              colors={["#18453b", "#2a6b5a", "#0f2f28"] as const}
               style={styles.notificationIcon}
             >
               <Ionicons
@@ -270,7 +270,13 @@ export default function NotificationsScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              (router.push as any)("/(tabs)/");
+            }
+          }}
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
