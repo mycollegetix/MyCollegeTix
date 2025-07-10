@@ -41,6 +41,7 @@ export default function ChatConversationScreen() {
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
   const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
+  const [localMessages, setMessages] = useState<MessageWithSender[]>([]); // ✅ LOCAL STATE
   const flatListRef = useRef<FlatList>(null);
 
   // Memoized conversation loading
@@ -74,10 +75,35 @@ export default function ChatConversationScreen() {
     ]
   );
 
+  // ✅ SYNC: Update local messages when global messages change
+  useEffect(() => {
+    setMessages(messages);
+  }, [messages]);
+
   // Effect for loading conversation data
   useEffect(() => {
     if (id && conversations.length > 0) {
       loadConversationData(id);
+    }
+
+    // ✅ REAL-TIME: Set up message subscription for immediate updates
+    let messageSubscription: (() => void) | null = null;
+
+    if (id) {
+      // Import ChatService for direct subscription
+      const { ChatService } = require("@/src/services/chatService");
+
+      messageSubscription = ChatService.subscribeToConversationMessages(
+        id,
+        (newMessage: any) => {
+          // Only add if it's not from the current user (to avoid duplicates when sending)
+          if (newMessage.sender_id !== user?.id) {
+            console.log("📨 New message received:", newMessage.content);
+            // Reload messages to get the complete message with sender info
+            loadMessages(id);
+          }
+        }
+      );
     }
 
     // Cleanup function
@@ -85,32 +111,86 @@ export default function ChatConversationScreen() {
       console.log("🧹 Cleaning up conversation screen");
       setCurrentConversation(null);
       setHasLoadedMessages(false);
+      if (messageSubscription) {
+        messageSubscription();
+      }
     };
-  }, [id, conversations.length]);
+  }, [id, conversations.length, user?.id]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (messages.length > 0 && hasLoadedMessages) {
+    if (localMessages.length > 0 && hasLoadedMessages) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages.length, hasLoadedMessages]);
+  }, [localMessages.length, hasLoadedMessages]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !id || sending) return;
 
     const content = messageText.trim();
+    const tempId = `temp-${Date.now()}`; // Temporary ID for optimistic update
+
+    // ✅ OPTIMISTIC UPDATE: Add message immediately to UI
+    const optimisticMessage = {
+      id: tempId,
+      content: content,
+      sender_id: user?.id || "",
+      conversation_id: id,
+      created_at: new Date().toISOString(),
+      message_type: "text",
+      read_by_recipient: false,
+      read_at: null,
+      edited_at: null,
+      sender: {
+        id: user?.id || "",
+        full_name: user?.user_metadata?.full_name || "You",
+        username: user?.email?.split("@")[0] || "you",
+        email: user?.email || "",
+        avatar_url: null,
+        created_at: new Date().toISOString(),
+      },
+    };
+
+    // Add optimistic message to the messages array
+    setMessages((prevMessages) => [...prevMessages, optimisticMessage as any]);
+
     setMessageText("");
     setSending(true);
+
+    // Auto-scroll immediately
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 50);
 
     try {
       const success = await sendMessage(id, content);
       if (!success) {
+        // Remove optimistic message on failure
+        setMessages((prevMessages) =>
+          prevMessages.filter((msg) => msg.id !== tempId)
+        );
         Alert.alert("Error", "Failed to send message. Please try again.");
         setMessageText(content);
+      } else {
+        // ✅ REPLACE OPTIMISTIC: Remove temp message and reload to get real message
+        setTimeout(async () => {
+          setMessages((prevMessages) =>
+            prevMessages.filter((msg) => msg.id !== tempId)
+          );
+          await loadMessages(id);
+          // Auto-scroll after loading real messages
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }, 200);
       }
     } catch (error) {
+      // Remove optimistic message on error
+      setMessages((prevMessages) =>
+        prevMessages.filter((msg) => msg.id !== tempId)
+      );
       console.error("Error sending message:", error);
       Alert.alert("Error", "Failed to send message. Please try again.");
       setMessageText(content);
@@ -178,7 +258,7 @@ export default function ChatConversationScreen() {
     const showTime =
       index === 0 ||
       new Date(item.created_at).getTime() -
-        new Date(messages[index - 1].created_at).getTime() >
+        new Date(localMessages[index - 1].created_at).getTime() >
         300000; // 5 minutes
 
     return (
@@ -358,10 +438,10 @@ export default function ChatConversationScreen() {
             <View style={styles.loadingMessages}>
               <Text style={styles.loadingText}>Loading messages...</Text>
             </View>
-          ) : messages.length > 0 ? (
+          ) : localMessages.length > 0 ? (
             <FlatList
               ref={flatListRef}
-              data={messages}
+              data={localMessages}
               renderItem={renderMessage}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
