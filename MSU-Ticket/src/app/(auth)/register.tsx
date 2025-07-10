@@ -11,12 +11,11 @@ import {
   Dimensions,
   Alert,
 } from "react-native";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { supabase } from "@/src/lib/supabase";
 
 const { width, height } = Dimensions.get("window");
 
@@ -30,19 +29,100 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { signUp } = useAuth();
+  const router = useRouter();
 
   const handleRegister = async () => {
-    setIsLoading(true);
-    const { error } = await signUp(email, password, name);
-    if (error) {
-      Alert.alert("Registration Failed", error.message);
-    } else {
-      // Optionally, you can navigate the user to the login screen
-      // or directly to the main app area upon successful registration.
-      Alert.alert("Success", "Your account has been created successfully!");
+    // Basic validation
+    if (!name.trim()) {
+      Alert.alert("Error", "Please enter your full name");
+      return;
     }
-    setIsLoading(false);
+
+    if (!email.trim()) {
+      Alert.alert("Error", "Please enter your email address");
+      return;
+    }
+
+    if (!password.trim()) {
+      Alert.alert("Error", "Please enter a password");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Passwords do not match");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters long");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { error } = await signUp(email, password, name);
+
+      if (error) {
+        console.error("Registration error:", error);
+
+        // Handle specific error types
+        if (error.message.includes("User already registered")) {
+          Alert.alert(
+            "Registration Failed",
+            "An account with this email already exists. Please try signing in instead."
+          );
+        } else if (error.message.includes("Password should be at least")) {
+          Alert.alert(
+            "Registration Failed",
+            "Password should be at least 6 characters long."
+          );
+        } else if (error.message.includes("Unable to validate email")) {
+          Alert.alert(
+            "Registration Failed",
+            "Please enter a valid email address."
+          );
+        } else {
+          Alert.alert(
+            "Registration Failed",
+            error.message ||
+              "An error occurred during registration. Please try again."
+          );
+        }
+      } else {
+        // Success - show verification message and redirect to login
+        Alert.alert(
+          "Account Created Successfully!",
+          `We've sent a verification email to ${email}. Please check your email and click the verification link to activate your account before signing in.`,
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Navigate to login screen
+                router.replace("/(auth)/login");
+              },
+            },
+          ]
+        );
+      }
+    } catch (error: any) {
+      console.error("Unexpected registration error:", error);
+      Alert.alert(
+        "Registration Failed",
+        "An unexpected error occurred. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
+
   const getPasswordStrength = (password: string) => {
     if (password.length < 6) return { color: "#ef4444", text: "Weak" };
     if (password.length < 10) return { color: "#f59e0b", text: "Medium" };

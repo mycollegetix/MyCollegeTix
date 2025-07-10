@@ -323,25 +323,6 @@ export default function LoginScreen() {
                 </LinearGradient>
               </TouchableOpacity>
 
-              {/* Social Login */}
-              <View style={styles.socialLogin}>
-                <Text style={styles.socialTitle}>Or sign in with</Text>
-                <View style={styles.socialButtons}>
-                  <TouchableOpacity style={styles.socialButton}>
-                    <Ionicons name="logo-google" size={20} color="#4285f4" />
-                    <Text style={[styles.socialText, { color: "#4285f4" }]}>
-                      Google
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.socialButton}>
-                    <Ionicons name="logo-microsoft" size={20} color="#0078d4" />
-                    <Text style={[styles.socialText, { color: "#0078d4" }]}>
-                      Microsoft
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
               {/* Register Link */}
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
@@ -722,34 +703,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.3)",
     borderTopColor: "white",
     marginLeft: 10,
-  },
-  socialLogin: {
-    marginBottom: 24,
-  },
-  socialTitle: {
-    textAlign: "center",
-    fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 16,
-  },
-  socialButtons: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
-    gap: 8,
-  },
-  socialText: {
-    fontSize: 14,
-    fontWeight: "500",
   },
   divider: {
     flexDirection: "row",
