@@ -1,0 +1,208 @@
+# Event Import Script Setup Guide
+
+## 📋 Overview
+This script allows you to import MSU Athletics calendar data from text files directly into your Supabase database. It automatically parses event information and creates properly formatted database entries.
+
+## 🚀 Setup Instructions
+
+### 1. Install Dependencies
+```bash
+npm install @supabase/supabase-js
+```
+
+### 2. Configure Environment
+Create a `.env` file in your project root with your Supabase credentials:
+```bash
+SUPABASE_URL=your_supabase_url_here
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+```
+
+### 3. Update Script Configuration
+Edit the `importEvents.js` file and replace the placeholder values:
+```javascript
+const supabaseUrl = process.env.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'YOUR_SUPABASE_SERVICE_ROLE_KEY';
+```
+
+## 📁 File Structure
+Create the following structure:
+```
+your-project/
+├── scripts/
+│   └── importEvents.js
+├── calendar-files/
+│   ├── fall-2025.txt
+│   ├── spring-2026.txt
+│   └── summer-2026.txt
+└── package.json
+```
+
+## 📝 Text File Format
+Your text files should follow this format:
+
+```
+Michigan State University Athletics
+**Composite Calendar**
+
+Saturday, August 9, 2025
+Women's Soccer vs TCU
+DeMartin Stadium
+
+Sunday, August 10, 2025
+Men's Soccer vs Butler (Exhibition) TBA
+East Lansing, Mich.DeMartin Stadium
+
+Thursday, August 14, 2025
+Women's Soccer at Colorado
+Boulder, CO
+
+Friday, August 29, 2025
+Football vs Western Michigan 7 P.M.
+East Lansing, Mich.Spartan Stadium
+```
+
+## ⚙️ Usage
+
+### Run the Import Script
+```bash
+node scripts/importEvents.js ./calendar-files
+```
+
+### Example Output
+```
+🚀 Starting event import process...
+📁 Processing folder: ./calendar-files
+
+Processing: fall-2025.txt
+Parsed 45 events from fall-2025.txt
+
+Processing: spring-2026.txt  
+Parsed 38 events from spring-2026.txt
+
+Total events parsed: 83
+
+Importing 83 events...
+✅ Imported: Soccer vs TCU - 2025-08-09T12:00:00-05:00
+✅ Imported: Soccer vs Butler (Exhibition) - 2025-08-10T12:00:00-05:00
+⏭️  Skipping duplicate event: Soccer vs TCU
+✅ Imported: Soccer at Colorado - 2025-08-14T12:00:00-05:00
+
+📊 Import Summary:
+✅ Imported: 81
+⏭️  Skipped: 2
+❌ Errors: 0
+```
+
+## 🏗️ How It Works
+
+### 1. **Date Parsing**
+- Recognizes format: "Saturday, August 9, 2025"
+- Converts to ISO format for database storage
+
+### 2. **Event Parsing**
+- **Home Games**: "vs [Team]" → Sets `is_home_game: true`
+- **Away Games**: "at [Team]" → Sets `is_home_game: false`  
+- **Exhibitions**: "(Exhibition)" → Included in title
+- **Time Extraction**: "7 P.M.", "7:30 PM" → Standardized format
+
+### 3. **Sport Classification**
+- Maps "Women's Soccer" → "Soccer"
+- Maps "Men's Soccer" → "Soccer"
+- Standardizes all sport names
+
+### 4. **Location Handling**
+- **Venues**: "DeMartin Stadium", "Spartan Stadium"
+- **Away Locations**: "Boulder, CO", "Pittsburgh, Pa."
+- **Home Default**: "East Lansing, MI"
+
+### 5. **Duplicate Prevention**
+- Checks for existing events with same title, date, and location
+- Skips duplicates to prevent database conflicts
+
+## 🎯 Supported Event Formats
+
+### Home Games
+```
+Women's Soccer vs TCU
+DeMartin Stadium
+```
+→ Creates: "Soccer vs TCU" at DeMartin Stadium
+
+### Away Games  
+```
+Women's Soccer at Colorado
+Boulder, CO
+```
+→ Creates: "Soccer at Colorado" in Boulder, CO
+
+### With Times
+```
+Football vs Western Michigan 7 P.M.
+East Lansing, Mich.Spartan Stadium
+```
+→ Creates: "Football vs Western Michigan" at 7:00 PM
+
+### Exhibitions
+```
+Men's Soccer vs Butler (Exhibition) TBA
+East Lansing, Mich.DeMartin Stadium
+```
+→ Creates: "Soccer vs Butler (Exhibition)" with TBA time
+
+## 🔧 Customization
+
+### Add New Sports
+Edit the `SPORT_MAPPING` object:
+```javascript
+const SPORT_MAPPING = {
+  'tennis': 'Tennis',
+  'golf': 'Golf',
+  'track': 'Track & Field',
+  // ... existing sports
+};
+```
+
+### Add New Venues
+Edit the `VENUE_MAPPING` object:
+```javascript
+const VENUE_MAPPING = {
+  'munn ice arena': 'Munn Ice Arena',
+  'jenison field house': 'Jenison Field House',
+  // ... existing venues
+};
+```
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+**1. "Supabase connection failed"**
+- Check your `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+- Ensure you're using the SERVICE ROLE key, not the anon key
+
+**2. "No events were parsed"**
+- Check text file format matches examples
+- Ensure dates start with weekday (e.g., "Saturday, August 9, 2025")
+
+**3. "Permission denied"**
+- Verify your service role key has INSERT permissions on the events table
+- Check RLS policies if enabled
+
+**4. "Duplicate key violation"**
+- The script should handle duplicates automatically
+- If errors persist, check for malformed event data
+
+### Debug Mode
+Add debug logging by modifying the script:
+```javascript
+// Add this line after each parsing step
+console.log('DEBUG:', JSON.stringify(event, null, 2));
+```
+
+## 🎉 Success!
+Once imported, your events will appear in:
+- The sell tab event dropdown
+- Filtered by sport
+- Available for ticket creation
+
+The events are automatically set to "available" status and ready for use in your ticket marketplace!

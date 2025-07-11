@@ -1,5 +1,5 @@
-// screens/sell.tsx - Updated Sell Screen
-import React, { useState } from "react";
+// src/app/(tabs)/sell.tsx - Complete working sell screen
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   ScrollView,
@@ -11,6 +11,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
+  FlatList,
+  StatusBar,
 } from "react-native";
 import Colors from "@/src/constants/Colors";
 import { useColorScheme } from "@/src/components/useColorScheme";
@@ -19,16 +22,21 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { TicketService } from "@/src/services/ticketService";
+import { EventService } from "@/src/services/eventService";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
+import { Event } from "@/src/types/database.types";
 
 const { width, height } = Dimensions.get("window");
 
 const sports = [
+  { name: "All Sports", icon: "grid-outline" },
   { name: "Football", icon: "american-football-outline" },
   { name: "Basketball", icon: "basketball-outline" },
-  { name: "Hockey", icon: "golf-outline" },
   { name: "Soccer", icon: "football-outline" },
   { name: "Volleyball", icon: "tennisball-outline" },
+  { name: "Hockey", icon: "golf-outline" },
+  { name: "Baseball", icon: "baseball-outline" },
+  { name: "Field Hockey", icon: "leaf-outline" },
 ];
 
 export default function SellScreen() {
@@ -36,43 +44,90 @@ export default function SellScreen() {
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
 
+  // Event selection state
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [availableEvents, setAvailableEvents] = useState<Event[]>([]);
+  const [selectedSport, setSelectedSport] = useState("All Sports");
+  const [loadingEvents, setLoadingEvents] = useState(false);
+
+  // Form state
   const [formData, setFormData] = useState({
-    sport: "",
-    event: "",
-    date: "",
-    time: "",
     section: "",
     row_number: "",
     seat_number: "",
     price: "",
-    location: "",
     description: "",
   });
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const parseDateTime = (date: string, time: string): Date | null => {
-    const [month, day, year] = date.split("/").map(Number);
-    const [timePart, ampm] = time.split(" ");
-    let [hours, minutes] = timePart.split(":").map(Number);
+  // Load available events when sport changes
+  useEffect(() => {
+    loadAvailableEvents();
+  }, [selectedSport]);
 
-    if (ampm.toLowerCase() === "pm" && hours < 12) {
-      hours += 12;
-    } else if (ampm.toLowerCase() === "am" && hours === 12) {
-      hours = 0;
+  const loadAvailableEvents = async () => {
+    setLoadingEvents(true);
+    try {
+      const { data, error } = await EventService.getAvailableEvents({
+        sport: selectedSport !== "All Sports" ? selectedSport : undefined,
+        limit: 100,
+      });
+
+      if (error) {
+        console.error("Error loading events:", error);
+        Alert.alert("Error", "Failed to load events. Please try again.");
+        return;
+      }
+
+      setAvailableEvents(data);
+    } catch (error) {
+      console.error("Error loading events:", error);
+      Alert.alert("Error", "Failed to load events. Please try again.");
+    } finally {
+      setLoadingEvents(false);
     }
+  };
 
-    if (
-      isNaN(year) ||
-      isNaN(month) ||
-      isNaN(day) ||
-      isNaN(hours) ||
-      isNaN(minutes)
-    ) {
-      return null;
-    }
+  const handleEventSelect = (event: Event) => {
+    setSelectedEvent(event);
+    setShowEventModal(false);
 
-    return new Date(year, month - 1, day, hours, minutes);
+    // Auto-fill description based on event
+    setFormData((prev) => ({
+      ...prev,
+      description:
+        prev.description ||
+        `Ticket for ${event.title} - ${formatEventDate(event.event_date)}`,
+    }));
+  };
+
+  const formatEventDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const dateStr = date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    const timeStr = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    return `${dateStr} • ${timeStr}`;
+  };
+
+  const isFormValid = () => {
+    return (
+      selectedEvent &&
+      formData.section.trim() &&
+      formData.row_number.trim() &&
+      formData.seat_number.trim() &&
+      formData.price.trim() &&
+      parseFloat(formData.price) > 0
+    );
   };
 
   const handleSubmit = async () => {
@@ -81,43 +136,21 @@ export default function SellScreen() {
       return;
     }
 
+    if (!selectedEvent) {
+      Alert.alert("Error", "Please select an event");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const eventDateTime = parseDateTime(formData.date, formData.time);
-
-      if (!eventDateTime) {
-        Alert.alert(
-          "Error",
-          "Invalid date or time format. Please use MM/DD/YYYY and HH:MM AM/PM."
-        );
-        setIsLoading(false);
-        return;
-      }
-
-      if (eventDateTime <= new Date()) {
-        Alert.alert("Error", "The event date must be in the future.");
-        setIsLoading(false);
-        return;
-      }
-
-      const eventDateTimeISO = eventDateTime.toISOString();
-
-      // Create description with seat details
-      const seatInfo = `Section ${formData.section}, Row ${formData.row_number}, Seat ${formData.seat_number}`;
-      const fullDescription = formData.description
-        ? `${formData.description}\n\nSeat Details: ${seatInfo}`
-        : `Seat Details: ${seatInfo}`;
-
       const { data, error } = await TicketService.createTicket({
-        title: `${formData.sport}: ${formData.event}`,
-        description: fullDescription,
-        price: parseFloat(formData.price),
-        event_date: eventDateTimeISO,
-        location: formData.location,
+        event_id: selectedEvent.id,
         section: formData.section,
         row_number: formData.row_number,
         seat_number: formData.seat_number,
+        price: parseFloat(formData.price),
+        description: formData.description,
       });
 
       if (error) {
@@ -137,16 +170,12 @@ export default function SellScreen() {
           text: "List Another",
           onPress: () => {
             // Reset form
+            setSelectedEvent(null);
             setFormData({
-              sport: "",
-              event: "",
-              date: "",
-              time: "",
               section: "",
               row_number: "",
               seat_number: "",
               price: "",
-              location: "",
               description: "",
             });
           },
@@ -167,47 +196,29 @@ export default function SellScreen() {
     }
   };
 
-  const isFormValid = () => {
-    const requiredFields = [
-      "sport",
-      "event",
-      "date",
-      "time",
-      "section",
-      "row_number",
-      "seat_number",
-      "price",
-      "location",
-    ];
-    return requiredFields.every(
-      (field) => formData[field as keyof typeof formData].trim() !== ""
-    );
-  };
-
-  const SportCard = ({ sport, icon }: { sport: string; icon: string }) => (
+  const SportFilterCard = ({
+    sport,
+    icon,
+  }: {
+    sport: string;
+    icon: string;
+  }) => (
     <TouchableOpacity
       style={[
         styles.sportCard,
-        formData.sport === sport && styles.sportCardSelected,
+        selectedSport === sport && styles.sportCardActive,
       ]}
-      onPress={() => setFormData({ ...formData, sport })}
+      onPress={() => setSelectedSport(sport)}
     >
-      <View
-        style={[
-          styles.sportIconContainer,
-          formData.sport === sport && styles.sportIconSelected,
-        ]}
-      >
-        <Ionicons
-          name={icon as any}
-          size={24}
-          color={formData.sport === sport ? "#ffd700" : "#18453b"}
-        />
-      </View>
+      <Ionicons
+        name={icon as any}
+        size={20}
+        color={selectedSport === sport ? "white" : "#18453b"}
+      />
       <Text
         style={[
           styles.sportText,
-          formData.sport === sport && styles.sportTextSelected,
+          selectedSport === sport && styles.sportTextActive,
         ]}
       >
         {sport}
@@ -215,165 +226,115 @@ export default function SellScreen() {
     </TouchableOpacity>
   );
 
+  const renderEventItem = ({ item }: { item: Event }) => (
+    <TouchableOpacity
+      style={styles.eventItem}
+      onPress={() => handleEventSelect(item)}
+    >
+      <View style={styles.eventItemContent}>
+        <View style={styles.eventItemInfo}>
+          <Text style={styles.eventItemTitle}>{item.title}</Text>
+          <Text style={styles.eventItemDate}>
+            {formatEventDate(item.event_date)}
+          </Text>
+          <Text style={styles.eventItemLocation}>
+            {item.venue || item.location}
+          </Text>
+          {item.opponent && (
+            <Text style={styles.eventItemOpponent}>vs {item.opponent}</Text>
+          )}
+        </View>
+        <View style={styles.eventItemSport}>
+          <Text style={styles.eventItemSportText}>{item.sport}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
       <LinearGradient
         colors={["#18453b", "#2a6b5a", "#0f2f28"]}
         style={styles.background}
       />
 
-      {/* Floating elements */}
-      <View style={styles.floatingElement1} />
-      <View style={styles.floatingElement2} />
+      {/* Header - Same style as other tabs */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerTitle}>Sell Tickets</Text>
+            <Text style={styles.headerSubtitle}>
+              List your tickets for sale
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => router.push("/notifications" as any)}
+          >
+            <NotificationBadge
+              iconName="notifications-outline"
+              iconSize={24}
+              iconColor="white"
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <KeyboardAvoidingView
+        style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardContainer}
       >
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
         >
-          {/* Header Section */}
-          <View style={styles.headerSection}>
-            <View style={styles.logoContainer}>
-              <LinearGradient
-                colors={["#ffd700", "#ffed4a"]}
-                style={styles.logo}
-              >
-                <Ionicons name="ticket-outline" size={32} color="#18453b" />
-              </LinearGradient>
-            </View>
-            <Text style={styles.headerTitle}>Sell Your Ticket</Text>
-            <Text style={styles.headerSubtitle}>
-              List your MSU tickets securely and reach thousands of Spartans
-            </Text>
-            <TouchableOpacity
-              style={styles.notificationButton}
-              onPress={() => (router.push as any)("/notifications/")}
-            >
-              <NotificationBadge
-                iconName="notifications-outline"
-                iconSize={24}
-                iconColor="#ffd700"
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Form Section */}
-          <View style={styles.formSection}>
-            {/* Sport Selection */}
+          {/* Main Content Card - Same style as other tabs */}
+          <View style={styles.contentCard}>
+            {/* Event Selection */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Select Sport</Text>
+              <Text style={styles.sectionTitle}>Select Event</Text>
               <Text style={styles.sectionSubtitle}>
-                Choose the sport for your ticket
+                Choose the event you're selling tickets for
               </Text>
 
-              <View style={styles.sportsGrid}>
-                {sports.map((sport) => (
-                  <SportCard
-                    key={sport.name}
-                    sport={sport.name}
-                    icon={sport.icon}
-                  />
-                ))}
-              </View>
-            </View>
-
-            {/* Event Details */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Event Details</Text>
-              <Text style={styles.sectionSubtitle}>
-                Provide information about the event
-              </Text>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Event Name *</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={20}
-                    color="#9ca3af"
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g., MSU vs Michigan"
-                    value={formData.event}
-                    onChangeText={(event) =>
-                      setFormData({ ...formData, event })
-                    }
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Venue/Location *</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons
-                    name="location-outline"
-                    size={20}
-                    color="#9ca3af"
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g., Spartan Stadium, Breslin Center"
-                    value={formData.location}
-                    onChangeText={(location) =>
-                      setFormData({ ...formData, location })
-                    }
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.row}>
-                <View style={[styles.inputGroup, styles.halfWidth]}>
-                  <Text style={styles.inputLabel}>Date *</Text>
-                  <View style={styles.inputWrapper}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={20}
-                      color="#9ca3af"
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="MM/DD/YYYY"
-                      value={formData.date}
-                      onChangeText={(date) =>
-                        setFormData({ ...formData, date })
-                      }
-                      placeholderTextColor="#9ca3af"
-                    />
+              {selectedEvent ? (
+                <View style={styles.selectedEventContainer}>
+                  <View style={styles.selectedEventHeader}>
+                    <View style={styles.selectedEventInfo}>
+                      <Text style={styles.selectedEventTitle}>
+                        {selectedEvent.title}
+                      </Text>
+                      <Text style={styles.selectedEventDate}>
+                        {formatEventDate(selectedEvent.event_date)}
+                      </Text>
+                      <Text style={styles.selectedEventLocation}>
+                        {selectedEvent.venue || selectedEvent.location}
+                      </Text>
+                      {selectedEvent.opponent && (
+                        <Text style={styles.selectedEventVenue}>
+                          vs {selectedEvent.opponent}
+                        </Text>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      style={styles.changeEventButton}
+                      onPress={() => setShowEventModal(true)}
+                    >
+                      <Text style={styles.changeEventText}>Change</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-
-                <View style={[styles.inputGroup, styles.halfWidth]}>
-                  <Text style={styles.inputLabel}>Time *</Text>
-                  <View style={styles.inputWrapper}>
-                    <Ionicons
-                      name="time-outline"
-                      size={20}
-                      color="#9ca3af"
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="HH:MM AM/PM"
-                      value={formData.time}
-                      onChangeText={(time) =>
-                        setFormData({ ...formData, time })
-                      }
-                      placeholderTextColor="#9ca3af"
-                    />
-                  </View>
-                </View>
-              </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.selectEventButton}
+                  onPress={() => setShowEventModal(true)}
+                >
+                  <Ionicons name="calendar-outline" size={20} color="#18453b" />
+                  <Text style={styles.selectEventText}>Select an Event</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Seat Information */}
@@ -408,8 +369,14 @@ export default function SellScreen() {
                 <View style={[styles.inputGroup, styles.thirdWidth]}>
                   <Text style={styles.inputLabel}>Row *</Text>
                   <View style={styles.inputWrapper}>
+                    <Ionicons
+                      name="list-outline"
+                      size={20}
+                      color="#9ca3af"
+                      style={styles.inputIcon}
+                    />
                     <TextInput
-                      style={[styles.input, { paddingLeft: 16 }]}
+                      style={styles.input}
                       placeholder="Row"
                       value={formData.row_number}
                       onChangeText={(row_number) =>
@@ -423,8 +390,14 @@ export default function SellScreen() {
                 <View style={[styles.inputGroup, styles.thirdWidth]}>
                   <Text style={styles.inputLabel}>Seat *</Text>
                   <View style={styles.inputWrapper}>
+                    <Ionicons
+                      name="person-outline"
+                      size={20}
+                      color="#9ca3af"
+                      style={styles.inputIcon}
+                    />
                     <TextInput
-                      style={[styles.input, { paddingLeft: 16 }]}
+                      style={styles.input}
                       placeholder="Seat"
                       value={formData.seat_number}
                       onChangeText={(seat_number) =>
@@ -437,38 +410,10 @@ export default function SellScreen() {
               </View>
             </View>
 
-            {/* Additional Description */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Additional Details</Text>
-              <Text style={styles.sectionSubtitle}>
-                Add any extra information about your ticket (optional)
-              </Text>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Description</Text>
-                <View style={[styles.inputWrapper, styles.textAreaWrapper]}>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    placeholder="e.g., Great view, aisle seats, parking included..."
-                    value={formData.description}
-                    onChangeText={(description) =>
-                      setFormData({ ...formData, description })
-                    }
-                    placeholderTextColor="#9ca3af"
-                    multiline
-                    numberOfLines={4}
-                    textAlignVertical="top"
-                  />
-                </View>
-              </View>
-            </View>
-
             {/* Price */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Set Your Price</Text>
-              <Text style={styles.sectionSubtitle}>
-                Enter your asking price
-              </Text>
+              <Text style={styles.sectionTitle}>Price</Text>
+              <Text style={styles.sectionSubtitle}>Set your asking price</Text>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Price *</Text>
@@ -477,13 +422,38 @@ export default function SellScreen() {
                     <Text style={styles.dollarSign}>$</Text>
                   </View>
                   <TextInput
-                    style={[styles.input, { paddingLeft: 8 }]}
+                    style={styles.input}
                     placeholder="0.00"
                     value={formData.price}
                     onChangeText={(price) =>
                       setFormData({ ...formData, price })
                     }
-                    keyboardType="decimal-pad"
+                    keyboardType="numeric"
+                    placeholderTextColor="#9ca3af"
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Description */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Description</Text>
+              <Text style={styles.sectionSubtitle}>
+                Add any additional details (optional)
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Additional Details</Text>
+                <View style={[styles.inputWrapper, styles.textAreaWrapper]}>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Add any additional information about your tickets..."
+                    value={formData.description}
+                    onChangeText={(description) =>
+                      setFormData({ ...formData, description })
+                    }
+                    multiline
+                    numberOfLines={4}
                     placeholderTextColor="#9ca3af"
                   />
                 </View>
@@ -505,44 +475,94 @@ export default function SellScreen() {
                     ? ["#18453b", "#2a6b5a"]
                     : ["#9ca3af", "#6b7280"]
                 }
-                style={styles.buttonGradient}
+                style={styles.submitButtonGradient}
               >
                 {isLoading ? (
-                  <View style={styles.loadingContainer}>
-                    <Text style={styles.buttonText}>Listing Ticket...</Text>
-                    <View style={styles.spinner} />
-                  </View>
+                  <Text style={styles.submitButtonText}>Listing...</Text>
                 ) : (
-                  <View style={styles.buttonContent}>
-                    <Ionicons
-                      name="checkmark-circle-outline"
-                      size={20}
-                      color="white"
-                    />
-                    <Text style={styles.buttonText}>LIST MY TICKET</Text>
-                  </View>
+                  <>
+                    <Ionicons name="checkmark-circle" size={20} color="white" />
+                    <Text style={styles.submitButtonText}>List Ticket</Text>
+                  </>
                 )}
               </LinearGradient>
             </TouchableOpacity>
-
-            {/* Info Box */}
-            <BlurView intensity={20} style={styles.infoBox}>
-              <Ionicons
-                name="shield-checkmark-outline"
-                size={24}
-                color="#18453b"
-              />
-              <View style={styles.infoContent}>
-                <Text style={styles.infoTitle}>Secure & Protected</Text>
-                <Text style={styles.infoText}>
-                  Your ticket listing is protected by our secure platform with
-                  verified buyers only.
-                </Text>
-              </View>
-            </BlurView>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Event Selection Modal */}
+      <Modal
+        visible={showEventModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <LinearGradient
+            colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+            style={styles.modalBackground}
+          />
+
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowEventModal(false)}
+            >
+              <Ionicons name="close" size={24} color="white" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Select Event</Text>
+            <View style={styles.modalCloseButton} />
+          </View>
+
+          {/* Sport Filters */}
+          <View style={styles.modalFilters}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sportsGrid}
+            >
+              {sports.map((sport) => (
+                <SportFilterCard
+                  key={sport.name}
+                  sport={sport.name}
+                  icon={sport.icon}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Events List */}
+          <View style={styles.modalEventsContainer}>
+            <Text style={styles.modalEventsHeader}>
+              {availableEvents.length} Available Events
+            </Text>
+
+            {loadingEvents ? (
+              <View style={styles.modalLoadingContainer}>
+                <Text style={styles.modalLoadingText}>Loading events...</Text>
+              </View>
+            ) : availableEvents.length > 0 ? (
+              <FlatList
+                data={availableEvents}
+                renderItem={renderEventItem}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.modalEventsList}
+              />
+            ) : (
+              <View style={styles.modalEmptyState}>
+                <Ionicons name="calendar-outline" size={48} color="#9ca3af" />
+                <Text style={styles.modalEmptyTitle}>No Events Found</Text>
+                <Text style={styles.modalEmptyText}>
+                  No events available for {selectedSport}. Try selecting a
+                  different sport.
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -550,33 +570,36 @@ export default function SellScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#18453b",
   },
   background: {
     position: "absolute",
-    top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
+    top: 0,
+    height: height,
   },
-  floatingElement1: {
-    position: "absolute",
-    top: "15%",
-    left: "10%",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255, 215, 0, 0.08)",
+  header: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  floatingElement2: {
-    position: "absolute",
-    bottom: "30%",
-    right: "15%",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  headerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
-  keyboardContainer: {
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "white",
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.8)",
+  },
+  keyboardView: {
     flex: 1,
   },
   scrollView: {
@@ -584,69 +607,20 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: 50,
-  },
-  headerSection: {
-    alignItems: "center",
     paddingHorizontal: 20,
-    paddingBottom: 30,
-    position: "relative",
+    paddingBottom: 20,
   },
-  logoContainer: {
-    marginBottom: 20,
-  },
-  logo: {
-    width: 70,
-    height: 70,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#ffd700",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: "white",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.9)",
-    textAlign: "center",
-    paddingHorizontal: 20,
-    lineHeight: 22,
-  },
-  notificationButton: {
-    position: "absolute",
-    top: 10,
-    right: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  formSection: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 40,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
+  contentCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 20,
+    padding: 24,
+    marginTop: 10,
   },
   section: {
     marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     color: "#18453b",
     marginBottom: 4,
@@ -654,45 +628,74 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 14,
     color: "#6b7280",
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  sportsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  sportCard: {
-    backgroundColor: "#f8fafc",
+  selectedEventContainer: {
+    backgroundColor: "#f0f9ff",
     borderRadius: 16,
     padding: 16,
-    alignItems: "center",
-    minWidth: 100,
     borderWidth: 2,
-    borderColor: "#e2e8f0",
+    borderColor: "#18453b",
   },
-  sportCardSelected: {
-    backgroundColor: "#18453b",
-    borderColor: "#ffd700",
+  selectedEventHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
-  sportIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#f0f9ff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
+  selectedEventInfo: {
+    flex: 1,
+    marginRight: 12,
   },
-  sportIconSelected: {
-    backgroundColor: "rgba(255, 215, 0, 0.2)",
+  selectedEventTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#18453b",
+    marginBottom: 4,
   },
-  sportText: {
+  selectedEventDate: {
     fontSize: 14,
+    color: "#18453b",
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  selectedEventLocation: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  selectedEventVenue: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  changeEventButton: {
+    backgroundColor: "white",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#18453b",
+  },
+  changeEventText: {
+    fontSize: 12,
     fontWeight: "600",
     color: "#18453b",
   },
-  sportTextSelected: {
-    color: "white",
+  selectEventButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: "#e2e8f0",
+  },
+  selectEventText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#18453b",
+    flex: 1,
+    marginLeft: 12,
   },
   inputGroup: {
     marginBottom: 20,
@@ -737,9 +740,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
   },
-  halfWidth: {
-    flex: 1,
-  },
   thirdWidth: {
     flex: 1,
   },
@@ -752,69 +752,191 @@ const styles = StyleSheet.create({
     color: "#18453b",
   },
   submitButton: {
-    borderRadius: 12,
-    marginBottom: 24,
-    shadowColor: "#18453b",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginTop: 8,
   },
   submitButtonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
+    opacity: 0.6,
   },
-  buttonGradient: {
+  submitButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 16,
-    borderRadius: 12,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "white",
+  },
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+  },
+  modalBackground: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  buttonText: {
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
     color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    letterSpacing: 0.5,
   },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+  modalFilters: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
-  spinner: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-    borderTopColor: "white",
-    marginLeft: 10,
-  },
-  infoBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(24, 69, 59, 0.2)",
+  sportsGrid: {
+    paddingRight: 20,
     gap: 12,
   },
-  infoContent: {
-    flex: 1,
+  sportCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "transparent",
   },
-  infoTitle: {
+  sportCardActive: {
+    backgroundColor: "#18453b",
+    borderColor: "white",
+  },
+  sportText: {
     fontSize: 14,
     fontWeight: "600",
     color: "#18453b",
+  },
+  sportTextActive: {
+    color: "white",
+  },
+  modalEventsContainer: {
+    flex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+  },
+  modalEventsHeader: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1e293b",
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  modalEventsList: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  modalLoadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  modalLoadingText: {
+    fontSize: 16,
+    color: "#6b7280",
+  },
+  modalEmptyState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 40,
+  },
+  modalEmptyTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  modalEmptyText: {
+    fontSize: 14,
+    color: "#6b7280",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  eventItem: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  eventItemContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  eventItemInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  eventItemTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1e293b",
     marginBottom: 4,
   },
-  infoText: {
+  eventItemDate: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#18453b",
+    marginBottom: 2,
+  },
+  eventItemLocation: {
     fontSize: 12,
     color: "#6b7280",
-    lineHeight: 16,
+    marginBottom: 2,
+  },
+  eventItemOpponent: {
+    fontSize: 12,
+    color: "#059669",
+    fontWeight: "500",
+  },
+  eventItemSport: {
+    backgroundColor: "#f0f9ff",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  eventItemSportText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#1e40af",
+    textTransform: "uppercase",
   },
 });

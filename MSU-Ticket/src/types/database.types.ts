@@ -1,4 +1,4 @@
-// src/types/database.types.ts - UPDATED with message notification type
+// src/types/database.types.ts - Updated with complete Event types
 export type Json =
   | string
   | number
@@ -8,43 +8,38 @@ export type Json =
   | Json[];
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)";
-  };
   public: {
     Tables: {
       conversations: {
         Row: {
-          id: string;
           created_at: string;
-          updated_at: string;
+          id: string;
+          last_message_at: string | null;
+          last_message_id: string | null;
           participant_1_id: string;
           participant_2_id: string;
-          last_message_id: string | null;
-          last_message_at: string | null;
           ticket_id: string | null;
+          updated_at: string;
         };
         Insert: {
-          id?: string;
           created_at?: string;
-          updated_at?: string;
+          id?: string;
+          last_message_at?: string | null;
+          last_message_id?: string | null;
           participant_1_id: string;
           participant_2_id: string;
-          last_message_id?: string | null;
-          last_message_at?: string | null;
           ticket_id?: string | null;
+          updated_at?: string;
         };
         Update: {
-          id?: string;
           created_at?: string;
-          updated_at?: string;
+          id?: string;
+          last_message_at?: string | null;
+          last_message_id?: string | null;
           participant_1_id?: string;
           participant_2_id?: string;
-          last_message_id?: string | null;
-          last_message_at?: string | null;
           ticket_id?: string | null;
+          updated_at?: string;
         };
         Relationships: [
           {
@@ -70,39 +65,93 @@ export type Database = {
           }
         ];
       };
-      messages: {
+      events: {
         Row: {
-          id: string;
+          away_team: string | null;
+          category: string | null;
           created_at: string;
-          conversation_id: string;
-          sender_id: string;
-          content: string;
-          message_type: string;
-          read_by_recipient: boolean | null;
-          read_at: string | null;
-          edited_at: string | null;
+          description: string | null;
+          event_date: string;
+          external_id: string | null;
+          game_time: string | null;
+          home_team: string | null;
+          id: string;
+          is_home_game: boolean | null;
+          location: string;
+          opponent: string | null;
+          source: string;
+          source_file: string | null;
+          sport: string | null;
+          status: string;
+          title: string;
+          updated_at: string;
+          venue: string | null;
         };
         Insert: {
-          id?: string;
+          away_team?: string | null;
+          category?: string | null;
           created_at?: string;
-          conversation_id: string;
-          sender_id: string;
-          content: string;
-          message_type?: string;
-          read_by_recipient?: boolean | null;
-          read_at?: string | null;
-          edited_at?: string | null;
+          description?: string | null;
+          event_date: string;
+          external_id?: string | null;
+          game_time?: string | null;
+          home_team?: string | null;
+          id?: string;
+          is_home_game?: boolean | null;
+          location: string;
+          opponent?: string | null;
+          source?: string;
+          source_file?: string | null;
+          sport?: string | null;
+          status?: string;
+          title: string;
+          updated_at?: string;
+          venue?: string | null;
         };
         Update: {
-          id?: string;
+          away_team?: string | null;
+          category?: string | null;
           created_at?: string;
-          conversation_id?: string;
-          sender_id?: string;
+          description?: string | null;
+          event_date?: string;
+          external_id?: string | null;
+          game_time?: string | null;
+          home_team?: string | null;
+          id?: string;
+          is_home_game?: boolean | null;
+          location?: string;
+          opponent?: string | null;
+          source?: string;
+          source_file?: string | null;
+          sport?: string | null;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+          venue?: string | null;
+        };
+        Relationships: [];
+      };
+      messages: {
+        Row: {
+          content: string;
+          conversation_id: string;
+          created_at: string;
+          id: string;
+          sender_id: string;
+        };
+        Insert: {
+          content: string;
+          conversation_id: string;
+          created_at?: string;
+          id?: string;
+          sender_id: string;
+        };
+        Update: {
           content?: string;
-          message_type?: string;
-          read_by_recipient?: boolean | null;
-          read_at?: string | null;
-          edited_at?: string | null;
+          conversation_id?: string;
+          created_at?: string;
+          id?: string;
+          sender_id?: string;
         };
         Relationships: [
           {
@@ -130,7 +179,7 @@ export type Database = {
           related_order_id: string | null;
           related_ticket_id: string | null;
           title: string;
-          type: "purchase" | "sale" | "listing" | "system" | "message"; // ✅ UPDATED: Added "message" type
+          type: "purchase" | "sale" | "listing" | "system" | "message";
           user_id: string;
         };
         Insert: {
@@ -141,7 +190,7 @@ export type Database = {
           related_order_id?: string | null;
           related_ticket_id?: string | null;
           title: string;
-          type?: "purchase" | "sale" | "listing" | "system" | "message"; // ✅ UPDATED: Added "message" type
+          type?: "purchase" | "sale" | "listing" | "system" | "message";
           user_id: string;
         };
         Update: {
@@ -152,7 +201,7 @@ export type Database = {
           related_order_id?: string | null;
           related_ticket_id?: string | null;
           title?: string;
-          type?: "purchase" | "sale" | "listing" | "system" | "message"; // ✅ UPDATED: Added "message" type
+          type?: "purchase" | "sale" | "listing" | "system" | "message";
           user_id?: string;
         };
         Relationships: [
@@ -276,6 +325,7 @@ export type Database = {
           created_at: string;
           description: string;
           event_date: string;
+          event_id: string | null;
           id: string;
           image_url: string | null;
           location: string;
@@ -293,6 +343,7 @@ export type Database = {
           created_at?: string;
           description: string;
           event_date: string;
+          event_id?: string | null;
           id?: string;
           image_url?: string | null;
           location: string;
@@ -310,6 +361,7 @@ export type Database = {
           created_at?: string;
           description?: string;
           event_date?: string;
+          event_id?: string | null;
           id?: string;
           image_url?: string | null;
           location?: string;
@@ -328,6 +380,13 @@ export type Database = {
             columns: ["buyer_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tickets_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
             referencedColumns: ["id"];
           },
           {
@@ -370,7 +429,7 @@ export type Database = {
   };
 };
 
-// Extended types for chat functionality
+// Extended types for specific functionality
 export type ConversationWithParticipants =
   Database["public"]["Tables"]["conversations"]["Row"] & {
     participant_1: Database["public"]["Tables"]["profiles"]["Row"];
@@ -395,8 +454,17 @@ export type ConversationWithDetails =
 
 export type TicketWithSeller = Tables<"tickets"> & {
   seller: Tables<"profiles">;
+  event?: Tables<"events">;
 };
 
+export type TicketWithEvent = Tables<"tickets"> & {
+  event: Tables<"events">;
+};
+
+// Event type from database
+export type Event = Database["public"]["Tables"]["events"]["Row"];
+
+// Helper type for database operations
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
 
 type DefaultSchema = DatabaseWithoutInternals[Extract<
@@ -482,43 +550,3 @@ export type TablesUpdate<
     ? U
     : never
   : never;
-
-export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never;
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never;
-
-export const Constants = {
-  public: {
-    Enums: {},
-  },
-} as const;
