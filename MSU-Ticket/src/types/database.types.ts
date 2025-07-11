@@ -12,6 +12,7 @@ export type Database = {
     Tables: {
       conversations: {
         Row: {
+          archived: boolean | null;
           created_at: string;
           id: string;
           last_message_at: string | null;
@@ -22,6 +23,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          archived?: boolean | null;
           created_at?: string;
           id?: string;
           last_message_at?: string | null;
@@ -32,6 +34,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          archived?: boolean | null;
           created_at?: string;
           id?: string;
           last_message_at?: string | null;
@@ -136,21 +139,33 @@ export type Database = {
           content: string;
           conversation_id: string;
           created_at: string;
+          edited_at: string | null;
           id: string;
+          message_type: string;
+          read_at: string | null;
+          read_by_recipient: boolean | null;
           sender_id: string;
         };
         Insert: {
           content: string;
           conversation_id: string;
           created_at?: string;
+          edited_at?: string | null;
           id?: string;
+          message_type?: string;
+          read_at?: string | null;
+          read_by_recipient?: boolean | null;
           sender_id: string;
         };
         Update: {
           content?: string;
           conversation_id?: string;
           created_at?: string;
+          edited_at?: string | null;
           id?: string;
+          message_type?: string;
+          read_at?: string | null;
+          read_by_recipient?: boolean | null;
           sender_id?: string;
         };
         Relationships: [
@@ -450,6 +465,7 @@ export type ConversationWithDetails =
     last_message?: Database["public"]["Tables"]["messages"]["Row"];
     ticket?: Database["public"]["Tables"]["tickets"]["Row"];
     unread_count: number;
+    is_expired?: boolean; // ✅ ADDED: Expired status flag
   };
 
 export type TicketWithSeller = Tables<"tickets"> & {

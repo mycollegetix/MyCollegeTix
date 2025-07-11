@@ -1,5 +1,5 @@
-// src/app/(tabs)/chat/index.tsx - UPDATED CHAT LIST
-import React, { useEffect } from "react";
+// src/app/(tabs)/chat/index.tsx - UPDATED with Expired Sections
+import React, { useEffect, useMemo } from "react";
 import {
   StyleSheet,
   FlatList,
@@ -9,6 +9,7 @@ import {
   Dimensions,
   RefreshControl,
   StatusBar,
+  SectionList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,6 +22,12 @@ import { NotificationBadge } from "@/src/components/NotificationBadge";
 
 const { width, height } = Dimensions.get("window");
 
+interface ConversationSection {
+  title: string;
+  data: ConversationWithDetails[];
+  key: string;
+}
+
 export default function ChatListScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -30,6 +37,40 @@ export default function ChatListScreen() {
   useEffect(() => {
     loadConversations();
   }, []);
+
+  // ✅ ORGANIZE: Separate conversations into sections
+  const conversationSections = useMemo((): ConversationSection[] => {
+    const activeConversations: ConversationWithDetails[] = [];
+    const expiredConversations: ConversationWithDetails[] = [];
+
+    conversations.forEach((conv) => {
+      if (conv.archived || conv.is_expired) {
+        expiredConversations.push(conv);
+      } else {
+        activeConversations.push(conv);
+      }
+    });
+
+    const sections: ConversationSection[] = [];
+
+    if (activeConversations.length > 0) {
+      sections.push({
+        title: "Active Conversations",
+        data: activeConversations,
+        key: "active",
+      });
+    }
+
+    if (expiredConversations.length > 0) {
+      sections.push({
+        title: "Expired Events",
+        data: expiredConversations,
+        key: "expired",
+      });
+    }
+
+    return sections;
+  }, [conversations]);
 
   const getOtherParticipant = (conversation: ConversationWithDetails) => {
     return conversation.participant_1_id === user?.id
@@ -59,52 +100,115 @@ export default function ChatListScreen() {
     (router.push as any)(`/(tabs)/chat/${conversation.id}`);
   };
 
+  const renderSectionHeader = ({
+    section,
+  }: {
+    section: ConversationSection;
+  }) => (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionHeaderContent}>
+        <Ionicons
+          name={section.key === "active" ? "chatbubbles" : "time-outline"}
+          size={16}
+          color={section.key === "active" ? "#18453b" : "#94a3b8"}
+        />
+        <Text
+          style={[
+            styles.sectionHeaderText,
+            section.key === "expired" && styles.expiredSectionText,
+          ]}
+        >
+          {section.title}
+        </Text>
+        <View
+          style={[
+            styles.sectionCount,
+            section.key === "expired" && styles.expiredSectionCount,
+          ]}
+        >
+          <Text
+            style={[
+              styles.sectionCountText,
+              section.key === "expired" && styles.expiredSectionCountText,
+            ]}
+          >
+            {section.data.length}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+
   const renderConversation = ({ item }: { item: ConversationWithDetails }) => {
     const otherParticipant = getOtherParticipant(item);
     const hasUnread = item.unread_count > 0;
     const lastMessageTime = formatLastMessageTime(item.last_message_at);
+    const isExpired = item.archived || item.is_expired;
 
     return (
       <TouchableOpacity
         style={[
           styles.conversationCard,
-          hasUnread && styles.unreadConversation,
+          hasUnread && !isExpired && styles.unreadConversation,
+          isExpired && styles.expiredConversation,
         ]}
         onPress={() => handleConversationPress(item)}
       >
         <View style={styles.conversationContent}>
           {/* Avatar */}
           <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
+            <View style={[styles.avatar, isExpired && styles.expiredAvatar]}>
+              <Text
+                style={[
+                  styles.avatarText,
+                  isExpired && styles.expiredAvatarText,
+                ]}
+              >
                 {otherParticipant.full_name.charAt(0).toUpperCase()}
               </Text>
             </View>
-            {hasUnread && <View style={styles.onlineIndicator} />}
+            {hasUnread && !isExpired && <View style={styles.onlineIndicator} />}
+            {isExpired && (
+              <View style={styles.expiredIndicator}>
+                <Ionicons name="time-outline" size={8} color="#94a3b8" />
+              </View>
+            )}
           </View>
 
           {/* Conversation Info */}
           <View style={styles.conversationInfo}>
             <View style={styles.conversationHeader}>
               <Text
-                style={[styles.participantName, hasUnread && styles.unreadText]}
+                style={[
+                  styles.participantName,
+                  hasUnread && !isExpired && styles.unreadText,
+                  isExpired && styles.expiredText,
+                ]}
                 numberOfLines={1}
               >
                 {otherParticipant.full_name}
               </Text>
               {lastMessageTime && (
-                <Text style={styles.timeText}>{lastMessageTime}</Text>
+                <Text
+                  style={[styles.timeText, isExpired && styles.expiredTimeText]}
+                >
+                  {lastMessageTime}
+                </Text>
               )}
             </View>
 
             <View style={styles.messagePreview}>
               <Text
-                style={[styles.lastMessage, hasUnread && styles.unreadText]}
+                style={[
+                  styles.lastMessage,
+                  hasUnread && !isExpired && styles.unreadText,
+                  isExpired && styles.expiredText,
+                ]}
                 numberOfLines={1}
               >
                 {item.last_message?.content || "No messages yet"}
               </Text>
-              {hasUnread && (
+              {hasUnread && !isExpired && (
                 <View style={styles.unreadBadge}>
                   <Text style={styles.unreadCount}>
                     {item.unread_count > 99 ? "99+" : item.unread_count}
@@ -116,16 +220,31 @@ export default function ChatListScreen() {
             {/* Ticket reference if applicable */}
             {item.ticket && (
               <View style={styles.ticketReference}>
-                <Ionicons name="ticket-outline" size={12} color="#18453b" />
-                <Text style={styles.ticketText} numberOfLines={1}>
+                <Ionicons
+                  name="ticket-outline"
+                  size={12}
+                  color={isExpired ? "#94a3b8" : "#18453b"}
+                />
+                <Text
+                  style={[
+                    styles.ticketText,
+                    isExpired && styles.expiredTicketText,
+                  ]}
+                  numberOfLines={1}
+                >
                   {item.ticket.title}
+                  {isExpired && " (Expired)"}
                 </Text>
               </View>
             )}
           </View>
         </View>
 
-        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+        <Ionicons
+          name="chevron-forward"
+          size={20}
+          color={isExpired ? "#cbd5e1" : "#9ca3af"}
+        />
       </TouchableOpacity>
     );
   };
@@ -173,8 +292,11 @@ export default function ChatListScreen() {
               <View style={styles.statIconContainer}>
                 <Ionicons name="chatbubbles" size={20} color="#18453b" />
               </View>
-              <Text style={styles.statNumber}>{conversations.length}</Text>
-              <Text style={styles.statLabel}>Conversations</Text>
+              <Text style={styles.statNumber}>
+                {conversationSections.find((s) => s.key === "active")?.data
+                  .length || 0}
+              </Text>
+              <Text style={styles.statLabel}>Active</Text>
             </View>
 
             <View style={styles.statDivider} />
@@ -184,12 +306,24 @@ export default function ChatListScreen() {
                 <Ionicons name="mail-unread" size={20} color="#ef4444" />
               </View>
               <Text style={[styles.statNumber, { color: "#ef4444" }]}>
-                {conversations.reduce(
-                  (sum, conv) => sum + conv.unread_count,
-                  0
-                )}
+                {conversations
+                  .filter((conv) => !conv.archived && !conv.is_expired)
+                  .reduce((sum, conv) => sum + conv.unread_count, 0)}
               </Text>
               <Text style={styles.statLabel}>Unread</Text>
+            </View>
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Ionicons name="time-outline" size={20} color="#94a3b8" />
+              </View>
+              <Text style={[styles.statNumber, { color: "#94a3b8" }]}>
+                {conversationSections.find((s) => s.key === "expired")?.data
+                  .length || 0}
+              </Text>
+              <Text style={styles.statLabel}>Expired</Text>
             </View>
           </LinearGradient>
         </BlurView>
@@ -202,9 +336,10 @@ export default function ChatListScreen() {
             <Text style={styles.loadingText}>Loading conversations...</Text>
           </BlurView>
         ) : conversations.length > 0 ? (
-          <FlatList
-            data={conversations}
+          <SectionList
+            sections={conversationSections}
             renderItem={renderConversation}
+            renderSectionHeader={renderSectionHeader}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -216,6 +351,7 @@ export default function ChatListScreen() {
               />
             }
             contentContainerStyle={styles.listContent}
+            stickySectionHeadersEnabled={false}
           />
         ) : (
           <BlurView intensity={20} style={styles.emptyState}>
@@ -356,6 +492,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
+  // ✅ NEW: Section header styles
+  sectionHeader: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  sectionHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sectionHeaderText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1e293b",
+    flex: 1,
+  },
+  expiredSectionText: {
+    color: "#64748b",
+  },
+  sectionCount: {
+    backgroundColor: "#18453b",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 24,
+    alignItems: "center",
+  },
+  expiredSectionCount: {
+    backgroundColor: "#94a3b8",
+  },
+  sectionCountText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "white",
+  },
+  expiredSectionCountText: {
+    color: "white",
+  },
   conversationCard: {
     backgroundColor: "white",
     borderRadius: 20,
@@ -377,6 +552,12 @@ const styles = StyleSheet.create({
     shadowColor: "#18453b",
     shadowOpacity: 0.1,
   },
+  // ✅ NEW: Expired conversation styles
+  expiredConversation: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+    opacity: 0.8,
+  },
   conversationContent: {
     flex: 1,
     flexDirection: "row",
@@ -394,10 +575,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  expiredAvatar: {
+    backgroundColor: "#94a3b8",
+  },
   avatarText: {
     fontSize: 18,
     fontWeight: "700",
     color: "white",
+  },
+  expiredAvatarText: {
+    color: "#f1f5f9",
   },
   onlineIndicator: {
     position: "absolute",
@@ -409,6 +596,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#10b981",
     borderWidth: 2,
     borderColor: "white",
+  },
+  // ✅ NEW: Expired indicator
+  expiredIndicator: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#f1f5f9",
+    borderWidth: 2,
+    borderColor: "white",
+    alignItems: "center",
+    justifyContent: "center",
   },
   conversationInfo: {
     flex: 1,
@@ -429,10 +630,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#0f172a",
   },
+  // ✅ NEW: Expired text styles
+  expiredText: {
+    color: "#64748b",
+    fontWeight: "500",
+  },
   timeText: {
     fontSize: 12,
     color: "#94a3b8",
     fontWeight: "500",
+  },
+  expiredTimeText: {
+    color: "#cbd5e1",
   },
   messagePreview: {
     flexDirection: "row",
@@ -469,6 +678,11 @@ const styles = StyleSheet.create({
     color: "#18453b",
     fontWeight: "500",
     flex: 1,
+  },
+  // ✅ NEW: Expired ticket text
+  expiredTicketText: {
+    color: "#94a3b8",
+    fontStyle: "italic",
   },
   loadingState: {
     alignItems: "center",

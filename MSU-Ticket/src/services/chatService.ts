@@ -142,7 +142,7 @@ export class ChatService {
     }
   }
 
-  // Get or create a conversation between two users - UNCHANGED
+  // Get or create a conversation between two users - FIXED for ticket-specific conversations
   static async getOrCreateConversation(
     otherUserId: string,
     ticketId?: string
@@ -174,14 +174,23 @@ export class ChatService {
       );
       console.log("🔍 Ticket ID:", ticketId);
 
-      // First, try to find existing conversation (check both directions)
+      // ✅ FIXED: Search for existing conversation including ticket_id
       console.log("🔍 Searching for existing conversation...");
-      const { data: existingConversations, error: findError } = await supabase
+      let query = supabase
         .from("conversations")
         .select("*")
         .or(
           `and(participant_1_id.eq.${user.id},participant_2_id.eq.${otherUserId}),and(participant_1_id.eq.${otherUserId},participant_2_id.eq.${user.id})`
         );
+
+      // ✅ CRITICAL: Add ticket_id to the search if provided
+      if (ticketId) {
+        query = query.eq("ticket_id", ticketId);
+      } else {
+        query = query.is("ticket_id", null);
+      }
+
+      const { data: existingConversations, error: findError } = await query;
 
       if (findError) {
         console.error("❌ Error searching for conversation:", findError);
@@ -209,7 +218,7 @@ export class ChatService {
       const conversationData: ConversationInsert = {
         participant_1_id: user.id < otherUserId ? user.id : otherUserId,
         participant_2_id: user.id < otherUserId ? otherUserId : user.id,
-        ticket_id: ticketId || null,
+        ticket_id: ticketId || null, // ✅ IMPORTANT: Include ticket_id
         last_message_id: null,
         last_message_at: null,
       };
@@ -239,13 +248,20 @@ export class ChatService {
           console.log(
             "🔄 Unique violation, trying to fetch existing conversation..."
           );
-          const { data: existingConversation } = await supabase
+          let retryQuery = supabase
             .from("conversations")
             .select("*")
             .or(
               `and(participant_1_id.eq.${user.id},participant_2_id.eq.${otherUserId}),and(participant_1_id.eq.${otherUserId},participant_2_id.eq.${user.id})`
-            )
-            .single();
+            );
+
+          if (ticketId) {
+            retryQuery = retryQuery.eq("ticket_id", ticketId);
+          } else {
+            retryQuery = retryQuery.is("ticket_id", null);
+          }
+
+          const { data: existingConversation } = await retryQuery.single();
 
           if (existingConversation) {
             console.log(
@@ -286,10 +302,12 @@ export class ChatService {
 
       console.log("🔍 Fetching conversations for user:", user.id);
 
+      // ✅ UPDATED: Get conversations with archived status
       const { data: conversations, error: convError } = await supabase
         .from("conversations")
         .select("*")
         .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`)
+        .order("archived", { ascending: true }) // Show active conversations first
         .order("updated_at", { ascending: false });
 
       if (convError) {
@@ -329,6 +347,7 @@ export class ChatService {
             }
 
             let ticket = null;
+            let isExpired = false;
             if (conv.ticket_id) {
               const { data: ticketData } = await supabase
                 .from("tickets")
@@ -336,6 +355,24 @@ export class ChatService {
                 .eq("id", conv.ticket_id)
                 .single();
               ticket = ticketData;
+
+              // ✅ CHECK: Determine if ticket/conversation is expired
+              if (ticket) {
+                const eventDate = new Date(ticket.event_date);
+                const expiryDate = new Date(
+                  eventDate.getTime() + 7 * 24 * 60 * 60 * 1000
+                ); // 7 days after event
+                isExpired = new Date() > expiryDate;
+
+                // Auto-archive if expired and not already archived
+                if (isExpired && !conv.archived) {
+                  await supabase
+                    .from("conversations")
+                    .update({ archived: true })
+                    .eq("id", conv.id);
+                  conv.archived = true;
+                }
+              }
             }
 
             const { count } = await supabase
@@ -352,6 +389,7 @@ export class ChatService {
               last_message: lastMessage,
               ticket: ticket,
               unread_count: count || 0,
+              is_expired: isExpired, // ✅ ADDED: Flag for expired status
             };
           } catch (error) {
             console.error("Error enhancing conversation:", error);

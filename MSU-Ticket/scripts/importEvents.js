@@ -4,6 +4,8 @@ const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config(); // Load environment variables
 
+//KEEP THIS IN HOW TO RUN THIS : node scripts/importEvents.js ./calendar-data
+
 // Use your existing environment variables - SERVICE ROLE KEY for admin access
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
