@@ -294,11 +294,7 @@ export default function ProfileScreen() {
                   <View style={styles.quickActionsGrid}>
                     <TouchableOpacity
                       style={styles.quickActionCard}
-                      onPress={() =>
-                        (router.push as any)(
-                          "/notifications/NotificationScreen"
-                        )
-                      }
+                      onPress={() => (router.push as any)("/notifications")}
                     >
                       <View style={styles.quickActionIcon}>
                         <NotificationBadge
@@ -413,20 +409,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             {/* Security Info */}
-            <BlurView intensity={20} style={styles.infoBox}>
-              <Ionicons
-                name="shield-checkmark-outline"
-                size={24}
-                color="#18453b"
-              />
-              <View style={styles.infoBoxContent}>
-                <Text style={styles.infoBoxTitle}>Secure & Protected</Text>
-                <Text style={styles.infoBoxText}>
-                  Your personal information is encrypted and secure with MSU
-                  Ticket Exchange.
-                </Text>
-              </View>
-            </BlurView>
+
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

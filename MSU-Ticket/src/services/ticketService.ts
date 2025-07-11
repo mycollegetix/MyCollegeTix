@@ -121,7 +121,7 @@ export class TicketService {
 
       // Filter by sport
       if (sport && sport !== "All Sports") {
-        query = query.or(`sport.ilike.%${sport}%`);
+        query = query.ilike("sport", `%${sport}%`);
       }
 
       // Search filter

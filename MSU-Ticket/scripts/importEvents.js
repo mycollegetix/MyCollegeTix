@@ -28,6 +28,7 @@ const SPORT_MAPPING = {
   "field hockey": "Field Hockey",
   volleyball: "Volleyball",
   football: "Football",
+  "men's football": "Football", // Add this line
   basketball: "Basketball",
   "men's basketball": "Basketball",
   "women's basketball": "Basketball",

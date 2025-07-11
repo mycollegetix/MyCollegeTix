@@ -25,6 +25,7 @@ import { TicketService } from "@/src/services/ticketService";
 import { EventService } from "@/src/services/eventService";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 import { Event } from "@/src/types/database.types";
+import { useNotifications } from "@/src/providers/NotificationProvider";
 
 const { width, height } = Dimensions.get("window");
 
@@ -61,6 +62,8 @@ export default function SellScreen() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+
+  const { refreshNotifications } = useNotifications();
 
   // Load available events when sport changes
   useEffect(() => {
@@ -130,6 +133,17 @@ export default function SellScreen() {
     );
   };
 
+  const resetForm = () => {
+    setSelectedEvent(null);
+    setFormData({
+      section: "",
+      row_number: "",
+      seat_number: "",
+      price: "",
+      description: "",
+    });
+  };
+
   const handleSubmit = async () => {
     if (!isFormValid()) {
       Alert.alert("Error", "Please fill in all required fields");
@@ -157,10 +171,14 @@ export default function SellScreen() {
         throw error;
       }
 
+      // Refresh notifications state
+      await refreshNotifications();
+
       Alert.alert("Success!", "Your ticket has been listed successfully!", [
         {
           text: "View Listing",
           onPress: () => {
+            resetForm(); // Clear form
             if (data) {
               (router.push as any)(`/ticket-details/${data.id}`);
             }
@@ -169,20 +187,15 @@ export default function SellScreen() {
         {
           text: "List Another",
           onPress: () => {
-            // Reset form
-            setSelectedEvent(null);
-            setFormData({
-              section: "",
-              row_number: "",
-              seat_number: "",
-              price: "",
-              description: "",
-            });
+            resetForm(); // Clear form
           },
         },
         {
           text: "Go to My Listings",
-          onPress: () => (router.push as any)("/(tabs)/orders"),
+          onPress: () => {
+            resetForm(); // Clear form
+            (router.push as any)("/(tabs)/orders");
+          },
         },
       ]);
     } catch (error: any) {
