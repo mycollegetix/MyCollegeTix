@@ -206,3 +206,129 @@ Once imported, your events will appear in:
 - Available for ticket creation
 
 The events are automatically set to "available" status and ready for use in your ticket marketplace!
+
+DB SCHEMA COPY: -- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.conversations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  participant_1_id uuid NOT NULL,
+  participant_2_id uuid NOT NULL,
+  last_message_id uuid,
+  last_message_at timestamp with time zone,
+  ticket_id uuid,
+  archived boolean DEFAULT false,
+  CONSTRAINT conversations_pkey PRIMARY KEY (id),
+  CONSTRAINT conversations_participant_1_fkey FOREIGN KEY (participant_1_id) REFERENCES public.profiles(id),
+  CONSTRAINT conversations_participant_2_fkey FOREIGN KEY (participant_2_id) REFERENCES public.profiles(id),
+  CONSTRAINT conversations_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id)
+);
+CREATE TABLE public.events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  title text NOT NULL CHECK (char_length(title) >= 3 AND char_length(title) <= 200),
+  description text,
+  event_date timestamp with time zone NOT NULL CHECK (event_date > now()),
+  location text NOT NULL,
+  venue text,
+  sport text,
+  category text,
+  opponent text,
+  status text NOT NULL DEFAULT 'scraped'::text CHECK (status = ANY (ARRAY['scraped'::text, 'available'::text, 'completed'::text, 'cancelled'::text])),
+  source text NOT NULL DEFAULT 'parsed'::text CHECK (source = ANY (ARRAY['manual'::text, 'parsed'::text])),
+  external_id text UNIQUE,
+  source_file text,
+  home_team text DEFAULT 'Michigan State'::text,
+  away_team text,
+  game_time text,
+  is_home_game boolean DEFAULT true,
+  CONSTRAINT events_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  conversation_id uuid NOT NULL,
+  sender_id uuid NOT NULL,
+  content text NOT NULL CHECK (char_length(content) > 0 AND char_length(content) <= 1000),
+  message_type text NOT NULL DEFAULT 'text'::text CHECK (message_type = ANY (ARRAY['text'::text, 'system'::text, 'ticket_reference'::text])),
+  read_by_recipient boolean DEFAULT false,
+  read_at timestamp with time zone,
+  edited_at timestamp with time zone,
+  CONSTRAINT messages_pkey PRIMARY KEY (id),
+  CONSTRAINT messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id),
+  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  message text NOT NULL,
+  type text NOT NULL DEFAULT 'system'::text CHECK (type = ANY (ARRAY['purchase'::text, 'sale'::text, 'listing'::text, 'system'::text, 'message'::text])),
+  read boolean DEFAULT false,
+  related_ticket_id uuid,
+  related_order_id uuid,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT notifications_related_ticket_id_fkey FOREIGN KEY (related_ticket_id) REFERENCES public.tickets(id),
+  CONSTRAINT notifications_related_order_id_fkey FOREIGN KEY (related_order_id) REFERENCES public.orders(id)
+);
+CREATE TABLE public.orders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  ticket_id uuid NOT NULL,
+  buyer_id uuid NOT NULL,
+  seller_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'cancelled'::text, 'refunded'::text])),
+  payment_method text,
+  transaction_id text UNIQUE,
+  notes text,
+  completed_at timestamp with time zone,
+  CONSTRAINT orders_pkey PRIMARY KEY (id),
+  CONSTRAINT orders_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id),
+  CONSTRAINT orders_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
+  CONSTRAINT orders_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  username text NOT NULL UNIQUE CHECK (char_length(username) >= 3),
+  full_name text NOT NULL,
+  avatar_url text,
+  email text NOT NULL UNIQUE,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.system_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  operation text NOT NULL,
+  details jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT system_logs_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.tickets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  title text NOT NULL CHECK (char_length(title) >= 3 AND char_length(title) <= 100),
+  description text NOT NULL,
+  price numeric NOT NULL CHECK (price >= 0::numeric),
+  seller_id uuid NOT NULL,
+  buyer_id uuid,
+  status text NOT NULL DEFAULT 'available'::text CHECK (status = ANY (ARRAY['available'::text, 'sold'::text, 'cancelled'::text])),
+  event_date timestamp with time zone NOT NULL CHECK (event_date > now()),
+  location text NOT NULL,
+  image_url text,
+  section text,
+  row_number text,
+  seat_number text,
+  sport text,
+  event_id uuid,
+  CONSTRAINT tickets_pkey PRIMARY KEY (id),
+  CONSTRAINT tickets_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES public.profiles(id),
+  CONSTRAINT tickets_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
+  CONSTRAINT tickets_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(id)
+);
