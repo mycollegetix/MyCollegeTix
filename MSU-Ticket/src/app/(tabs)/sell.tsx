@@ -1,4 +1,4 @@
-// src/app/(tabs)/sell.tsx - Complete working sell screen
+// src/app/(tabs)/sell.tsx - Updated to match other tab designs
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -272,38 +272,44 @@ export default function SellScreen() {
         style={styles.background}
       />
 
-      {/* Header - Same style as other tabs */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.headerTitle}>Sell Tickets</Text>
-            <Text style={styles.headerSubtitle}>
-              List your tickets for sale
-            </Text>
+      {/* Floating elements - Same as other tabs */}
+      <View style={styles.floatingElement1} />
+      <View style={styles.floatingElement2} />
+
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Header Section - Same structure as other tabs */}
+        <View style={styles.headerSection}>
+          <View style={styles.logoContainer}>
+            <LinearGradient colors={["#ffd700", "#ffed4a"]} style={styles.logo}>
+              <Ionicons name="cash-outline" size={32} color="#18453b" />
+            </LinearGradient>
           </View>
+          <Text style={styles.headerTitle}>Sell Tickets</Text>
+          <Text style={styles.headerSubtitle}>
+            List your tickets for sale and reach buyers instantly
+          </Text>
           <TouchableOpacity
+            style={styles.notificationButton}
             onPress={() => router.push("/notifications" as any)}
           >
             <NotificationBadge
               iconName="notifications-outline"
               iconSize={24}
-              iconColor="white"
+              iconColor="#ffd700"
             />
           </TouchableOpacity>
         </View>
-      </View>
 
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Main Content Card - Same style as other tabs */}
-          <View style={styles.contentCard}>
+        {/* Main Content Container - Same structure as other tabs */}
+        <View style={styles.contentContainer}>
+          <KeyboardAvoidingView
+            style={styles.keyboardView}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
             {/* Event Selection */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Select Event</Text>
@@ -500,9 +506,9 @@ export default function SellScreen() {
                 )}
               </LinearGradient>
             </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
+      </ScrollView>
 
       {/* Event Selection Modal */}
       <Modal
@@ -583,51 +589,101 @@ export default function SellScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#18453b",
   },
   background: {
     position: "absolute",
+    top: 0,
     left: 0,
     right: 0,
-    top: 0,
-    height: height,
+    bottom: 0,
   },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+  // Floating elements - Same as other tabs
+  floatingElement1: {
+    position: "absolute",
+    top: "15%",
+    left: "10%",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255, 215, 0, 0.08)",
   },
-  headerContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "white",
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.8)",
-  },
-  keyboardView: {
-    flex: 1,
+  floatingElement2: {
+    position: "absolute",
+    bottom: "30%",
+    right: "15%",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
+  },
+  // Header Section - Same structure as other tabs
+  headerSection: {
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 30,
+    position: "relative",
+  },
+  logoContainer: {
+    marginBottom: 20,
+  },
+  logo: {
+    width: 70,
+    height: 70,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#ffd700",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "white",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.9)",
+    textAlign: "center",
+    paddingHorizontal: 20,
+    lineHeight: 22,
+  },
+  notificationButton: {
+    position: "absolute",
+    top: 60,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  // Main Content Container - Same structure as other tabs
+  contentContainer: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  contentCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: 20,
-    padding: 24,
-    marginTop: 10,
+  keyboardView: {
+    flex: 1,
   },
   section: {
     marginBottom: 32,
@@ -649,6 +705,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 2,
     borderColor: "#18453b",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   selectedEventHeader: {
     flexDirection: "row",
@@ -687,6 +748,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#18453b",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   changeEventText: {
     fontSize: 12,
@@ -697,11 +763,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#f8fafc",
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     borderWidth: 2,
     borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   selectEventText: {
     fontSize: 16,
@@ -730,6 +801,11 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
     paddingHorizontal: 16,
     height: 52,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   textAreaWrapper: {
     height: 100,
@@ -768,6 +844,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     marginTop: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   submitButtonDisabled: {
     opacity: 0.6,
