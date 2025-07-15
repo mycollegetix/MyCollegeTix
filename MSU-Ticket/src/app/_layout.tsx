@@ -1,4 +1,4 @@
-// app/_layout.tsx - Updated to include ChatProvider
+// app/_layout.tsx - Fixed to prevent infinite loops and loading issues
 import { AuthProvider, useAuth } from "@/src/providers/AuthProvider";
 import { NotificationProvider } from "@/src/providers/NotificationProvider";
 import { ChatProvider } from "@/src/providers/ChatProvider";
@@ -7,7 +7,7 @@ import { useColorScheme } from "react-native";
 import { useEffect } from "react";
 
 function RootLayoutNav() {
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, profile } = useAuth();
   const router = useRouter();
   const segments = useSegments();
 
@@ -15,18 +15,32 @@ function RootLayoutNav() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const inAdminGroup = segments[0] === "(admin)";
+    const inTabsGroup = segments[0] === "(tabs)";
 
-    if (session && inAuthGroup) {
-      router.replace("/");
-    } else if (!session && !inAuthGroup) {
-      router.replace("/(auth)/login");
+    // If user is in admin group but not an admin, redirect them out
+    if (inAdminGroup && session && profile && !profile.is_admin) {
+      router.replace("/(tabs)");
+      return;
     }
-  }, [session, segments, isLoading, router]);
+
+    // Handle normal authentication flow
+    if (session && inAuthGroup) {
+      router.replace("/(tabs)");
+      return;
+    }
+
+    if (!session && !inAuthGroup) {
+      router.replace("/(auth)/login");
+      return;
+    }
+  }, [session, segments, isLoading, router, profile]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(admin)" options={{ headerShown: false }} />
       <Stack.Screen name="ticket-details" options={{ headerShown: false }} />
     </Stack>
   );

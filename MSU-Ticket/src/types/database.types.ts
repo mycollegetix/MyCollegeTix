@@ -315,6 +315,7 @@ export type Database = {
           full_name: string;
           id: string;
           username: string;
+          is_admin: boolean | false;
         };
         Insert: {
           avatar_url?: string | null;
@@ -323,6 +324,7 @@ export type Database = {
           full_name: string;
           id: string;
           username: string;
+          is_admin: boolean | false;
         };
         Update: {
           avatar_url?: string | null;
@@ -331,6 +333,7 @@ export type Database = {
           full_name?: string;
           id?: string;
           username?: string;
+          is_admin: boolean | false;
         };
         Relationships: [];
       };

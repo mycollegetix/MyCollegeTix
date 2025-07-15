@@ -36,6 +36,9 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
+  // Check if user is admin
+  const isAdmin = profile?.is_admin === true;
+
   const handleSignOut = async () => {
     console.log("🚪 Starting sign out process...");
     await signOut();
@@ -202,6 +205,14 @@ export default function ProfileScreen() {
               {profile?.full_name || "MSU Student"}
             </Text>
             <Text style={styles.headerSubtitle}>{user?.email}</Text>
+
+            {/* Admin Badge */}
+            {isAdmin && (
+              <View style={styles.adminBadge}>
+                <Ionicons name="shield-checkmark" size={16} color="#ffd700" />
+                <Text style={styles.adminBadgeText}>Administrator</Text>
+              </View>
+            )}
           </View>
 
           {/* Tab Section */}
@@ -282,6 +293,13 @@ export default function ProfileScreen() {
                         : "Unknown"
                     }
                   />
+                  {isAdmin && (
+                    <InfoCard
+                      icon="shield-checkmark-outline"
+                      label="Account Type"
+                      value="Administrator"
+                    />
+                  )}
                 </View>
 
                 {/* Quick Actions */}
@@ -328,6 +346,36 @@ export default function ProfileScreen() {
                         color="#6b7280"
                       />
                     </TouchableOpacity>
+
+                    {/* Admin Panel Button - Only show if user is admin */}
+                    {isAdmin && (
+                      <TouchableOpacity
+                        style={[styles.quickActionCard, styles.adminActionCard]}
+                        onPress={() => (router.push as any)("/(admin)/")}
+                      >
+                        <View
+                          style={[
+                            styles.quickActionIcon,
+                            styles.adminActionIcon,
+                          ]}
+                        >
+                          <Ionicons name="settings" size={24} color="#ffd700" />
+                        </View>
+                        <Text
+                          style={[
+                            styles.quickActionText,
+                            styles.adminActionText,
+                          ]}
+                        >
+                          Admin Panel
+                        </Text>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={16}
+                          color="#ffd700"
+                        />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               </View>
@@ -407,9 +455,6 @@ export default function ProfileScreen() {
               <Ionicons name="log-out-outline" size={20} color="#ef4444" />
               <Text style={styles.signOutText}>Sign Out</Text>
             </TouchableOpacity>
-
-            {/* Security Info */}
-
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -538,6 +583,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
     lineHeight: 22,
+    marginBottom: 12,
+  },
+  adminBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 215, 0, 0.2)",
+    borderWidth: 1,
+    borderColor: "#ffd700",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  adminBadgeText: {
+    color: "#ffd700",
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   tabSection: {
     paddingHorizontal: 20,
@@ -667,6 +731,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1e293b",
   },
+  // Admin-specific styles
+  adminActionCard: {
+    backgroundColor: "#0f2f28",
+    borderColor: "#ffd700",
+  },
+  adminActionIcon: {
+    backgroundColor: "rgba(255, 215, 0, 0.1)",
+  },
+  adminActionText: {
+    color: "#ffd700",
+  },
   formCard: {
     backgroundColor: "#f8fafc",
     borderRadius: 16,
@@ -786,29 +861,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#ef4444",
-  },
-  infoBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(24, 69, 59, 0.2)",
-    gap: 12,
-  },
-  infoBoxContent: {
-    flex: 1,
-  },
-  infoBoxTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#18453b",
-    marginBottom: 4,
-  },
-  infoBoxText: {
-    fontSize: 12,
-    color: "#6b7280",
-    lineHeight: 16,
   },
   modalOverlay: {
     flex: 1,
