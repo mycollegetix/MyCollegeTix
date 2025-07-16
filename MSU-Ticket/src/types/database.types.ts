@@ -1,4 +1,4 @@
-// src/types/database.types.ts - Updated with complete Event types
+// src/types/database.types.ts - Fixed with college support added
 export type Json =
   | string
   | number
@@ -10,6 +10,42 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      colleges: {
+        Row: {
+          id: string;
+          created_at: string;
+          name: string;
+          short_name: string;
+          email_domain: string;
+          logo_url: string | "";
+          primary_color: string;
+          secondary_color: string;
+          is_active: boolean;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          name: string;
+          short_name: string;
+          email_domain: string;
+          logo_url?: string | "";
+          primary_color?: string;
+          secondary_color?: string;
+          is_active?: boolean;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          name?: string;
+          short_name?: string;
+          email_domain?: string;
+          logo_url?: string | "";
+          primary_color?: string;
+          secondary_color?: string;
+          is_active?: boolean;
+        };
+        Relationships: [];
+      };
       conversations: {
         Row: {
           archived: boolean | null;
@@ -89,6 +125,7 @@ export type Database = {
           title: string;
           updated_at: string;
           venue: string | null;
+          college_id: string | null; // Added college support
         };
         Insert: {
           away_team?: string | null;
@@ -110,6 +147,7 @@ export type Database = {
           title: string;
           updated_at?: string;
           venue?: string | null;
+          college_id?: string | null; // Added college support
         };
         Update: {
           away_team?: string | null;
@@ -131,8 +169,17 @@ export type Database = {
           title?: string;
           updated_at?: string;
           venue?: string | null;
+          college_id?: string | null; // Added college support
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "events_college_id_fkey";
+            columns: ["college_id"];
+            isOneToOne: false;
+            referencedRelation: "colleges";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       messages: {
         Row: {
@@ -315,7 +362,8 @@ export type Database = {
           full_name: string;
           id: string;
           username: string;
-          is_admin: boolean | false;
+          is_admin: boolean;
+          college_id: string | null; // Added college support
         };
         Insert: {
           avatar_url?: string | null;
@@ -324,7 +372,8 @@ export type Database = {
           full_name: string;
           id: string;
           username: string;
-          is_admin: boolean | false;
+          is_admin?: boolean;
+          college_id?: string | null; // Added college support
         };
         Update: {
           avatar_url?: string | null;
@@ -333,7 +382,37 @@ export type Database = {
           full_name?: string;
           id?: string;
           username?: string;
-          is_admin: boolean | false;
+          is_admin?: boolean;
+          college_id?: string | null; // Added college support
+        };
+        Relationships: [
+          {
+            foreignKeyName: "profiles_college_id_fkey";
+            columns: ["college_id"];
+            isOneToOne: false;
+            referencedRelation: "colleges";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      system_logs: {
+        Row: {
+          id: string;
+          operation: string;
+          details: Json | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          operation: string;
+          details?: Json | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          operation?: string;
+          details?: Json | null;
+          created_at?: string | null;
         };
         Relationships: [];
       };
@@ -437,6 +516,35 @@ export type Database = {
         Args: { ticket_id: string };
         Returns: Json;
       };
+      // Added college functions
+      get_user_college: {
+        Args: Record<PropertyKey, never>;
+        Returns: string | null;
+      };
+      is_valid_college_email: {
+        Args: {
+          email_address: string;
+        };
+        Returns: boolean;
+      };
+      get_college_by_email: {
+        Args: {
+          email_address: string;
+        };
+        Returns: string | null;
+      };
+      add_new_college: {
+        Args: {
+          p_name: string;
+          p_short_name: string;
+          p_email_domain: string;
+          p_website_url?: string;
+          p_support_email?: string;
+          p_primary_color?: string;
+          p_secondary_color?: string;
+        };
+        Returns: string;
+      };
     };
     Enums: {
       [_ in never]: never;
@@ -447,7 +555,7 @@ export type Database = {
   };
 };
 
-// Extended types for specific functionality
+// Extended types for specific functionality (keeping your existing ones)
 export type ConversationWithParticipants =
   Database["public"]["Tables"]["conversations"]["Row"] & {
     participant_1: Database["public"]["Tables"]["profiles"]["Row"];
@@ -482,6 +590,18 @@ export type TicketWithEvent = Tables<"tickets"> & {
 
 // Event type from database
 export type Event = Database["public"]["Tables"]["events"]["Row"];
+
+// NEW: College types
+export type College = Database["public"]["Tables"]["colleges"]["Row"];
+
+export type ProfileWithCollege =
+  Database["public"]["Tables"]["profiles"]["Row"] & {
+    colleges?: College | null;
+  };
+
+export type EventWithCollege = Database["public"]["Tables"]["events"]["Row"] & {
+  colleges?: College | null;
+};
 
 // Helper type for database operations
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;

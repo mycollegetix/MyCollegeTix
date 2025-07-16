@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,28 +10,186 @@ import {
   ScrollView,
   Dimensions,
   Alert,
+  Modal,
+  FlatList,
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { CollegeService } from "@/src/services/collegeService";
+import { College } from "@/src/types/database.types";
 
 const { width, height } = Dimensions.get("window");
 
-export default function RegisterScreen() {
+export default function EnhancedRegisterScreen() {
+  // Form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [selectedCollege, setSelectedCollege] = useState<College | null>(null);
+
+  // UI state
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showCollegeModal, setShowCollegeModal] = useState(false);
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [loadingColleges, setLoadingColleges] = useState(true);
+  const [emailValidationMessage, setEmailValidationMessage] = useState("");
 
   const { signUp } = useAuth();
   const router = useRouter();
 
+  // Load colleges on mount
+  useEffect(() => {
+    loadColleges();
+  }, []);
+
+  // Validate email when it changes
+  useEffect(() => {
+    if (email && selectedCollege) {
+      validateEmailDomain();
+    } else {
+      setEmailValidationMessage("");
+    }
+  }, [email, selectedCollege]);
+
+  const loadColleges = async () => {
+    console.log("🔍 Loading colleges for registration...");
+    try {
+      const result = await CollegeService.getActiveColleges();
+
+      if (!result.success || !result.data) {
+        console.error("❌ Error loading colleges:", result.error);
+
+        // Fallback to MSU if there's an error
+        setColleges([
+          {
+            id: "temp-msu",
+            created_at: new Date().toISOString(),
+            name: "Michigan State University",
+            short_name: "MSU",
+            email_domain: "msu.edu",
+            logo_url: "",
+            primary_color: "#18453b",
+            secondary_color: "#ffd700",
+            is_active: true,
+          },
+        ]);
+
+        Alert.alert("Error", "Failed to load colleges. Using MSU as default.");
+        return;
+      }
+
+      console.log("✅ Colleges loaded successfully:", result.data.length);
+      setColleges(result.data);
+    } catch (error) {
+      console.error("💥 Unexpected error loading colleges:", error);
+
+      // Fallback to MSU if there's an error
+      setColleges([
+        {
+          id: "temp-msu",
+          created_at: new Date().toISOString(),
+          name: "Michigan State University",
+          short_name: "MSU",
+          email_domain: "msu.edu",
+          logo_url: "",
+          primary_color: "#18453b",
+          secondary_color: "#ffd700",
+          is_active: true,
+        },
+      ]);
+    } finally {
+      setLoadingColleges(false);
+    }
+  };
+
+  // Replace these functions in your register.tsx file:
+
+  const validateEmailDomain = () => {
+    if (!selectedCollege || !email) {
+      setEmailValidationMessage("");
+      return;
+    }
+
+    const emailDomain = email.split("@")[1]?.toLowerCase().trim();
+    const expectedDomain = selectedCollege.email_domain.toLowerCase().trim();
+
+    console.log("🔍 Email validation:");
+    console.log("🔍 Email:", email);
+    console.log("🔍 Extracted domain:", `"${emailDomain}"`);
+    console.log("🔍 Expected domain:", `"${expectedDomain}"`);
+    console.log("🔍 Match:", emailDomain === expectedDomain);
+
+    if (!emailDomain) {
+      setEmailValidationMessage("Please enter a valid email address");
+      return;
+    }
+
+    if (emailDomain !== expectedDomain) {
+      setEmailValidationMessage(
+        `Please use your ${selectedCollege.short_name} email address (@${expectedDomain})`
+      );
+      return;
+    }
+
+    setEmailValidationMessage("✓ Valid college email");
+  };
+
+  const isEmailValid = () => {
+    if (!selectedCollege || !email) return false;
+
+    const emailDomain = email.split("@")[1]?.toLowerCase().trim();
+    const expectedDomain = selectedCollege.email_domain.toLowerCase().trim();
+
+    console.log("🔍 isEmailValid check:");
+    console.log("🔍 emailDomain:", `"${emailDomain}"`);
+    console.log("🔍 expectedDomain:", `"${expectedDomain}"`);
+    console.log("🔍 Result:", emailDomain === expectedDomain);
+
+    return emailDomain === expectedDomain;
+  };
+
+  // Alternative: More flexible validation that might help
+  const isEmailValidFlexible = () => {
+    if (!selectedCollege || !email) return false;
+
+    // Get domain from email
+    const emailParts = email.split("@");
+    if (emailParts.length !== 2) return false;
+
+    const emailDomain = emailParts[1].toLowerCase().trim();
+    const expectedDomain = selectedCollege.email_domain.toLowerCase().trim();
+
+    // Check for exact match
+    const exactMatch = emailDomain === expectedDomain;
+
+    console.log("🔍 Flexible validation:");
+    console.log("🔍 Email parts:", emailParts);
+    console.log("🔍 emailDomain:", `"${emailDomain}"`);
+    console.log("🔍 expectedDomain:", `"${expectedDomain}"`);
+    console.log("🔍 Exact match:", exactMatch);
+
+    return exactMatch;
+  };
+
   const handleRegister = async () => {
+    // Prevent double-clicks by setting loading immediately
+    if (isLoading) {
+      console.log("⏳ Registration already in progress, ignoring click");
+      return;
+    }
+
+    // College selection validation
+    if (!selectedCollege) {
+      Alert.alert("Error", "Please select your college or university");
+      return;
+    }
+
     // Basic validation
     if (!name.trim()) {
       Alert.alert("Error", "Please enter your full name");
@@ -40,6 +198,14 @@ export default function RegisterScreen() {
 
     if (!email.trim()) {
       Alert.alert("Error", "Please enter your email address");
+      return;
+    }
+
+    if (!isEmailValid()) {
+      Alert.alert(
+        "Invalid Email",
+        `Please use your official ${selectedCollege.short_name} email address (@${selectedCollege.email_domain})`
+      );
       return;
     }
 
@@ -58,20 +224,19 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert("Error", "Please enter a valid email address");
-      return;
-    }
-
+    // Set loading state IMMEDIATELY to prevent double-clicks
     setIsLoading(true);
+    console.log("🔄 Starting registration process...");
 
     try {
-      const { error } = await signUp(email, password, name);
+      console.log("🔄 Starting registration for:", email);
+      console.log("🏫 Selected college:", selectedCollege.name);
+
+      // Use the AuthProvider signUp method which handles college assignment
+      const { error } = await signUp(email, password, name, selectedCollege.id);
 
       if (error) {
-        console.error("Registration error:", error);
+        console.error("❌ Registration error:", error);
 
         // Handle specific error types
         if (error.message.includes("User already registered")) {
@@ -97,6 +262,10 @@ export default function RegisterScreen() {
           );
         }
       } else {
+        console.log(
+          "✅ Registration successful - profile should be created by trigger"
+        );
+
         // Success - show verification message and redirect to login
         Alert.alert(
           "Account Created Successfully!",
@@ -105,7 +274,15 @@ export default function RegisterScreen() {
             {
               text: "OK",
               onPress: () => {
-                // Navigate to login screen
+                // Clear the form
+                setName("");
+                setEmail("");
+                setPassword("");
+                setConfirmPassword("");
+                setSelectedCollege(null);
+                setEmailValidationMessage("");
+
+                // Navigate to login
                 router.replace("/(auth)/login");
               },
             },
@@ -113,13 +290,15 @@ export default function RegisterScreen() {
         );
       }
     } catch (error: any) {
-      console.error("Unexpected registration error:", error);
+      console.error("💥 Unexpected registration error:", error);
       Alert.alert(
         "Registration Failed",
         "An unexpected error occurred. Please try again."
       );
     } finally {
+      // Always reset loading state
       setIsLoading(false);
+      console.log("🏁 Registration process completed");
     }
   };
 
@@ -127,6 +306,34 @@ export default function RegisterScreen() {
     if (password.length < 6) return { color: "#ef4444", text: "Weak" };
     if (password.length < 10) return { color: "#f59e0b", text: "Medium" };
     return { color: "#10b981", text: "Strong" };
+  };
+
+  const getThemeColors = () => {
+    if (selectedCollege) {
+      return {
+        primary: selectedCollege.primary_color,
+        secondary: selectedCollege.secondary_color,
+      };
+    }
+    // Default MSU colors
+    return {
+      primary: "#18453b",
+      secondary: "#ffd700",
+    };
+  };
+
+  const getDynamicTitle = () => {
+    if (selectedCollege) {
+      return `${selectedCollege.short_name} Tickets`;
+    }
+    return "University Tickets";
+  };
+
+  const getDynamicSubtitle = () => {
+    if (selectedCollege) {
+      return `Your gateway to exclusive ${selectedCollege.short_name} events and experiences`;
+    }
+    return "Your gateway to exclusive campus events and experiences";
   };
 
   const FeatureCard = ({
@@ -142,7 +349,7 @@ export default function RegisterScreen() {
       <Ionicons
         name={icon as any}
         size={24}
-        color="#ffd700"
+        color={getThemeColors().secondary}
         style={styles.featureIcon}
       />
       <Text style={styles.featureTitle}>{title}</Text>
@@ -150,13 +357,75 @@ export default function RegisterScreen() {
     </BlurView>
   );
 
+  const CollegeItem = ({ college }: { college: College }) => (
+    <TouchableOpacity
+      style={styles.collegeItem}
+      onPress={() => {
+        setSelectedCollege(college);
+        setShowCollegeModal(false);
+      }}
+    >
+      <View style={styles.collegeInfo}>
+        <Text style={styles.collegeName}>{college.name}</Text>
+        <Text style={styles.collegeShortName}>{college.short_name}</Text>
+        <Text style={styles.collegeEmail}>@{college.email_domain}</Text>
+      </View>
+      <Ionicons name="chevron-forward-outline" size={20} color="#9ca3af" />
+    </TouchableOpacity>
+  );
+
   const passwordStrength = getPasswordStrength(password);
+  const themeColors = getThemeColors();
+
+  const dynamicStyles = StyleSheet.create({
+    background: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    logo: {
+      width: 60,
+      height: 60,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    heroTitle: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: "white",
+      marginTop: 16,
+      textAlign: "center",
+    },
+    registerButton: {
+      borderRadius: 16,
+      marginTop: 20,
+      overflow: "hidden",
+    },
+    collegeButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "white",
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: selectedCollege ? themeColors.primary : "#e5e7eb",
+      paddingHorizontal: 16,
+      height: 52,
+      justifyContent: "space-between",
+    },
+  });
 
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
-        style={styles.background}
+        colors={[
+          themeColors.primary,
+          `${themeColors.primary}CC`,
+          `${themeColors.primary}99`,
+        ]}
+        style={dynamicStyles.background}
       />
 
       {/* Animated background elements */}
@@ -170,7 +439,7 @@ export default function RegisterScreen() {
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={true}
+          showsVerticalScrollIndicator={false}
           bounces={true}
           keyboardShouldPersistTaps="handled"
         >
@@ -178,17 +447,19 @@ export default function RegisterScreen() {
           <View style={styles.heroSection}>
             <View style={styles.logoContainer}>
               <LinearGradient
-                colors={["#ffd700", "#ffed4a"]}
-                style={styles.logo}
+                colors={[themeColors.secondary, `${themeColors.secondary}DD`]}
+                style={dynamicStyles.logo}
               >
-                <Ionicons name="ticket-outline" size={32} color="#18453b" />
+                <Ionicons
+                  name="ticket-outline"
+                  size={32}
+                  color={themeColors.primary}
+                />
               </LinearGradient>
             </View>
 
-            <Text style={styles.heroTitle}>MSU Tickets</Text>
-            <Text style={styles.heroSubtitle}>
-              Your gateway to exclusive Spartan events and experiences
-            </Text>
+            <Text style={dynamicStyles.heroTitle}>{getDynamicTitle()}</Text>
+            <Text style={styles.heroSubtitle}>{getDynamicSubtitle()}</Text>
 
             {/* Features Grid */}
             <View style={styles.featuresGrid}>
@@ -213,16 +484,60 @@ export default function RegisterScreen() {
           {/* Form Section */}
           <View style={styles.formSection}>
             <View style={styles.formHeader}>
-              <Text style={styles.formTitle}>Create Account</Text>
+              <Text style={[styles.formTitle, { color: themeColors.primary }]}>
+                Create Account
+              </Text>
               <Text style={styles.formSubtitle}>
-                Join thousands of Spartans already registered
+                Join thousands of students already registered
               </Text>
             </View>
 
             <View style={styles.formContainer}>
+              {/* College Selection */}
+              <View style={styles.inputGroup}>
+                <Text
+                  style={[styles.inputLabel, { color: themeColors.primary }]}
+                >
+                  Select Your College
+                </Text>
+                <TouchableOpacity
+                  style={dynamicStyles.collegeButton}
+                  onPress={() => setShowCollegeModal(true)}
+                >
+                  <View style={styles.collegeSelectContent}>
+                    <Ionicons
+                      name="school-outline"
+                      size={20}
+                      color="#9ca3af"
+                      style={styles.inputIcon}
+                    />
+                    <Text
+                      style={
+                        selectedCollege
+                          ? styles.selectedCollegeText
+                          : styles.placeholderText
+                      }
+                    >
+                      {selectedCollege
+                        ? selectedCollege.name
+                        : "Choose your college or university"}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-down-outline"
+                    size={20}
+                    color="#9ca3af"
+                  />
+                </TouchableOpacity>
+              </View>
+
               {/* Name Input */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Full Name</Text>
+                <Text
+                  style={[styles.inputLabel, { color: themeColors.primary }]}
+                >
+                  Full Name
+                </Text>
                 <View style={styles.inputWrapper}>
                   <Ionicons
                     name="person-outline"
@@ -243,8 +558,23 @@ export default function RegisterScreen() {
 
               {/* Email Input */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email Address</Text>
-                <View style={styles.inputWrapper}>
+                <Text
+                  style={[styles.inputLabel, { color: themeColors.primary }]}
+                >
+                  {selectedCollege
+                    ? `${selectedCollege.short_name} Email Address`
+                    : "Email Address"}
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    emailValidationMessage.includes("✓") &&
+                      styles.inputWrapperValid,
+                    emailValidationMessage &&
+                      !emailValidationMessage.includes("✓") &&
+                      styles.inputWrapperError,
+                  ]}
+                >
                   <Ionicons
                     name="mail-outline"
                     size={20}
@@ -252,7 +582,11 @@ export default function RegisterScreen() {
                     style={styles.inputIcon}
                   />
                   <TextInput
-                    placeholder="Enter your email"
+                    placeholder={
+                      selectedCollege
+                        ? `student@${selectedCollege.email_domain}`
+                        : "Enter your email"
+                    }
                     value={email}
                     onChangeText={setEmail}
                     style={styles.input}
@@ -261,31 +595,38 @@ export default function RegisterScreen() {
                     placeholderTextColor="#9ca3af"
                   />
                 </View>
+                {emailValidationMessage && (
+                  <Text
+                    style={[
+                      styles.validationText,
+                      emailValidationMessage.includes("✓")
+                        ? styles.validText
+                        : styles.errorText,
+                    ]}
+                  >
+                    {emailValidationMessage}
+                  </Text>
+                )}
               </View>
 
               {/* Password Input */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.inputLabel}>Password</Text>
-                  {password.length > 0 && (
-                    <Text
-                      style={[
-                        styles.strengthText,
-                        { color: passwordStrength.color },
-                      ]}
-                    >
-                      {passwordStrength.text}
-                    </Text>
-                  )}
+                  <Text
+                    style={[styles.inputLabel, { color: themeColors.primary }]}
+                  >
+                    Password
+                  </Text>
+                  <Text
+                    style={[
+                      styles.strengthText,
+                      { color: passwordStrength.color },
+                    ]}
+                  >
+                    {password ? passwordStrength.text : ""}
+                  </Text>
                 </View>
-                <View
-                  style={[
-                    styles.inputWrapper,
-                    password.length > 0 && {
-                      borderColor: passwordStrength.color,
-                    },
-                  ]}
-                >
+                <View style={styles.inputWrapper}>
                   <Ionicons
                     name="lock-closed-outline"
                     size={20}
@@ -296,9 +637,8 @@ export default function RegisterScreen() {
                     placeholder="Create a strong password"
                     value={password}
                     onChangeText={setPassword}
+                    style={styles.input}
                     secureTextEntry={!showPassword}
-                    style={[styles.input, { flex: 1 }]}
-                    autoCapitalize="none"
                     placeholderTextColor="#9ca3af"
                   />
                   <TouchableOpacity
@@ -316,20 +656,12 @@ export default function RegisterScreen() {
 
               {/* Confirm Password Input */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Confirm Password</Text>
-                <View
-                  style={[
-                    styles.inputWrapper,
-                    confirmPassword.length > 0 &&
-                      confirmPassword !== password && {
-                        borderColor: "#ef4444",
-                      },
-                    confirmPassword.length > 0 &&
-                      confirmPassword === password && {
-                        borderColor: "#10b981",
-                      },
-                  ]}
+                <Text
+                  style={[styles.inputLabel, { color: themeColors.primary }]}
                 >
+                  Confirm Password
+                </Text>
+                <View style={styles.inputWrapper}>
                   <Ionicons
                     name="lock-closed-outline"
                     size={20}
@@ -340,9 +672,8 @@ export default function RegisterScreen() {
                     placeholder="Confirm your password"
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
+                    style={styles.input}
                     secureTextEntry={!showConfirmPassword}
-                    style={[styles.input, { flex: 1 }]}
-                    autoCapitalize="none"
                     placeholderTextColor="#9ca3af"
                   />
                   <TouchableOpacity
@@ -358,29 +689,22 @@ export default function RegisterScreen() {
                     />
                   </TouchableOpacity>
                 </View>
-                {confirmPassword.length > 0 && confirmPassword !== password && (
-                  <Text style={styles.errorText}>Passwords do not match</Text>
-                )}
               </View>
 
               {/* Register Button */}
               <TouchableOpacity
                 style={[
-                  styles.registerButton,
-                  isLoading && styles.loadingButton,
+                  dynamicStyles.registerButton,
+                  (isLoading || !selectedCollege || !isEmailValid()) &&
+                    styles.disabledButton,
                 ]}
                 onPress={handleRegister}
-                disabled={
-                  isLoading ||
-                  !name ||
-                  !email ||
-                  !password ||
-                  password !== confirmPassword
-                }
+                disabled={isLoading || !selectedCollege || !isEmailValid()}
+                activeOpacity={isLoading ? 1 : 0.8} // Prevent visual feedback when disabled
               >
                 <LinearGradient
-                  colors={["#18453b", "#2a6b5a"]}
-                  style={styles.buttonGradient}
+                  colors={[themeColors.primary, `${themeColors.primary}DD`]}
+                  style={styles.registerButtonGradient}
                 >
                   {isLoading ? (
                     <View style={styles.loadingContainer}>
@@ -402,21 +726,102 @@ export default function RegisterScreen() {
 
               <Link href="../(auth)/login" asChild>
                 <TouchableOpacity style={styles.loginLink}>
-                  <Ionicons name="log-in-outline" size={20} color="#18453b" />
-                  <Text style={styles.loginText}>Sign In Here</Text>
+                  <Ionicons
+                    name="log-in-outline"
+                    size={20}
+                    color={themeColors.primary}
+                  />
+                  <Text
+                    style={[styles.loginText, { color: themeColors.primary }]}
+                  >
+                    Sign In Here
+                  </Text>
                 </TouchableOpacity>
               </Link>
 
               {/* Terms and Privacy */}
               <Text style={styles.termsText}>
                 By creating an account, you agree to our{" "}
-                <Text style={styles.linkText}>Terms of Service</Text> and{" "}
-                <Text style={styles.linkText}>Privacy Policy</Text>
+                <Text style={[styles.linkText, { color: themeColors.primary }]}>
+                  Terms of Service
+                </Text>{" "}
+                and{" "}
+                <Text style={[styles.linkText, { color: themeColors.primary }]}>
+                  Privacy Policy
+                </Text>
               </Text>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* College Selection Modal */}
+      <Modal
+        visible={showCollegeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCollegeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={50} style={styles.modalBlur}>
+            <View style={styles.collegeModal}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Your College</Text>
+                <TouchableOpacity onPress={() => setShowCollegeModal(false)}>
+                  <Ionicons name="close" size={24} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+
+              {loadingColleges ? (
+                <View style={styles.loadingContainer}>
+                  <Text>Loading colleges...</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={colleges}
+                  renderItem={({ item }) => <CollegeItem college={item} />}
+                  keyExtractor={(item) => item.id}
+                  style={styles.collegeList}
+                  showsVerticalScrollIndicator={false}
+                  ListEmptyComponent={
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyStateText}>
+                        No colleges available. Contact support to add your
+                        college.
+                      </Text>
+                    </View>
+                  }
+                />
+              )}
+
+              <TouchableOpacity
+                style={styles.addCollegeButton}
+                onPress={() => {
+                  setShowCollegeModal(false);
+                  Alert.alert(
+                    "Add Your College",
+                    "Don't see your college? Contact support to have it added to our platform.",
+                    [
+                      { text: "OK", style: "default" },
+                      {
+                        text: "Contact Support",
+                        onPress: () => {
+                          // You can add navigation to support or email functionality here
+                        },
+                      },
+                    ]
+                  );
+                }}
+              >
+                <Ionicons name="add-outline" size={20} color="#6b7280" />
+                <Text style={styles.addCollegeText}>
+                  Don't see your college?
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </BlurView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -425,87 +830,60 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  background: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  floatingElement1: {
-    position: "absolute",
-    top: "15%",
-    left: "10%",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255, 215, 0, 0.08)",
-  },
-  floatingElement2: {
-    position: "absolute",
-    bottom: "30%",
-    right: "15%",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-  },
   keyboardContainer: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: 50,
+  },
+  floatingElement1: {
+    position: "absolute",
+    top: height * 0.1,
+    right: -50,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  floatingElement2: {
+    position: "absolute",
+    top: height * 0.25,
+    left: -40,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   heroSection: {
-    alignItems: "center",
+    paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 30,
+    paddingBottom: 40,
+    alignItems: "center",
   },
   logoContainer: {
-    marginBottom: 20,
-  },
-  logo: {
-    width: 70,
-    height: 70,
-    borderRadius: 18,
     alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#ffd700",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  heroTitle: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: "white",
-    marginBottom: 8,
-    textAlign: "center",
   },
   heroSubtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: "rgba(255, 255, 255, 0.9)",
     textAlign: "center",
-    marginBottom: 30,
+    marginTop: 8,
+    lineHeight: 20,
     paddingHorizontal: 20,
-    lineHeight: 22,
   },
   featuresGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
-    width: "100%",
-    maxWidth: 320,
-    gap: 12,
+    marginTop: 30,
+    paddingHorizontal: 10,
   },
   featureCard: {
     flex: 1,
-    alignItems: "center",
-    padding: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    padding: 16,
+    marginHorizontal: 4,
+    alignItems: "center",
   },
   featureIcon: {
     marginBottom: 8,
@@ -537,7 +915,6 @@ const styles = StyleSheet.create({
   formTitle: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#18453b",
     marginBottom: 8,
   },
   formSubtitle: {
@@ -554,7 +931,6 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 12,
     fontWeight: "500",
-    color: "#18453b",
     marginBottom: 8,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -579,6 +955,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 52,
   },
+  inputWrapperValid: {
+    borderColor: "#10b981",
+  },
+  inputWrapperError: {
+    borderColor: "#ef4444",
+  },
   inputIcon: {
     marginRight: 12,
   },
@@ -590,54 +972,61 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 4,
   },
-  errorText: {
+  validationText: {
     fontSize: 12,
-    color: "#ef4444",
     marginTop: 4,
     marginLeft: 4,
   },
-  registerButton: {
-    borderRadius: 12,
-    marginTop: 8,
-    marginBottom: 24,
-    shadowColor: "#18453b",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+  validText: {
+    color: "#10b981",
   },
-  loadingButton: {
-    opacity: 0.8,
+  errorText: {
+    color: "#ef4444",
   },
-  buttonGradient: {
+  collegeSelectContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  selectedCollegeText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: "#9ca3af",
+  },
+  registerButtonGradient: {
     paddingVertical: 16,
-    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    letterSpacing: 0.5,
+  disabledButton: {
+    opacity: 0.6,
   },
   loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
+  buttonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 1,
+  },
   spinner: {
+    marginLeft: 10,
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-    borderTopColor: "white",
-    marginLeft: 10,
+    borderColor: "white",
+    borderTopColor: "transparent",
   },
   divider: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    marginVertical: 30,
   },
   dividerLine: {
     flex: 1,
@@ -645,37 +1034,115 @@ const styles = StyleSheet.create({
     backgroundColor: "#e5e7eb",
   },
   dividerText: {
-    paddingHorizontal: 16,
+    marginHorizontal: 16,
     fontSize: 14,
     color: "#6b7280",
-    fontWeight: "500",
   },
   loginLink: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 16,
-    backgroundColor: "#f8f9fa",
+    paddingVertical: 16,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "transparent",
-    gap: 8,
-    marginBottom: 20,
+    backgroundColor: "#f8fafc",
   },
   loginText: {
+    marginLeft: 8,
     fontSize: 16,
-    color: "#18453b",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   termsText: {
     fontSize: 12,
     color: "#6b7280",
     textAlign: "center",
+    marginTop: 20,
     lineHeight: 18,
-    paddingHorizontal: 10,
   },
   linkText: {
-    color: "#18453b",
-    fontWeight: "500",
+    fontWeight: "600",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalBlur: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  collegeModal: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: height * 0.7,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+  collegeList: {
+    paddingHorizontal: 20,
+  },
+  collegeItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  collegeInfo: {
+    flex: 1,
+  },
+  collegeName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 4,
+  },
+  collegeShortName: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  collegeEmail: {
+    fontSize: 12,
+    color: "#9ca3af",
+  },
+  emptyState: {
+    padding: 20,
+    alignItems: "center",
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: "#6b7280",
+    textAlign: "center",
+  },
+  addCollegeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+  addCollegeText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#6b7280",
   },
 });
