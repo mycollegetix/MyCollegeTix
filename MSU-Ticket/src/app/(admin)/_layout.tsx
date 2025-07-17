@@ -25,14 +25,14 @@ export default function AdminLayout() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ title: "Admin Dashboard" }} />
-      <Stack.Screen name="users" options={{ title: "User Management" }} />
-      <Stack.Screen name="tickets" options={{ title: "Ticket Management" }} />
-      <Stack.Screen name="events" options={{ title: "Event Management" }} />
-      <Stack.Screen name="colleges" options={{ title: "College Management" }} />
-      <Stack.Screen name="orders" options={{ title: "Order Management" }} />
-      <Stack.Screen name="analytics" options={{ title: "Analytics" }} />
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="users" />
+      <Stack.Screen name="tickets" />
+      <Stack.Screen name="events" />
+      <Stack.Screen name="colleges" />
+      <Stack.Screen name="orders" />
+      <Stack.Screen name="analytics" />
     </Stack>
   );
 }

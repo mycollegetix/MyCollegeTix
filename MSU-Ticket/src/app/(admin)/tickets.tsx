@@ -15,6 +15,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "@/src/lib/supabase";
 import { Tables } from "@/src/types/database.types";
 
+import AdminLayout from "@/src/components/AdminLayout";
+
 type TicketWithDetails = Tables<"tickets"> & {
   seller: Tables<"profiles">;
   event?: Tables<"events"> | null;
@@ -173,68 +175,61 @@ export default function TicketManagement() {
   );
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={["#18453b", "#2d5f52"]}
-        style={styles.headerBackground}
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Ticket Management</Text>
-          <Text style={styles.headerSubtitle}>
-            {tickets.length} total tickets
-          </Text>
-        </View>
-      </LinearGradient>
+    <AdminLayout
+      title="Ticket Management"
+      subtitle={`${tickets.length} total tickets`}
+    >
+      <View style={styles.container}>
+        <View style={styles.filtersContainer}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={20} color="#666" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search tickets..."
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+          </View>
 
-      <View style={styles.filtersContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#666" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search tickets..."
-            value={searchText}
-            onChangeText={setSearchText}
-          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.statusFilters}
+          >
+            {["all", "available", "sold", "cancelled"].map((status) => (
+              <TouchableOpacity
+                key={status}
+                style={[
+                  styles.filterButton,
+                  statusFilter === status && styles.activeFilter,
+                ]}
+                onPress={() => setStatusFilter(status)}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    statusFilter === status && styles.activeFilterText,
+                  ]}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.statusFilters}
+          style={styles.ticketsList}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         >
-          {["all", "available", "sold", "cancelled"].map((status) => (
-            <TouchableOpacity
-              key={status}
-              style={[
-                styles.filterButton,
-                statusFilter === status && styles.activeFilter,
-              ]}
-              onPress={() => setStatusFilter(status)}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  statusFilter === status && styles.activeFilterText,
-                ]}
-              >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </Text>
-            </TouchableOpacity>
+          {filteredTickets.map((ticket) => (
+            <TicketCard key={ticket.id} ticket={ticket} />
           ))}
         </ScrollView>
       </View>
-
-      <ScrollView
-        style={styles.ticketsList}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {filteredTickets.map((ticket) => (
-          <TicketCard key={ticket.id} ticket={ticket} />
-        ))}
-      </ScrollView>
-    </View>
+    </AdminLayout>
   );
 }
 

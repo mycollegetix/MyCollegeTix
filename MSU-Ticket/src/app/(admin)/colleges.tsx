@@ -20,6 +20,7 @@ import { BlurView } from "expo-blur";
 import { CollegeService } from "@/src/services/collegeService";
 import { College } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
+import AdminLayout from "@/src/components/AdminLayout";
 
 const { width } = Dimensions.get("window");
 
@@ -86,10 +87,7 @@ const FormModal = ({
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Short Name</Text>
             <TextInput
-              style={[
-                styles.input,
-                formErrors.short_name && styles.inputError,
-              ]}
+              style={[styles.input, formErrors.short_name && styles.inputError]}
               value={formData.short_name}
               onChangeText={(text) => updateFormField("short_name", text)}
               placeholder="e.g., MSU"
@@ -125,9 +123,7 @@ const FormModal = ({
               <TextInput
                 style={styles.input}
                 value={formData.primary_color}
-                onChangeText={(text) =>
-                  updateFormField("primary_color", text)
-                }
+                onChangeText={(text) => updateFormField("primary_color", text)}
                 placeholder="#18453b"
                 placeholderTextColor="#9ca3af"
               />
@@ -183,6 +179,8 @@ const FormModal = ({
 
 export default function CollegeManagementScreen() {
   const [colleges, setColleges] = useState<College[]>([]);
+  const [filteredColleges, setFilteredColleges] = useState<College[]>([]);
+  const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -386,6 +384,16 @@ export default function CollegeManagementScreen() {
     loadColleges();
   }, [loadColleges]);
 
+  useEffect(() => {
+    const filtered = colleges.filter(
+      (college) =>
+        college.name.toLowerCase().includes(searchText.toLowerCase()) ||
+        college.short_name.toLowerCase().includes(searchText.toLowerCase()) ||
+        college.email_domain.toLowerCase().includes(searchText.toLowerCase())
+    );
+    setFilteredColleges(filtered);
+  }, [searchText, colleges]);
+
   const renderCollegeItem = useCallback(
     ({ item }: { item: College }) => (
       <BlurView intensity={20} style={styles.collegeCard}>
@@ -461,93 +469,117 @@ export default function CollegeManagementScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
-        style={styles.background}
-      />
+    <AdminLayout
+      title="College Management"
+      subtitle={`${filteredColleges.length} of ${colleges.length} colleges`}
+    >
+      <View style={styles.container}>
+        <View style={styles.controlsHeader}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search-outline" size={20} color="#9CA3AF" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search colleges..."
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholderTextColor="#9CA3AF"
+            />
+          </View>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              resetForm();
+              setShowCreateModal(true);
+            }}
+          >
+            <Ionicons name="add" size={24} color="white" />
+            <Text style={styles.addButtonText}>Add College</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>College Management</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            resetForm();
-            setShowCreateModal(true);
-          }}
-        >
-          <Ionicons name="add" size={24} color="white" />
-        </TouchableOpacity>
+        {/* College List */}
+        <FlatList
+          data={filteredColleges}
+          renderItem={renderCollegeItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+
+        {/* Create Modal */}
+        <FormModal
+          visible={showCreateModal}
+          onClose={closeCreateModal}
+          onSubmit={handleCreateCollege}
+          title="Create New College"
+          formData={formData}
+          formErrors={formErrors}
+          submitting={submitting}
+          updateFormField={updateFormField}
+        />
+
+        {/* Edit Modal */}
+        <FormModal
+          visible={showEditModal}
+          onClose={closeEditModal}
+          onSubmit={handleEditCollege}
+          title="Edit College"
+          formData={formData}
+          formErrors={formErrors}
+          submitting={submitting}
+          updateFormField={updateFormField}
+        />
       </View>
-
-      {/* College List */}
-      <FlatList
-        data={colleges}
-        renderItem={renderCollegeItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      />
-
-      {/* Create Modal */}
-      <FormModal
-        visible={showCreateModal}
-        onClose={closeCreateModal}
-        onSubmit={handleCreateCollege}
-        title="Create New College"
-        formData={formData}
-        formErrors={formErrors}
-        submitting={submitting}
-        updateFormField={updateFormField}
-      />
-
-      {/* Edit Modal */}
-      <FormModal
-        visible={showEditModal}
-        onClose={closeEditModal}
-        onSubmit={handleEditCollege}
-        title="Edit College"
-        formData={formData}
-        formErrors={formErrors}
-        submitting={submitting}
-        updateFormField={updateFormField}
-      />
-    </View>
+    </AdminLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#F9FAFB",
   },
-  background: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  header: {
+  controlsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    padding: 20,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "white",
+  searchBar: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 16,
+    color: "#1F2937",
   },
   addButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    padding: 12,
-    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#18453b",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 8,
   },
   listContainer: {
     padding: 20,

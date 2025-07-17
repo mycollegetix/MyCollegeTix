@@ -14,7 +14,6 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "@/src/lib/supabase";
 import { Tables } from "@/src/types/database.types";
 import AdminLayout from "@/src/components/AdminLayout";
@@ -323,7 +322,7 @@ export default function EventManagement() {
               ]}
               onPress={() => updateEventStatus(event.id, "available")}
             >
-              <Text style={styles.quickActionText}>Available</Text>
+              <Text style={styles.quickActionText}>Activate</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -333,7 +332,7 @@ export default function EventManagement() {
               ]}
               onPress={() => updateEventStatus(event.id, "inactive")}
             >
-              <Text style={styles.quickActionText}>Inactive</Text>
+              <Text style={styles.quickActionText}>Deactivate</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -461,7 +460,7 @@ export default function EventManagement() {
     <AdminLayout
       title="Event Management"
       subtitle={`${filteredEvents.length} of ${events.length} events`}
-      showBackButton={false}
+      showBackButton={true}
     >
       <View style={styles.container}>
         {selectMode && (

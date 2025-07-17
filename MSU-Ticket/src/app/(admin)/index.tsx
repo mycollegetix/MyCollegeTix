@@ -30,6 +30,20 @@ interface AdminStats {
   totalColleges: number;
 }
 
+import AdminLayout from "@/src/components/AdminLayout";
+
+interface AdminStats {
+  totalUsers: number;
+  totalTickets: number;
+  totalEvents: number;
+  totalOrders: number;
+  activeTickets: number;
+  soldTickets: number;
+  totalRevenue: number;
+  recentSignups: number;
+  totalColleges: number;
+}
+
 export default function AdminDashboard() {
   const { user } = useAuth();
   const router = useRouter();
@@ -159,145 +173,133 @@ export default function AdminDashboard() {
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <LinearGradient
-        colors={["#18453b", "#2d5f52"]}
-        style={styles.headerBackground}
-      >
-        <View style={styles.header}>
-          {/* Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.push("/(tabs)/profile")}
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-
-          {/* Header Content */}
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Admin Dashboard</Text>
-            <Text style={styles.headerSubtitle}>
-              Welcome back, {user?.email}
-            </Text>
+    <AdminLayout
+      title="Admin Dashboard"
+      subtitle={`Welcome back, ${user?.email}`}
+    >
+      <ScrollView style={styles.container}>
+        {/* Stats Grid */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Overview</Text>
+          <View style={styles.statsGrid}>
+            <StatCard
+              title="Total Users"
+              value={stats.totalUsers}
+              icon="people"
+              color="#18453b"
+              onPress={() => router.push("/(admin)/users")}
+            />
+            <StatCard
+              title="Total Colleges"
+              value={stats.totalColleges}
+              icon="school"
+              color="#8b5cf6"
+              onPress={() => router.push("/(admin)/colleges")}
+            />
+            <StatCard
+              title="Active Tickets"
+              value={stats.activeTickets}
+              icon="ticket"
+              color="#2563eb"
+              onPress={() => router.push("/(admin)/tickets")}
+            />
+            <StatCard
+              title="Total Events"
+              value={stats.totalEvents}
+              icon="calendar"
+              color="#7c3aed"
+              onPress={() => router.push("/(admin)/events")}
+            />
+            <StatCard
+              title="Orders"
+              value={stats.totalOrders}
+              icon="receipt"
+              color="#dc2626"
+              onPress={() => router.push("/(admin)/orders")}
+            />
+            <StatCard
+              title="Revenue"
+              value={`${stats.totalRevenue.toFixed(2)}`}
+              icon="cash"
+              color="#16a34a"
+            />
+            <StatCard
+              title="Recent Signups"
+              value={stats.recentSignups}
+              icon="person-add"
+              color="#ea580c"
+            />
           </View>
         </View>
-      </LinearGradient>
 
-      {/* Stats Grid */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Overview</Text>
-        <View style={styles.statsGrid}>
-          <StatCard
-            title="Total Users"
-            value={stats.totalUsers}
-            icon="people"
-            color="#18453b"
-            onPress={() => router.push("/(admin)/users")}
-          />
-          <StatCard
-            title="Total Colleges"
-            value={stats.totalColleges}
-            icon="school"
-            color="#8b5cf6"
-            onPress={() => router.push("/(admin)/colleges")}
-          />
-          <StatCard
-            title="Active Tickets"
-            value={stats.activeTickets}
-            icon="ticket"
-            color="#2563eb"
-            onPress={() => router.push("/(admin)/tickets")}
-          />
-          <StatCard
-            title="Total Events"
-            value={stats.totalEvents}
-            icon="calendar"
-            color="#7c3aed"
-            onPress={() => router.push("/(admin)/events")}
-          />
-          <StatCard
-            title="Orders"
-            value={stats.totalOrders}
-            icon="receipt"
-            color="#dc2626"
-            onPress={() => router.push("/(admin)/orders")}
-          />
-          <StatCard
-            title="Revenue"
-            value={`$${stats.totalRevenue.toFixed(2)}`}
-            icon="cash"
-            color="#16a34a"
-          />
-          <StatCard
-            title="Recent Signups"
-            value={stats.recentSignups}
-            icon="person-add"
-            color="#ea580c"
-          />
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickActions}>
-          <QuickActionCard
-            title="User Management"
-            description="View, edit, and manage user accounts"
-            icon="people"
-            color="#18453b"
-            onPress={() => router.push("/(admin)/users")}
-          />
-          <QuickActionCard
-            title="Ticket Management"
-            description="Monitor and manage ticket listings"
-            icon="ticket"
-            color="#2563eb"
-            onPress={() => router.push("/(admin)/tickets")}
-          />
-          <QuickActionCard
-            title="Event Management"
-            description="Create, edit, and manage events"
-            icon="calendar"
-            color="#7c3aed"
-            onPress={() => router.push("/(admin)/events")}
-          />
-          <QuickActionCard
-            title="College Management"
-            description="Add, edit, and manage colleges and universities"
-            icon="school"
-            color="#8b5cf6"
-            onPress={() => (router.push as any)("/(admin)/colleges")}
-          />
-          <QuickActionCard
-            title="Analytics"
-            description="View detailed analytics and reports"
-            icon="analytics"
-            color="#16a34a"
-            onPress={() => router.push("/(admin)/analytics")}
-          />
-        </View>
-      </View>
-
-      {/* System Status */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>System Status</Text>
-        <View style={styles.systemStatus}>
-          <View style={styles.statusItem}>
-            <View style={[styles.statusDot, { backgroundColor: "#16a34a" }]} />
-            <Text style={styles.statusText}>Database: Online</Text>
-          </View>
-          <View style={styles.statusItem}>
-            <View style={[styles.statusDot, { backgroundColor: "#16a34a" }]} />
-            <Text style={styles.statusText}>Authentication: Active</Text>
-          </View>
-          <View style={styles.statusItem}>
-            <View style={[styles.statusDot, { backgroundColor: "#16a34a" }]} />
-            <Text style={styles.statusText}>Notifications: Running</Text>
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActions}>
+            <QuickActionCard
+              title="User Management"
+              description="View, edit, and manage user accounts"
+              icon="people"
+              color="#18453b"
+              onPress={() => router.push("/(admin)/users")}
+            />
+            <QuickActionCard
+              title="Ticket Management"
+              description="Monitor and manage ticket listings"
+              icon="ticket"
+              color="#2563eb"
+              onPress={() => router.push("/(admin)/tickets")}
+            />
+            <QuickActionCard
+              title="Event Management"
+              description="Create, edit, and manage events"
+              icon="calendar"
+              color="#7c3aed"
+              onPress={() => router.push("/(admin)/events")}
+            />
+            <QuickActionCard
+              title="College Management"
+              description="Add, edit, and manage colleges and universities"
+              icon="school"
+              color="#8b5cf6"
+              onPress={() => (router.push as any)("/(admin)/colleges")}
+            />
+            <QuickActionCard
+              title="Analytics"
+              description="View detailed analytics and reports"
+              icon="analytics"
+              color="#16a34a"
+              onPress={() => router.push("/(admin)/analytics")}
+            />
           </View>
         </View>
-      </View>
-    </ScrollView>
+
+        {/* System Status */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>System Status</Text>
+          <View style={styles.systemStatus}>
+            <View style={styles.statusItem}>
+              <View
+                style={[styles.statusDot, { backgroundColor: "#16a34a" }]}
+              />
+              <Text style={styles.statusText}>Database: Online</Text>
+            </View>
+            <View style={styles.statusItem}>
+              <View
+                style={[styles.statusDot, { backgroundColor: "#16a34a" }]}
+              />
+              <Text style={styles.statusText}>Authentication: Active</Text>
+            </View>
+            <View style={styles.statusItem}>
+              <View
+                style={[styles.statusDot, { backgroundColor: "#16a34a" }]}
+              />
+              <Text style={styles.statusText}>Notifications: Running</Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </AdminLayout>
   );
 }
 

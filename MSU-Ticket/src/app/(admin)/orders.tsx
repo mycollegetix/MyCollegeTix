@@ -19,6 +19,8 @@ import { BlurView } from "expo-blur";
 import { OrderService } from "@/src/services/orderService";
 import { useAuth } from "@/src/providers/AuthProvider";
 
+import AdminLayout from "@/src/components/AdminLayout";
+
 const { width } = Dimensions.get("window");
 
 // Order interface based on your database types
@@ -351,347 +353,346 @@ export default function OrderManagementScreen() {
   );
 
   return (
-    <LinearGradient colors={["#18453b", "#2d5a4d"]} style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Order Management</Text>
-        <Text style={styles.subtitle}>Monitor and manage ticket orders</Text>
-      </View>
-
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.totalOrders}</Text>
-          <Text style={styles.statLabel}>Total Orders</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>${stats.totalRevenue.toFixed(0)}</Text>
-          <Text style={styles.statLabel}>Revenue</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.pendingOrders}</Text>
-          <Text style={styles.statLabel}>Pending</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.completedOrders}</Text>
-          <Text style={styles.statLabel}>Completed</Text>
-        </View>
-      </View>
-
-      {/* Search and Filters */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons
-            name="search"
-            size={20}
-            color="#9ca3af"
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search orders..."
-            placeholderTextColor="#9ca3af"
-            value={searchQuery}
-            onChangeText={handleSearch}
-          />
+    <AdminLayout
+      title="Order Management"
+      subtitle="Monitor and manage ticket orders"
+    >
+      <View style={styles.container}>
+        {/* Stats Cards */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.totalOrders}</Text>
+            <Text style={styles.statLabel}>Total Orders</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>${stats.totalRevenue.toFixed(0)}</Text>
+            <Text style={styles.statLabel}>Revenue</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.pendingOrders}</Text>
+            <Text style={styles.statLabel}>Pending</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.completedOrders}</Text>
+            <Text style={styles.statLabel}>Completed</Text>
+          </View>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersContainer}
-        >
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              filters.status === undefined && styles.filterButtonActive,
-            ]}
-            onPress={() => handleFilterChange("status", "")}
+        {/* Search and Filters */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons
+              name="search"
+              size={20}
+              color="#9ca3af"
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search orders..."
+              placeholderTextColor="#9ca3af"
+              value={searchQuery}
+              onChangeText={handleSearch}
+            />
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filtersContainer}
           >
-            <Text
-              style={[
-                styles.filterText,
-                filters.status === undefined && styles.filterTextActive,
-              ]}
-            >
-              All
-            </Text>
-          </TouchableOpacity>
-
-          {["pending", "completed", "cancelled", "refunded"].map((status) => (
             <TouchableOpacity
-              key={status}
               style={[
                 styles.filterButton,
-                filters.status === status && styles.filterButtonActive,
+                filters.status === undefined && styles.filterButtonActive,
               ]}
-              onPress={() => handleFilterChange("status", status)}
+              onPress={() => handleFilterChange("status", "")}
             >
               <Text
                 style={[
                   styles.filterText,
-                  filters.status === status && styles.filterTextActive,
+                  filters.status === undefined && styles.filterTextActive,
                 ]}
               >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+                All
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
 
-      {/* Orders List */}
-      <FlatList
-        data={orders}
-        renderItem={renderOrderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="receipt-outline" size={64} color="#9ca3af" />
-            <Text style={styles.emptyText}>No orders found</Text>
-          </View>
-        }
-      />
-
-      {/* Order Details Modal */}
-      <Modal visible={showDetailsModal} animationType="slide" transparent>
-        <BlurView intensity={50} style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Order Details</Text>
-              <TouchableOpacity onPress={closeDetailsModal}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            {selectedOrder && (
-              <ScrollView style={styles.modalContent}>
-                <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Order ID</Text>
-                  <Text style={styles.detailValue}>#{selectedOrder.id}</Text>
-                </View>
-
-                <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Amount</Text>
-                  <Text style={styles.detailValue}>
-                    ${selectedOrder.amount.toFixed(2)}
-                  </Text>
-                </View>
-
-                <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Status</Text>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: getStatusColor(selectedOrder.status) },
-                    ]}
-                  >
-                    <Ionicons
-                      name={getStatusIcon(selectedOrder.status)}
-                      size={12}
-                      color="white"
-                    />
-                    <Text style={styles.statusText}>
-                      {selectedOrder.status}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Buyer</Text>
-                  <Text style={styles.detailValue}>
-                    {selectedOrder.buyer.full_name}
-                  </Text>
-                  <Text style={styles.detailSubValue}>
-                    {selectedOrder.buyer.email}
-                  </Text>
-                </View>
-
-                <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Seller</Text>
-                  <Text style={styles.detailValue}>
-                    {selectedOrder.seller.full_name}
-                  </Text>
-                  <Text style={styles.detailSubValue}>
-                    {selectedOrder.seller.email}
-                  </Text>
-                </View>
-
-                <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Ticket</Text>
-                  <Text style={styles.detailValue}>
-                    {selectedOrder.ticket.title}
-                  </Text>
-                  <Text style={styles.detailSubValue}>
-                    {selectedOrder.ticket.location}
-                  </Text>
-                  <Text style={styles.detailSubValue}>
-                    {new Date(
-                      selectedOrder.ticket.event_date
-                    ).toLocaleDateString()}
-                  </Text>
-                </View>
-
-                {selectedOrder.payment_method && (
-                  <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>Payment Method</Text>
-                    <Text style={styles.detailValue}>
-                      {selectedOrder.payment_method}
-                    </Text>
-                  </View>
-                )}
-
-                {selectedOrder.transaction_id && (
-                  <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>Transaction ID</Text>
-                    <Text style={styles.detailValue}>
-                      {selectedOrder.transaction_id}
-                    </Text>
-                  </View>
-                )}
-
-                {selectedOrder.notes && (
-                  <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>Notes</Text>
-                    <Text style={styles.detailValue}>
-                      {selectedOrder.notes}
-                    </Text>
-                  </View>
-                )}
-
-                <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Created</Text>
-                  <Text style={styles.detailValue}>
-                    {new Date(selectedOrder.created_at).toLocaleString()}
-                  </Text>
-                </View>
-
-                {selectedOrder.completed_at && (
-                  <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>Completed</Text>
-                    <Text style={styles.detailValue}>
-                      {new Date(selectedOrder.completed_at).toLocaleString()}
-                    </Text>
-                  </View>
-                )}
-              </ScrollView>
-            )}
-          </View>
-        </BlurView>
-      </Modal>
-
-      {/* Update Order Modal */}
-      <Modal visible={showUpdateModal} animationType="slide" transparent>
-        <BlurView intensity={50} style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Update Order</Text>
-              <TouchableOpacity onPress={closeUpdateModal}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalContent}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Status</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {["pending", "completed", "cancelled", "refunded"].map(
-                    (status) => (
-                      <TouchableOpacity
-                        key={status}
-                        style={[
-                          styles.statusOption,
-                          updateData.status === status &&
-                            styles.statusOptionActive,
-                        ]}
-                        onPress={() =>
-                          setUpdateData((prev) => ({ ...prev, status }))
-                        }
-                      >
-                        <Text
-                          style={[
-                            styles.statusOptionText,
-                            updateData.status === status &&
-                              styles.statusOptionTextActive,
-                          ]}
-                        >
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
-                        </Text>
-                      </TouchableOpacity>
-                    )
-                  )}
-                </ScrollView>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Payment Method</Text>
-                <TextInput
-                  style={styles.input}
-                  value={updateData.payment_method || ""}
-                  onChangeText={(text) =>
-                    setUpdateData((prev) => ({ ...prev, payment_method: text }))
-                  }
-                  placeholder="e.g., Credit Card, PayPal"
-                  placeholderTextColor="#9ca3af"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Transaction ID</Text>
-                <TextInput
-                  style={styles.input}
-                  value={updateData.transaction_id || ""}
-                  onChangeText={(text) =>
-                    setUpdateData((prev) => ({ ...prev, transaction_id: text }))
-                  }
-                  placeholder="Transaction reference"
-                  placeholderTextColor="#9ca3af"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Notes</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={updateData.notes || ""}
-                  onChangeText={(text) =>
-                    setUpdateData((prev) => ({ ...prev, notes: text }))
-                  }
-                  placeholder="Additional notes..."
-                  placeholderTextColor="#9ca3af"
-                  multiline
-                  numberOfLines={4}
-                />
-              </View>
-            </ScrollView>
-
-            <View style={styles.modalActions}>
+            {["pending", "completed", "cancelled", "refunded"].map((status) => (
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={closeUpdateModal}
+                key={status}
+                style={[
+                  styles.filterButton,
+                  filters.status === status && styles.filterButtonActive,
+                ]}
+                onPress={() => handleFilterChange("status", status)}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.updateButton]}
-                onPress={handleUpdateOrder}
-                disabled={updating}
-              >
-                <Text style={styles.updateButtonText}>
-                  {updating ? "Updating..." : "Update Order"}
+                <Text
+                  style={[
+                    styles.filterText,
+                    filters.status === status && styles.filterTextActive,
+                  ]}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
                 </Text>
               </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Orders List */}
+        <FlatList
+          data={orders}
+          renderItem={renderOrderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="receipt-outline" size={64} color="#9ca3af" />
+              <Text style={styles.emptyText}>No orders found</Text>
             </View>
-          </View>
-        </BlurView>
-      </Modal>
-    </LinearGradient>
+          }
+        />
+
+        {/* Order Details Modal */}
+        <Modal visible={showDetailsModal} animationType="slide" transparent>
+          <BlurView intensity={50} style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Order Details</Text>
+                <TouchableOpacity onPress={closeDetailsModal}>
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              {selectedOrder && (
+                <ScrollView style={styles.modalContent}>
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Order ID</Text>
+                    <Text style={styles.detailValue}>#{selectedOrder.id}</Text>
+                  </View>
+
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Amount</Text>
+                    <Text style={styles.detailValue}>
+                      ${selectedOrder.amount.toFixed(2)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Status</Text>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: getStatusColor(selectedOrder.status) },
+                      ]}
+                    >
+                      <Ionicons
+                        name={getStatusIcon(selectedOrder.status)}
+                        size={12}
+                        color="white"
+                      />
+                      <Text style={styles.statusText}>
+                        {selectedOrder.status}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Buyer</Text>
+                    <Text style={styles.detailValue}>
+                      {selectedOrder.buyer.full_name}
+                    </Text>
+                    <Text style={styles.detailSubValue}>
+                      {selectedOrder.buyer.email}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Seller</Text>
+                    <Text style={styles.detailValue}>
+                      {selectedOrder.seller.full_name}
+                    </Text>
+                    <Text style={styles.detailSubValue}>
+                      {selectedOrder.seller.email}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Ticket</Text>
+                    <Text style={styles.detailValue}>
+                      {selectedOrder.ticket.title}
+                    </Text>
+                    <Text style={styles.detailSubValue}>
+                      {selectedOrder.ticket.location}
+                    </Text>
+                    <Text style={styles.detailSubValue}>
+                      {new Date(
+                        selectedOrder.ticket.event_date
+                      ).toLocaleDateString()}
+                    </Text>
+                  </View>
+
+                  {selectedOrder.payment_method && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>Payment Method</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedOrder.payment_method}
+                      </Text>
+                    </View>
+                  )}
+
+                  {selectedOrder.transaction_id && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>Transaction ID</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedOrder.transaction_id}
+                      </Text>
+                    </View>
+                  )}
+
+                  {selectedOrder.notes && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>Notes</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedOrder.notes}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Created</Text>
+                    <Text style={styles.detailValue}>
+                      {new Date(selectedOrder.created_at).toLocaleString()}
+                    </Text>
+                  </View>
+
+                  {selectedOrder.completed_at && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>Completed</Text>
+                      <Text style={styles.detailValue}>
+                        {new Date(selectedOrder.completed_at).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                </ScrollView>
+              )}
+            </View>
+          </BlurView>
+        </Modal>
+
+        {/* Update Order Modal */}
+        <Modal visible={showUpdateModal} animationType="slide" transparent>
+          <BlurView intensity={50} style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Update Order</Text>
+                <TouchableOpacity onPress={closeUpdateModal}>
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.modalContent}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Status</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {["pending", "completed", "cancelled", "refunded"].map(
+                      (status) => (
+                        <TouchableOpacity
+                          key={status}
+                          style={[
+                            styles.statusOption,
+                            updateData.status === status &&
+                              styles.statusOptionActive,
+                          ]}
+                          onPress={() =>
+                            setUpdateData((prev) => ({ ...prev, status }))
+                          }
+                        >
+                          <Text
+                            style={[
+                              styles.statusOptionText,
+                              updateData.status === status &&
+                                styles.statusOptionTextActive,
+                            ]}
+                          >
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    )}
+                  </ScrollView>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Payment Method</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={updateData.payment_method || ""}
+                    onChangeText={(text) =>
+                      setUpdateData((prev) => ({ ...prev, payment_method: text }))
+                    }
+                    placeholder="e.g., Credit Card, PayPal"
+                    placeholderTextColor="#9ca3af"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Transaction ID</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={updateData.transaction_id || ""}
+                    onChangeText={(text) =>
+                      setUpdateData((prev) => ({ ...prev, transaction_id: text }))
+                    }
+                    placeholder="Transaction reference"
+                    placeholderTextColor="#9ca3af"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Notes</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={updateData.notes || ""}
+                    onChangeText={(text) =>
+                      setUpdateData((prev) => ({ ...prev, notes: text }))
+                    }
+                    placeholder="Additional notes..."
+                    placeholderTextColor="#9ca3af"
+                    multiline
+                    numberOfLines={4}
+                  />
+                </View>
+              </ScrollView>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={closeUpdateModal}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.updateButton]}
+                  onPress={handleUpdateOrder}
+                  disabled={updating}
+                >
+                  <Text style={styles.updateButtonText}>
+                    {updating ? "Updating..." : "Update Order"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </BlurView>
+        </Modal>
+      </View>
+    </AdminLayout>
   );
 }
 

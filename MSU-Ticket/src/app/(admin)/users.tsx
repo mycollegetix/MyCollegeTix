@@ -17,6 +17,8 @@ import { Tables } from "@/src/types/database.types";
 
 type Profile = Tables<"profiles">;
 
+import AdminLayout from "@/src/components/AdminLayout";
+
 export default function UserManagement() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<Profile[]>([]);
@@ -93,40 +95,35 @@ export default function UserManagement() {
   );
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={["#18453b", "#2d5f52"]}
-        style={styles.headerBackground}
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>User Management</Text>
-          <Text style={styles.headerSubtitle}>{users.length} total users</Text>
+    <AdminLayout
+      title="User Management"
+      subtitle={`${users.length} total users`}
+    >
+      <View style={styles.container}>
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={20} color="#666" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search users..."
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+          </View>
         </View>
-      </LinearGradient>
 
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#666" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search users..."
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-        </View>
+        <ScrollView
+          style={styles.usersList}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {filteredUsers.map((user) => (
+            <UserCard key={user.id} user={user} />
+          ))}
+        </ScrollView>
       </View>
-
-      <ScrollView
-        style={styles.usersList}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {filteredUsers.map((user) => (
-          <UserCard key={user.id} user={user} />
-        ))}
-      </ScrollView>
-    </View>
+    </AdminLayout>
   );
 }
 

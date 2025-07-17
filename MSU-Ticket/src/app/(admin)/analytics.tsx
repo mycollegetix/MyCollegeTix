@@ -19,6 +19,8 @@ interface AnalyticsData {
   ticketSales: { date: string; count: number }[];
 }
 
+import AdminLayout from "@/src/components/AdminLayout";
+
 export default function Analytics() {
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalUsers: 0,
@@ -146,118 +148,118 @@ export default function Analytics() {
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <LinearGradient
-        colors={["#18453b", "#2d5f52"]}
-        style={styles.headerBackground}
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Analytics Dashboard</Text>
-          <Text style={styles.headerSubtitle}>
-            Performance overview and insights
-          </Text>
-        </View>
-      </LinearGradient>
-
-      {/* Key Metrics */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Key Metrics</Text>
-        <View style={styles.metricsGrid}>
-          <MetricCard
-            title="Total Users"
-            value={analytics.totalUsers}
-            change={`+${analytics.newUsersThisWeek} this week`}
-            icon="people"
-            color="#18453b"
-          />
-          <MetricCard
-            title="Total Tickets"
-            value={analytics.totalTickets}
-            change={`+${analytics.ticketsSoldThisWeek} sold this week`}
-            icon="ticket"
-            color="#2563eb"
-          />
-          <MetricCard
-            title="Total Revenue"
-            value={`$${analytics.totalRevenue.toFixed(2)}`}
-            change={`+$${analytics.revenueThisWeek.toFixed(2)} this week`}
-            icon="cash"
-            color="#16a34a"
-          />
-        </View>
-      </View>
-
-      {/* Top Sports */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Popular Sports</Text>
-        <View style={styles.sportsContainer}>
-          {analytics.topSports.map((sport, index) => (
-            <SportCard key={index} sport={sport.sport} count={sport.count} />
-          ))}
-        </View>
-      </View>
-
-      {/* System Health */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>System Health</Text>
-        <View style={styles.healthContainer}>
-          <View style={styles.healthItem}>
-            <View style={[styles.healthDot, { backgroundColor: "#16a34a" }]} />
-            <Text style={styles.healthText}>Database: Operational</Text>
-          </View>
-          <View style={styles.healthItem}>
-            <View style={[styles.healthDot, { backgroundColor: "#16a34a" }]} />
-            <Text style={styles.healthText}>API: Healthy</Text>
-          </View>
-          <View style={styles.healthItem}>
-            <View style={[styles.healthDot, { backgroundColor: "#16a34a" }]} />
-            <Text style={styles.healthText}>Authentication: Active</Text>
+    <AdminLayout
+      title="Analytics Dashboard"
+      subtitle="Performance overview and insights"
+    >
+      <ScrollView style={styles.container}>
+        {/* Key Metrics */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Key Metrics</Text>
+          <View style={styles.metricsGrid}>
+            <MetricCard
+              title="Total Users"
+              value={analytics.totalUsers}
+              change={`+${analytics.newUsersThisWeek} this week`}
+              icon="people"
+              color="#18453b"
+            />
+            <MetricCard
+              title="Total Tickets"
+              value={analytics.totalTickets}
+              change={`+${analytics.ticketsSoldThisWeek} sold this week`}
+              icon="ticket"
+              color="#2563eb"
+            />
+            <MetricCard
+              title="Total Revenue"
+              value={`${analytics.totalRevenue.toFixed(2)}`}
+              change={`+${analytics.revenueThisWeek.toFixed(2)} this week`}
+              icon="cash"
+              color="#16a34a"
+            />
           </View>
         </View>
-      </View>
 
-      {/* Recent Activity Summary */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <View style={styles.activityContainer}>
-          <View style={styles.activityItem}>
-            <View style={styles.activityIcon}>
-              <Ionicons name="person-add" size={20} color="#18453b" />
-            </View>
-            <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>New User Registrations</Text>
-              <Text style={styles.activityDescription}>
-                {analytics.newUsersThisWeek} new users joined this week
-              </Text>
-            </View>
+        {/* Top Sports */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Popular Sports</Text>
+          <View style={styles.sportsContainer}>
+            {analytics.topSports.map((sport, index) => (
+              <SportCard key={index} sport={sport.sport} count={sport.count} />
+            ))}
           </View>
+        </View>
 
-          <View style={styles.activityItem}>
-            <View style={styles.activityIcon}>
-              <Ionicons name="ticket" size={20} color="#2563eb" />
+        {/* System Health */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>System Health</Text>
+          <View style={styles.healthContainer}>
+            <View style={styles.healthItem}>
+              <View
+                style={[styles.healthDot, { backgroundColor: "#16a34a" }]}
+              />
+              <Text style={styles.healthText}>Database: Operational</Text>
             </View>
-            <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Ticket Sales</Text>
-              <Text style={styles.activityDescription}>
-                {analytics.ticketsSoldThisWeek} tickets sold this week
-              </Text>
+            <View style={styles.healthItem}>
+              <View
+                style={[styles.healthDot, { backgroundColor: "#16a34a" }]}
+              />
+              <Text style={styles.healthText}>API: Healthy</Text>
             </View>
-          </View>
-
-          <View style={styles.activityItem}>
-            <View style={styles.activityIcon}>
-              <Ionicons name="cash" size={20} color="#16a34a" />
-            </View>
-            <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Revenue Growth</Text>
-              <Text style={styles.activityDescription}>
-                ${analytics.revenueThisWeek.toFixed(2)} generated this week
-              </Text>
+            <View style={styles.healthItem}>
+              <View
+                style={[styles.healthDot, { backgroundColor: "#16a34a" }]}
+              />
+              <Text style={styles.healthText}>Authentication: Active</Text>
             </View>
           </View>
         </View>
-      </View>
-    </ScrollView>
+
+        {/* Recent Activity Summary */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <View style={styles.activityContainer}>
+            <View style={styles.activityItem}>
+              <View style={styles.activityIcon}>
+                <Ionicons name="person-add" size={20} color="#18453b" />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>New User Registrations</Text>
+                <Text style={styles.activityDescription}>
+                  {analytics.newUsersThisWeek} new users joined this week
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.activityItem}>
+              <View style={styles.activityIcon}>
+                <Ionicons name="ticket" size={20} color="#2563eb" />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>Ticket Sales</Text>
+                <Text style={styles.activityDescription}>
+                  {analytics.ticketsSoldThisWeek} tickets sold this week
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.activityItem}>
+              <View style={styles.activityIcon}>
+                <Ionicons name="cash" size={20} color="#16a34a" />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>Revenue Growth</Text>
+                <Text style={styles.activityDescription}>
+                  ${analytics.revenueThisWeek.toFixed(2)} generated this week
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </AdminLayout>
+    // Ensure that all components and functions are properly closed
   );
 }
 
