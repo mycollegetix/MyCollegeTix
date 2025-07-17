@@ -515,6 +515,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      // Existing functions
       delete_expired_tickets: {
         Args: Record<PropertyKey, never>;
         Returns: undefined;
@@ -528,25 +529,31 @@ export type Database = {
         Returns: undefined;
       };
       purchase_ticket: {
-        Args: { ticket_id: string };
-        Returns: Json;
+        Args: {
+          p_ticket_id: string;
+          p_buyer_id?: string; // Optional since it has a default
+        };
+        Returns: {
+          success: boolean;
+          order_id?: string;
+          ticket_id?: string;
+          amount?: number;
+          message?: string;
+          error?: string;
+          error_code?: string;
+        };
       };
-      // Added college functions
       get_user_college: {
         Args: Record<PropertyKey, never>;
-        Returns: string | null;
+        Returns: string;
       };
       is_valid_college_email: {
-        Args: {
-          email_address: string;
-        };
+        Args: { email_address: string };
         Returns: boolean;
       };
       get_college_by_email: {
-        Args: {
-          email_address: string;
-        };
-        Returns: string | null;
+        Args: { email_address: string };
+        Returns: string;
       };
       add_new_college: {
         Args: {
@@ -560,7 +567,50 @@ export type Database = {
         };
         Returns: string;
       };
+
+      // New admin functions
+      admin_toggle_college_status: {
+        Args: {
+          college_id: string;
+          new_status: boolean;
+        };
+        Returns: Json;
+      };
+      admin_create_college: {
+        Args: {
+          college_name: string;
+          college_short_name: string;
+          college_email_domain: string;
+          college_primary_color?: string;
+          college_secondary_color?: string;
+          college_is_active?: boolean;
+        };
+        Returns: string;
+      };
+      admin_update_college: {
+        Args: {
+          college_id: string;
+          college_name?: string;
+          college_short_name?: string;
+          college_email_domain?: string;
+          college_primary_color?: string;
+          college_secondary_color?: string;
+          college_is_active?: boolean;
+        };
+        Returns: Json;
+      };
+      admin_delete_college: {
+        Args: {
+          college_id: string;
+        };
+        Returns: Json;
+      };
+      admin_check_test: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
     };
+
     Enums: {
       [_ in never]: never;
     };

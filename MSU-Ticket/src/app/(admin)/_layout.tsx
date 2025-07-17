@@ -1,4 +1,4 @@
-// src/app/(admin)/layout.tsx
+// src/app/(admin)/_layout.tsx - Updated with Orders route
 import React from "react";
 import { Stack } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -30,6 +30,8 @@ export default function AdminLayout() {
       <Stack.Screen name="users" options={{ title: "User Management" }} />
       <Stack.Screen name="tickets" options={{ title: "Ticket Management" }} />
       <Stack.Screen name="events" options={{ title: "Event Management" }} />
+      <Stack.Screen name="colleges" options={{ title: "College Management" }} />
+      <Stack.Screen name="orders" options={{ title: "Order Management" }} />
       <Stack.Screen name="analytics" options={{ title: "Analytics" }} />
     </Stack>
   );

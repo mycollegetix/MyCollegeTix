@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { CollegeService } from "@/src/services/collegeService";
 
 const { width } = Dimensions.get("window");
 
@@ -26,6 +27,7 @@ interface AdminStats {
   soldTickets: number;
   totalRevenue: number;
   recentSignups: number;
+  totalColleges: number;
 }
 
 export default function AdminDashboard() {
@@ -40,12 +42,15 @@ export default function AdminDashboard() {
     soldTickets: 0,
     totalRevenue: 0,
     recentSignups: 0,
+    totalColleges: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchAdminStats();
   }, []);
+
+  // In your fetchAdminStats function, update the Promise.all to include colleges:
 
   const fetchAdminStats = async () => {
     try {
@@ -57,12 +62,14 @@ export default function AdminDashboard() {
         ticketsResult,
         eventsResult,
         ordersResult,
+        collegesResult, // ← Add this line
         recentSignupsResult,
       ] = await Promise.all([
         supabase.from("profiles").select("*", { count: "exact", head: true }),
         supabase.from("tickets").select("*"),
         supabase.from("events").select("*", { count: "exact", head: true }),
         supabase.from("orders").select("*"),
+        supabase.from("colleges").select("*", { count: "exact", head: true }), // ← Add this line
         supabase
           .from("profiles")
           .select("*", { count: "exact", head: true })
@@ -94,6 +101,7 @@ export default function AdminDashboard() {
         soldTickets,
         totalRevenue,
         recentSignups: recentSignupsResult.count || 0,
+        totalColleges: collegesResult.count || 0, // ← Add this line
       });
     } catch (error) {
       console.error("Error fetching admin stats:", error);
@@ -187,6 +195,13 @@ export default function AdminDashboard() {
             onPress={() => router.push("/(admin)/users")}
           />
           <StatCard
+            title="Total Colleges"
+            value={stats.totalColleges}
+            icon="school"
+            color="#8b5cf6"
+            onPress={() => router.push("/(admin)/colleges")}
+          />
+          <StatCard
             title="Active Tickets"
             value={stats.activeTickets}
             icon="ticket"
@@ -205,6 +220,7 @@ export default function AdminDashboard() {
             value={stats.totalOrders}
             icon="receipt"
             color="#dc2626"
+            onPress={() => router.push("/(admin)/orders")}
           />
           <StatCard
             title="Revenue"
@@ -245,6 +261,13 @@ export default function AdminDashboard() {
             icon="calendar"
             color="#7c3aed"
             onPress={() => router.push("/(admin)/events")}
+          />
+          <QuickActionCard
+            title="College Management"
+            description="Add, edit, and manage colleges and universities"
+            icon="school"
+            color="#8b5cf6"
+            onPress={() => (router.push as any)("/(admin)/colleges")}
           />
           <QuickActionCard
             title="Analytics"

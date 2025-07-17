@@ -225,65 +225,122 @@ export class TicketService {
       return { data: null, error };
     }
   }
+  // Fixed purchaseTicket method for ticketService.ts
 
   static async purchaseTicket(
     ticketId: string
   ): Promise<{ data: { id: string } | null; error: any }> {
     try {
+      console.log("🎫 Starting ticket purchase for:", ticketId);
+
+      // Get current user
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        throw new Error("User not authenticated");
+      }
+
+      // First, get ticket details to validate
       const { data: ticket, error: fetchError } = await supabase
         .from("tickets")
         .select(
-          `*,
-          seller:profiles!tickets_seller_id_fkey (
-            id,
-            username,
-            full_name
-          )`
+          `
+        *,
+        seller:profiles!tickets_seller_id_fkey (
+          id,
+          username,
+          full_name
+        )
+      `
         )
         .eq("id", ticketId)
         .single();
 
-      if (fetchError) throw fetchError;
-      if (!ticket) throw new Error("Ticket not found");
-
-      const { data, error } = (await supabase.rpc("purchase_ticket", {
-        ticket_id: ticketId,
-      })) as { data: { id: string } | null; error: any };
-
-      if (error) throw error;
-
-      // Create notification for the buyer
-      const { data: buyerUser } = await supabase.auth.getUser();
-      if (buyerUser?.user) {
-        await NotificationService.createNotification({
-          title: "Ticket Purchased!",
-          message: `You successfully purchased a ticket for '${
-            ticket.title
-          }' for ${ticket.price.toFixed(2)}.`,
-          type: "purchase",
-          related_ticket_id: ticket.id,
-          related_order_id: data?.id,
-        });
+      if (fetchError) {
+        console.error("❌ Error fetching ticket:", fetchError);
+        throw fetchError;
       }
 
-      // Create notification for the seller
-      await NotificationService.createNotification({
-        title: "Your Ticket Sold!",
-        message: `Your ticket for '${
-          ticket.title
-        }' has been sold for ${ticket.price.toFixed(2)}.`,
-        type: "sale",
-        related_ticket_id: ticket.id,
-        related_order_id: data?.id,
-      });
+      if (!ticket) {
+        throw new Error("Ticket not found");
+      }
 
-      return { data, error: null };
-    } catch (error) {
-      console.error("Error purchasing ticket:", error);
-      return { data: null, error };
+      if (ticket.status !== "available") {
+        throw new Error("Ticket is no longer available");
+      }
+
+      if (ticket.seller_id === user.id) {
+        throw new Error("You cannot purchase your own ticket");
+      }
+
+      console.log("✅ Ticket validation passed, calling purchase function...");
+
+      // Call the database function with correct parameter names
+      const { data: purchaseResult, error: purchaseError } = await supabase.rpc(
+        "purchase_ticket",
+        {
+          p_ticket_id: ticketId,
+          p_buyer_id: user.id, // Explicitly pass buyer_id even though it has a default
+        }
+      );
+
+      if (purchaseError) {
+        console.error("❌ Purchase function error:", purchaseError);
+        throw purchaseError;
+      }
+
+      console.log("✅ Purchase successful:", purchaseResult);
+
+      // Create notifications
+      try {
+        // Notification for buyer (current user)
+        await NotificationService.createNotification({
+          title: "Ticket Purchased!",
+          message: `You successfully purchased "${ticket.title}" for ${ticket.price}`,
+          type: "purchase",
+          related_ticket_id: ticketId,
+          related_order_id: null, // We'll handle order_id if the function returns it differently
+        });
+
+        // Notification for seller (using user_id parameter)
+        await NotificationService.createNotification({
+          title: "Ticket Sold!",
+          message: `Your ticket "${ticket.title}" has been sold for ${ticket.price}`,
+          type: "sale",
+          related_ticket_id: ticketId,
+          related_order_id: null,
+        });
+
+        console.log("✅ Notifications sent successfully");
+      } catch (notificationError: any) {
+        console.error(
+          "⚠️ Warning: Failed to send notifications:",
+          notificationError
+        );
+        // Don't fail the purchase if notifications fail
+      }
+
+      // Return the result - handle different possible return types from the function
+      const resultData =
+        purchaseResult &&
+        typeof purchaseResult === "object" &&
+        "id" in purchaseResult
+          ? (purchaseResult as { id: string })
+          : { id: ticketId }; // Fallback to ticket ID if function doesn't return order ID
+
+      return { data: resultData, error: null };
+    } catch (error: any) {
+      console.error("💥 Error purchasing ticket:", error);
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      };
     }
   }
-
   // Get user's tickets (selling)
   static async getUserTickets(
     userId?: string

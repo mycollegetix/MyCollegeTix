@@ -165,7 +165,7 @@ export class NotificationService {
     message: string;
     type?: "purchase" | "sale" | "listing" | "system";
     related_ticket_id?: string;
-    related_order_id?: string;
+    related_order_id?: string | null;
   }): Promise<{ data: Notification | null; error: any }> {
     try {
       const {

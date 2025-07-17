@@ -1,4 +1,4 @@
-// src/services/collegeService.ts - Fixed TypeScript errors
+// src/services/collegeService.ts - Fixed version based on your working code
 
 import { supabase } from "@/src/lib/supabase";
 import {
@@ -61,59 +61,32 @@ export class CollegeService {
     filters: CollegeFilters = {}
   ): Promise<ServiceResponse<College[]>> {
     try {
-      console.log("🔍 Getting colleges with filters:", filters);
-      console.log("🔗 Supabase URL:", process.env.EXPO_PUBLIC_SUPABASE_URL);
-      console.log(
-        "🔑 Supabase Key exists:",
-        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
-      );
-
-      // Test 1: Try the simplest possible query first
-      console.log("📝 Test 1: Simple select all");
-      const { data: testData, error: testError } = await supabase
-        .from("colleges")
-        .select("*");
-
-      console.log("📝 Simple query result:", {
-        data: !!testData,
-        error: testError,
-      });
-
-      if (testError) {
-        console.error("❌ Simple query failed:", testError);
-        return {
-          data: null,
-          error: testError.message,
-          success: false,
-        };
-      }
-
-      // Test 2: Try with count
-      console.log("📝 Test 2: Count query");
-      const { count, error: countError } = await supabase
-        .from("colleges")
-        .select("*", { count: "exact", head: true });
-
-      console.log("📝 Count result:", { count, error: countError });
-
-      // Test 3: Try the filtered query
-      console.log("📝 Test 3: Filtered query");
       let query = supabase.from("colleges").select("*");
 
       if (filters.isActive !== undefined) {
-        console.log("📝 Adding isActive filter:", filters.isActive);
         query = query.eq("is_active", filters.isActive);
+      }
+
+      if (filters.searchTerm) {
+        query = query.or(
+          `name.ilike.%${filters.searchTerm}%,short_name.ilike.%${filters.searchTerm}%`
+        );
       }
 
       query = query.order("name");
 
-      const { data, error } = await query;
+      if (filters.limit) {
+        query = query.limit(filters.limit);
+      }
 
-      console.log("📝 Final query result:", {
-        dataExists: !!data,
-        dataLength: data?.length,
-        error: error,
-      });
+      if (filters.offset) {
+        query = query.range(
+          filters.offset,
+          filters.offset + (filters.limit || 50) - 1
+        );
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("❌ Error loading colleges:", error);
@@ -123,9 +96,6 @@ export class CollegeService {
           success: false,
         };
       }
-
-      console.log("✅ Colleges loaded:", data?.length || 0);
-      console.log("📋 First college:", data?.[0]);
 
       return {
         data: (data as College[]) || [],
@@ -148,6 +118,44 @@ export class CollegeService {
    */
   static async getActiveColleges(): Promise<ServiceResponse<College[]>> {
     return this.getColleges({ isActive: true });
+  }
+
+  /**
+   * Get ALL colleges (for admin view)
+   */
+  static async getAllColleges(): Promise<ServiceResponse<College[]>> {
+    try {
+      console.log("🏫 Admin: Getting all colleges...");
+
+      const { data, error } = await supabase
+        .from("colleges")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.error("❌ Error getting all colleges:", error);
+        return {
+          data: null,
+          error: error.message,
+          success: false,
+        };
+      }
+
+      console.log("✅ Retrieved all colleges:", data?.length || 0);
+      return {
+        data: data as College[],
+        error: null,
+        success: true,
+      };
+    } catch (error) {
+      console.error("💥 Unexpected error in getAllColleges:", error);
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+        success: false,
+      };
+    }
   }
 
   /**
@@ -249,6 +257,362 @@ export class CollegeService {
   }
 
   // ============================================
+  // ADMIN OPERATIONS (Using SQL Functions)
+  // ============================================
+
+  /**
+   * Create a new college (admin only)
+   */
+  static async createCollege(
+    collegeData: TablesInsert<"colleges">
+  ): Promise<ServiceResponse<College>> {
+    try {
+      console.log("🏫 Creating college with SQL function:", collegeData);
+
+      // Check admin permissions first
+      const isAdmin = await this.verifyAdminPermissions();
+      if (!isAdmin) {
+        return {
+          data: null,
+          error: "Admin privileges required to create colleges",
+          success: false,
+        };
+      }
+
+      // ✅ FIXED: Handle undefined values properly
+      const { data: collegeId, error } = await supabase.rpc(
+        "admin_create_college",
+        {
+          college_name: collegeData.name,
+          college_short_name: collegeData.short_name,
+          college_email_domain: collegeData.email_domain,
+          college_primary_color: collegeData.primary_color || undefined,
+          college_secondary_color: collegeData.secondary_color || undefined,
+          college_is_active: collegeData.is_active ?? undefined,
+        }
+      );
+
+      if (error) {
+        console.error("❌ Error in SQL function create:", error);
+        return {
+          data: null,
+          error: error.message,
+          success: false,
+        };
+      }
+
+      console.log("✅ SQL function create successful, college ID:", collegeId);
+
+      // Fetch the created college to return
+      const createdCollege = await this.getCollegeById(collegeId);
+      if (createdCollege.success && createdCollege.data) {
+        return createdCollege;
+      } else {
+        return {
+          data: { id: collegeId, ...collegeData } as College,
+          error: null,
+          success: true,
+        };
+      }
+    } catch (error) {
+      console.error("❌ Unexpected error creating college:", error);
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Update college (admin only) - Now uses comprehensive SQL function
+   */
+  static async updateCollege(
+    id: string,
+    updates: TablesUpdate<"colleges">
+  ): Promise<ServiceResponse<College>> {
+    try {
+      console.log("🔄 Updating college:", id, updates);
+
+      // Check admin permissions first
+      const isAdmin = await this.verifyAdminPermissions();
+      if (!isAdmin) {
+        return {
+          data: null,
+          error: "Admin privileges required to update colleges",
+          success: false,
+        };
+      }
+
+      // Handle simple active status toggle
+      if (
+        updates.is_active !== undefined &&
+        Object.keys(updates).length === 1
+      ) {
+        console.log("📌 Using toggle function for simple active status update");
+        return this.toggleCollegeActiveStatus(id, updates.is_active);
+      }
+
+      // For complex updates, try the SQL function (if available)
+      if (typeof supabase.rpc === "function") {
+        try {
+          const { data, error } = await supabase.rpc("admin_update_college", {
+            college_id: id,
+            college_name: updates.name || undefined,
+            college_short_name: updates.short_name || undefined,
+            college_email_domain: updates.email_domain || undefined,
+            college_primary_color: updates.primary_color || undefined,
+            college_secondary_color: updates.secondary_color || undefined,
+            college_is_active: updates.is_active ?? undefined,
+          });
+
+          if (!error && data) {
+            console.log("✅ SQL function update successful");
+            // Just fetch the updated college instead of parsing JSON
+            const updatedCollege = await this.getCollegeById(id);
+            return updatedCollege;
+          }
+        } catch (sqlError) {
+          console.log(
+            "📝 SQL function not available or failed, using direct update"
+          );
+        }
+      }
+
+      // Fallback: Direct database update (this might hit RLS issues)
+      console.log("📝 Using direct database update");
+      const { data, error } = await supabase
+        .from("colleges")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("❌ Direct update failed:", error);
+        return {
+          data: null,
+          error: `Update failed: ${error.message}`,
+          success: false,
+        };
+      }
+
+      console.log("✅ Direct update successful:", data);
+      return {
+        data: data as College,
+        error: null,
+        success: true,
+      };
+    } catch (error) {
+      console.error("❌ Unexpected error updating college:", error);
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Toggle college active status
+   */
+  static async toggleCollegeActiveStatus(
+    collegeId: string,
+    isActive: boolean
+  ): Promise<ServiceResponse<College>> {
+    try {
+      console.log(
+        `🔄 Toggling college ${collegeId} active status to:`,
+        isActive
+      );
+
+      // Check admin permissions first (client-side check)
+      const isAdmin = await this.verifyAdminPermissions();
+      if (!isAdmin) {
+        return {
+          data: null,
+          error: "Admin privileges required",
+          success: false,
+        };
+      }
+
+      // Use SQL function to bypass RLS issues
+      const { data, error } = await supabase.rpc(
+        "admin_toggle_college_status",
+        {
+          college_id: collegeId,
+          new_status: isActive,
+        }
+      );
+
+      if (error) {
+        console.error("❌ Error in SQL function toggle:", error);
+        return {
+          data: null,
+          error: error.message,
+          success: false,
+        };
+      }
+
+      console.log("✅ SQL function toggle successful:", data);
+
+      // Fetch the updated college to return
+      const updatedCollege = await this.getCollegeById(collegeId);
+      if (updatedCollege.success && updatedCollege.data) {
+        return updatedCollege;
+      } else {
+        // If we can't fetch the updated college, return a basic success response
+        return {
+          data: { id: collegeId, is_active: isActive } as College,
+          error: null,
+          success: true,
+        };
+      }
+    } catch (error) {
+      console.error("💥 Unexpected error in toggleCollegeActiveStatus:", error);
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Delete college using SQL function
+   */
+  static async deleteCollege(
+    collegeId: string
+  ): Promise<ServiceResponse<boolean>> {
+    try {
+      console.log("🗑️ Deleting college with SQL function:", collegeId);
+
+      // Check admin permissions
+      const isAdmin = await this.verifyAdminPermissions();
+      if (!isAdmin) {
+        return {
+          data: null,
+          error: "Admin privileges required",
+          success: false,
+        };
+      }
+
+      // Use SQL function for smart delete
+      const { data, error } = await supabase.rpc("admin_delete_college", {
+        college_id: collegeId,
+      });
+
+      if (error) {
+        console.error("❌ Error in SQL function delete:", error);
+        return {
+          data: null,
+          error: error.message,
+          success: false,
+        };
+      }
+
+      console.log("✅ SQL function delete successful:", data);
+      return {
+        data: true,
+        error: null,
+        success: true,
+      };
+    } catch (error) {
+      console.error("💥 Unexpected error in deleteCollege:", error);
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+        success: false,
+      };
+    }
+  }
+
+  // ============================================
+  // HELPER METHODS
+  // ============================================
+
+  /**
+   * Verify admin permissions
+   */
+  private static async verifyAdminPermissions(): Promise<boolean> {
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        console.error("❌ User not authenticated");
+        return false;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError) {
+        console.error("❌ Error checking admin status:", profileError);
+        return false;
+      }
+
+      const isAdmin = profile?.is_admin === true;
+      console.log("🔍 Admin check result:", { userId: user.id, isAdmin });
+
+      return isAdmin;
+    } catch (error) {
+      console.error("❌ Error in admin verification:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Validate college data
+   */
+  static validateCollegeData(collegeData: Partial<College>): string | null {
+    if (!collegeData.name || collegeData.name.trim().length < 3) {
+      return "College name must be at least 3 characters long";
+    }
+
+    if (!collegeData.short_name || collegeData.short_name.trim().length < 2) {
+      return "Short name must be at least 2 characters long";
+    }
+
+    if (!collegeData.email_domain || !collegeData.email_domain.includes(".")) {
+      return "Please provide a valid email domain (e.g., university.edu)";
+    }
+
+    // Check for valid email domain format
+    const domainRegex = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!domainRegex.test(collegeData.email_domain)) {
+      return "Email domain format is invalid";
+    }
+
+    // Check color format (hex colors)
+    const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (
+      collegeData.primary_color &&
+      !colorRegex.test(collegeData.primary_color)
+    ) {
+      return "Primary color must be a valid hex color (e.g., #18453b)";
+    }
+
+    if (
+      collegeData.secondary_color &&
+      !colorRegex.test(collegeData.secondary_color)
+    ) {
+      return "Secondary color must be a valid hex color (e.g., #ffd700)";
+    }
+
+    return null; // No validation errors
+  }
+
+  // ============================================
   // EMAIL VALIDATION
   // ============================================
 
@@ -344,84 +708,6 @@ export class CollegeService {
       college: collegeResult.data,
       message: `✓ Valid ${collegeResult.data.short_name} email address`,
     };
-  }
-
-  // ============================================
-  // ADMIN OPERATIONS
-  // ============================================
-
-  /**
-   * Create a new college (admin only)
-   */
-  static async createCollege(
-    collegeData: TablesInsert<"colleges">
-  ): Promise<ServiceResponse<College>> {
-    try {
-      const { data, error } = await supabase
-        .from("colleges")
-        .insert(collegeData)
-        .select()
-        .single();
-
-      if (error) {
-        return {
-          data: null,
-          error: error.message,
-          success: false,
-        };
-      }
-
-      return {
-        data: data as College,
-        error: null,
-        success: true,
-      };
-    } catch (error) {
-      return {
-        data: null,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
-        success: false,
-      };
-    }
-  }
-
-  /**
-   * Update college (admin only)
-   */
-  static async updateCollege(
-    id: string,
-    updates: TablesUpdate<"colleges">
-  ): Promise<ServiceResponse<College>> {
-    try {
-      const { data, error } = await supabase
-        .from("colleges")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) {
-        return {
-          data: null,
-          error: error.message,
-          success: false,
-        };
-      }
-
-      return {
-        data: data as College,
-        error: null,
-        success: true,
-      };
-    } catch (error) {
-      return {
-        data: null,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
-        success: false,
-      };
-    }
   }
 }
 
