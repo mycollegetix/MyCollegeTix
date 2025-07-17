@@ -55,12 +55,14 @@ export default function ChatConversationScreen() {
         console.log("✅ Found conversation, setting as current");
         setCurrentConversation(conversation);
 
+        // ✅ ALWAYS MARK AS READ: Mark messages as read whenever user enters conversation
+        await markAsRead(conversationId);
+
         // Only load messages if we haven't loaded them yet
         if (!hasLoadedMessages) {
           console.log("📨 Loading messages for conversation");
           await loadMessages(conversationId);
           setHasLoadedMessages(true);
-          await markAsRead(conversationId);
         }
       } else {
         console.log("❌ Conversation not found in loaded conversations");

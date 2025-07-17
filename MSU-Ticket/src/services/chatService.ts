@@ -466,6 +466,8 @@ export class ChatService {
     }
   }
 
+  // Enhanced markMessagesAsRead function in chatService.ts:
+
   static async markMessagesAsRead(
     conversationId: string
   ): Promise<{ error: any }> {
@@ -478,6 +480,10 @@ export class ChatService {
         throw new Error("User not authenticated");
       }
 
+      console.log(
+        `📖 Marking messages as read for conversation: ${conversationId}`
+      );
+
       const { error } = await supabase
         .from("messages")
         .update({
@@ -488,15 +494,18 @@ export class ChatService {
         .eq("read_by_recipient", false)
         .neq("sender_id", user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Error marking messages as read:", error);
+        throw error;
+      }
 
+      console.log("✅ Successfully marked messages as read");
       return { error: null };
     } catch (error) {
       console.error("Error marking messages as read:", error);
       return { error };
     }
   }
-
   static async getUnreadMessageCount(): Promise<{ count: number; error: any }> {
     try {
       const {

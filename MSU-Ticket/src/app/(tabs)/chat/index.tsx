@@ -31,8 +31,13 @@ interface ConversationSection {
 export default function ChatListScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { conversations, loading, loadConversations, setCurrentConversation } =
-    useChat();
+  const {
+    conversations,
+    loading,
+    loadConversations,
+    setCurrentConversation,
+    markAsRead,
+  } = useChat();
 
   useEffect(() => {
     loadConversations();
@@ -95,7 +100,9 @@ export default function ChatListScreen() {
     return date.toLocaleDateString();
   };
 
-  const handleConversationPress = (conversation: ConversationWithDetails) => {
+  const handleConversationPress = (
+    conversation: ConversationWithDetails
+  ) => {
     setCurrentConversation(conversation);
     (router.push as any)(`/(tabs)/chat/${conversation.id}`);
   };

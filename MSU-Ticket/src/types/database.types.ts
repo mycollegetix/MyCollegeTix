@@ -121,7 +121,12 @@ export type Database = {
           source: string;
           source_file: string | null;
           sport: string | null;
-          status: string;
+          status:
+            | "scraped"
+            | "available"
+            | "inactive"
+            | "completed"
+            | "cancelled";
           title: string;
           updated_at: string;
           venue: string | null;
@@ -143,7 +148,12 @@ export type Database = {
           source?: string;
           source_file?: string | null;
           sport?: string | null;
-          status?: string;
+          status:
+            | "scraped"
+            | "available"
+            | "inactive"
+            | "completed"
+            | "cancelled";
           title: string;
           updated_at?: string;
           venue?: string | null;
@@ -165,7 +175,12 @@ export type Database = {
           source?: string;
           source_file?: string | null;
           sport?: string | null;
-          status?: string;
+          status:
+            | "scraped"
+            | "available"
+            | "inactive"
+            | "completed"
+            | "cancelled";
           title?: string;
           updated_at?: string;
           venue?: string | null;

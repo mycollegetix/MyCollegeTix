@@ -1,4 +1,4 @@
-// scripts/importEventsFixed.js - MSU Athletics Event Import Script (FIXED VERSION)
+// scripts/importEventsFixed.js - MSU Athletics Event Import Script (UPDATED VERSION)
 const fs = require("fs");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
@@ -359,7 +359,7 @@ function parseEventLines(eventLines, date, sourceFile) {
       location = VENUE_MAPPING[location.toLowerCase()] || location;
     }
 
-    // Create the event object
+    // Create the event object with 'scraped' status
     const event = {
       title: title,
       description: `${sport} game on ${date}${opponent ? ` - ${title}` : ""}`,
@@ -372,7 +372,7 @@ function parseEventLines(eventLines, date, sourceFile) {
       is_home_game: isHomeGame,
       home_team: isHomeGame ? "Michigan State" : opponent,
       away_team: isHomeGame ? opponent : "Michigan State",
-      status: "available",
+      status: "scraped", // Changed from "available" to "scraped"
       source: "parsed",
       source_file: sourceFile,
     };
@@ -589,7 +589,9 @@ async function importEvents(events) {
         errors++;
       } else {
         console.log(
-          `✅ Imported: ${event.title} - ${event.event_date.split("T")[0]}`
+          `✅ Imported: ${event.title} - ${
+            event.event_date.split("T")[0]
+          } (Status: scraped)`
         );
         imported++;
       }
@@ -606,7 +608,10 @@ async function importEvents(events) {
 
   if (imported > 0) {
     console.log(
-      `\n🎉 Success! ${imported} events are now available in your sell tab dropdown.`
+      `\n🎉 Success! ${imported} events are now in the database with 'scraped' status.`
+    );
+    console.log(
+      `📝 Use the admin panel to mark events as 'available' for ticket creation.`
     );
   }
 }
@@ -664,8 +669,12 @@ async function processFolder(folderPath) {
 if (require.main === module) {
   const folderPath = process.argv[2];
 
-  console.log("🏈 MSU Athletics Event Import Script - FIXED VERSION");
-  console.log("====================================================");
+  console.log(
+    "🏈 MSU Athletics Event Import Script - UPDATED WITH SCRAPED STATUS"
+  );
+  console.log(
+    "===================================================================="
+  );
 
   if (!folderPath) {
     console.log("❌ Usage: node scripts/importEventsFixed.js <folder-path>");

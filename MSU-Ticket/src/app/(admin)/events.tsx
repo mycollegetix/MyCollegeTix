@@ -10,29 +10,46 @@ import {
   Alert,
   RefreshControl,
   Modal,
+  Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "@/src/lib/supabase";
 import { Tables } from "@/src/types/database.types";
+import AdminLayout from "@/src/components/AdminLayout";
 
 type Event = Tables<"events">;
+
+const { width } = Dimensions.get("window");
+
+const STATUS_COLORS = {
+  scraped: "#9CA3AF", // Gray
+  available: "#10B981", // Green
+  inactive: "#EF4444", // Red
+  completed: "#6B7280", // Dark gray
+  cancelled: "#F59E0B", // Orange
+};
+
+const STATUS_LABELS = {
+  scraped: "Scraped",
+  available: "Available",
+  inactive: "Inactive",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
 
 export default function EventManagement() {
   const [events, setEvents] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [searchText, setSearchText] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sportFilter, setSportFilter] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [newEvent, setNewEvent] = useState({
-    title: "",
-    sport: "",
-    location: "",
-    event_date: "",
-    is_home_game: true,
-  });
+  const [bulkModalVisible, setBulkModalVisible] = useState(false);
+  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
 
   useEffect(() => {
     fetchEvents();
@@ -40,7 +57,7 @@ export default function EventManagement() {
 
   useEffect(() => {
     filterEvents();
-  }, [searchText, sportFilter, events]);
+  }, [searchText, statusFilter, sportFilter, events]);
 
   const fetchEvents = async () => {
     try {
@@ -60,8 +77,18 @@ export default function EventManagement() {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchEvents();
+    setRefreshing(false);
+  };
+
   const filterEvents = () => {
     let filtered = events;
+
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((event) => event.status === statusFilter);
+    }
 
     if (sportFilter !== "all") {
       filtered = filtered.filter((event) => event.sport === sportFilter);
@@ -72,468 +99,859 @@ export default function EventManagement() {
         (event) =>
           event.title.toLowerCase().includes(searchText.toLowerCase()) ||
           event.sport?.toLowerCase().includes(searchText.toLowerCase()) ||
-          event.location.toLowerCase().includes(searchText.toLowerCase())
+          event.location.toLowerCase().includes(searchText.toLowerCase()) ||
+          event.opponent?.toLowerCase().includes(searchText.toLowerCase())
       );
     }
 
     setFilteredEvents(filtered);
   };
 
-  const createEvent = async () => {
-    if (
-      !newEvent.title ||
-      !newEvent.sport ||
-      !newEvent.location ||
-      !newEvent.event_date
-    ) {
-      Alert.alert("Error", "Please fill in all fields");
+  const updateEventStatus = async (eventId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({
+          status: newStatus as
+            | "scraped"
+            | "available"
+            | "inactive"
+            | "completed"
+            | "cancelled",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", eventId);
+
+      if (error) throw error;
+
+      // Update local state
+      setEvents((prev) =>
+        prev.map((event) =>
+          event.id === eventId ? { ...event, status: newStatus as any } : event
+        )
+      );
+
+      Alert.alert(
+        "Success",
+        `Event status updated to ${
+          STATUS_LABELS[newStatus as keyof typeof STATUS_LABELS]
+        }`
+      );
+    } catch (error) {
+      console.error("Error updating event status:", error);
+      Alert.alert("Error", "Failed to update event status");
+    }
+  };
+
+  const bulkUpdateStatus = async (newStatus: string) => {
+    if (selectedEvents.size === 0) {
+      Alert.alert("Error", "No events selected");
       return;
     }
 
     try {
-      const { error } = await supabase.from("events").insert([
-        {
-          title: newEvent.title,
-          sport: newEvent.sport,
-          location: newEvent.location,
-          event_date: newEvent.event_date,
-          is_home_game: newEvent.is_home_game,
-        },
-      ]);
+      const eventIds = Array.from(selectedEvents);
+
+      const { error } = await supabase
+        .from("events")
+        .update({
+          status: newStatus as
+            | "scraped"
+            | "available"
+            | "inactive"
+            | "completed"
+            | "cancelled",
+          updated_at: new Date().toISOString(),
+        })
+        .in("id", eventIds);
 
       if (error) throw error;
 
-      Alert.alert("Success", "Event created successfully");
-      setCreateModalVisible(false);
-      setNewEvent({
-        title: "",
-        sport: "",
-        location: "",
-        event_date: "",
-        is_home_game: true,
-      });
-      fetchEvents();
+      // Update local state
+      setEvents((prev) =>
+        prev.map((event) =>
+          selectedEvents.has(event.id)
+            ? { ...event, status: newStatus as any }
+            : event
+        )
+      );
+
+      setSelectedEvents(new Set());
+      setSelectMode(false);
+      setBulkModalVisible(false);
+
+      Alert.alert(
+        "Success",
+        `Updated ${eventIds.length} events to ${
+          STATUS_LABELS[newStatus as keyof typeof STATUS_LABELS]
+        }`
+      );
     } catch (error) {
-      console.error("Error creating event:", error);
-      Alert.alert("Error", "Failed to create event");
+      console.error("Error bulk updating events:", error);
+      Alert.alert("Error", "Failed to update events");
     }
   };
 
-  const deleteEvent = async (eventId: string) => {
-    Alert.alert("Delete Event", "Are you sure you want to delete this event?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const { error } = await supabase
-              .from("events")
-              .delete()
-              .eq("id", eventId);
+  const toggleEventSelection = (eventId: string) => {
+    const newSelected = new Set(selectedEvents);
+    if (newSelected.has(eventId)) {
+      newSelected.delete(eventId);
+    } else {
+      newSelected.add(eventId);
+    }
+    setSelectedEvents(newSelected);
+  };
 
-            if (error) throw error;
+  const selectAllVisible = () => {
+    const allVisibleIds = new Set(filteredEvents.map((event) => event.id));
+    setSelectedEvents(allVisibleIds);
+  };
 
-            Alert.alert("Success", "Event deleted successfully");
-            fetchEvents();
-          } catch (error) {
-            console.error("Error deleting event:", error);
-            Alert.alert("Error", "Failed to delete event");
-          }
+  const clearSelection = () => {
+    setSelectedEvents(new Set());
+    setSelectMode(false);
+  };
+
+  const getUniqueValues = (key: keyof Event) => {
+    const values = events
+      .map((event) => event[key])
+      .filter((value, index, self) => value && self.indexOf(value) === index)
+      .sort();
+    return values as string[];
+  };
+
+  const StatusBadge = ({ status }: { status: string }) => (
+    <View
+      style={[
+        styles.statusBadge,
+        {
+          backgroundColor: STATUS_COLORS[status as keyof typeof STATUS_COLORS],
         },
-      },
-    ]);
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchEvents();
-    setRefreshing(false);
-  };
-
-  const uniqueSports = [
-    ...new Set(events.map((event) => event.sport).filter(Boolean)),
-  ];
-
-  const EventCard = ({ event }: { event: Event }) => (
-    <View style={styles.eventCard}>
-      <View style={styles.eventHeader}>
-        <Text style={styles.eventTitle}>{event.title}</Text>
-        <View style={styles.eventBadge}>
-          <Text style={styles.eventBadgeText}>{event.sport}</Text>
-        </View>
-      </View>
-
-      <View style={styles.eventInfo}>
-        <View style={styles.infoRow}>
-          <Ionicons name="location" size={16} color="#6b7280" />
-          <Text style={styles.infoText}>{event.location}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Ionicons name="calendar" size={16} color="#6b7280" />
-          <Text style={styles.infoText}>
-            {new Date(event.event_date).toLocaleDateString()}
-          </Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Ionicons
-            name={event.is_home_game ? "home" : "airplane"}
-            size={16}
-            color="#6b7280"
-          />
-          <Text style={styles.infoText}>
-            {event.is_home_game ? "Home Game" : "Away Game"}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.eventActions}>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: "#dc2626" }]}
-          onPress={() => deleteEvent(event.id)}
-        >
-          <Ionicons name="trash" size={16} color="white" />
-        </TouchableOpacity>
-      </View>
+      ]}
+    >
+      <Text style={styles.statusText}>
+        {STATUS_LABELS[status as keyof typeof STATUS_LABELS]}
+      </Text>
     </View>
   );
 
-  return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={["#18453b", "#2d5f52"]}
-        style={styles.headerBackground}
+  const EventCard = ({ event }: { event: Event }) => {
+    const isSelected = selectedEvents.has(event.id);
+    const eventDate = new Date(event.event_date);
+
+    return (
+      <TouchableOpacity
+        style={[styles.eventCard, isSelected && styles.selectedCard]}
+        onPress={() => {
+          if (selectMode) {
+            toggleEventSelection(event.id);
+          } else {
+            // Show event details or quick actions
+            showEventActions(event);
+          }
+        }}
+        onLongPress={() => {
+          if (!selectMode) {
+            setSelectMode(true);
+            toggleEventSelection(event.id);
+          }
+        }}
       >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Event Management</Text>
-          <Text style={styles.headerSubtitle}>
-            {events.length} total events
+        <View style={styles.eventHeader}>
+          <View style={styles.eventTitleContainer}>
+            <Text style={styles.eventTitle} numberOfLines={2}>
+              {event.title}
+            </Text>
+            <StatusBadge status={event.status} />
+          </View>
+          {selectMode && (
+            <TouchableOpacity
+              style={[styles.checkbox, isSelected && styles.checkedBox]}
+              onPress={() => toggleEventSelection(event.id)}
+            >
+              {isSelected && (
+                <Ionicons name="checkmark" size={16} color="white" />
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.eventDetails}>
+          <View style={styles.eventInfoRow}>
+            <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+            <Text style={styles.eventInfoText}>
+              {eventDate.toLocaleDateString()} at {event.game_time || "TBA"}
+            </Text>
+          </View>
+
+          <View style={styles.eventInfoRow}>
+            <Ionicons name="location-outline" size={16} color="#6B7280" />
+            <Text style={styles.eventInfoText}>
+              {event.venue
+                ? `${event.venue}, ${event.location}`
+                : event.location}
+            </Text>
+          </View>
+
+          {event.sport && (
+            <View style={styles.eventInfoRow}>
+              <Ionicons name="football-outline" size={16} color="#6B7280" />
+              <Text style={styles.eventInfoText}>{event.sport}</Text>
+            </View>
+          )}
+
+          {event.opponent && (
+            <View style={styles.eventInfoRow}>
+              <Ionicons
+                name={event.is_home_game ? "home-outline" : "airplane-outline"}
+                size={16}
+                color="#6B7280"
+              />
+              <Text style={styles.eventInfoText}>
+                {event.is_home_game ? "vs" : "at"} {event.opponent}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {!selectMode && (
+          <View style={styles.quickActions}>
+            <TouchableOpacity
+              style={[
+                styles.quickActionBtn,
+                { backgroundColor: STATUS_COLORS.available },
+              ]}
+              onPress={() => updateEventStatus(event.id, "available")}
+            >
+              <Text style={styles.quickActionText}>Available</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.quickActionBtn,
+                { backgroundColor: STATUS_COLORS.inactive },
+              ]}
+              onPress={() => updateEventStatus(event.id, "inactive")}
+            >
+              <Text style={styles.quickActionText}>Inactive</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const showEventActions = (event: Event) => {
+    Alert.alert(
+      "Event Actions",
+      `${event.title}\n${new Date(event.event_date).toLocaleDateString()}`,
+      [
+        {
+          text: "Set Available",
+          onPress: () => updateEventStatus(event.id, "available"),
+        },
+        {
+          text: "Set Inactive",
+          onPress: () => updateEventStatus(event.id, "inactive"),
+        },
+        {
+          text: "Set Scraped",
+          onPress: () => updateEventStatus(event.id, "scraped"),
+        },
+        {
+          text: "Set Completed",
+          onPress: () => updateEventStatus(event.id, "completed"),
+        },
+        {
+          text: "Set Cancelled",
+          onPress: () => updateEventStatus(event.id, "cancelled"),
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ]
+    );
+  };
+
+  const BulkActionsModal = () => (
+    <Modal
+      visible={bulkModalVisible}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setBulkModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>
+            Bulk Update {selectedEvents.size} Events
           </Text>
-        </View>
-      </LinearGradient>
 
-      <View style={styles.filtersContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#666" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search events..."
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.statusFilters}
-        >
           <TouchableOpacity
             style={[
-              styles.filterButton,
-              sportFilter === "all" && styles.activeFilter,
+              styles.bulkActionBtn,
+              { backgroundColor: STATUS_COLORS.available },
             ]}
-            onPress={() => setSportFilter("all")}
+            onPress={() => bulkUpdateStatus("available")}
           >
-            <Text
-              style={[
-                styles.filterText,
-                sportFilter === "all" && styles.activeFilterText,
-              ]}
-            >
-              All Sports
-            </Text>
+            <Text style={styles.bulkActionText}>Set Available</Text>
           </TouchableOpacity>
-          {uniqueSports.map((sport) => (
-            <TouchableOpacity
-              key={sport}
-              style={[
-                styles.filterButton,
-                sportFilter === sport && styles.activeFilter,
-              ]}
-              onPress={() => setSportFilter(sport || "")}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  sportFilter === sport && styles.activeFilterText,
-                ]}
-              >
-                {sport}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
 
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => setCreateModalVisible(true)}
-        >
-          <Ionicons name="add" size={20} color="white" />
-          <Text style={styles.createButtonText}>Create Event</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.bulkActionBtn,
+              { backgroundColor: STATUS_COLORS.inactive },
+            ]}
+            onPress={() => bulkUpdateStatus("inactive")}
+          >
+            <Text style={styles.bulkActionText}>Set Inactive</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.bulkActionBtn,
+              { backgroundColor: STATUS_COLORS.scraped },
+            ]}
+            onPress={() => bulkUpdateStatus("scraped")}
+          >
+            <Text style={styles.bulkActionText}>Set Scraped</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.bulkActionBtn,
+              { backgroundColor: STATUS_COLORS.completed },
+            ]}
+            onPress={() => bulkUpdateStatus("completed")}
+          >
+            <Text style={styles.bulkActionText}>Set Completed</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.bulkActionBtn,
+              { backgroundColor: STATUS_COLORS.cancelled },
+            ]}
+            onPress={() => bulkUpdateStatus("cancelled")}
+          >
+            <Text style={styles.bulkActionText}>Set Cancelled</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={() => setBulkModalVisible(false)}
+          >
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+    </Modal>
+  );
 
-      <ScrollView
-        style={styles.eventsList}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {filteredEvents.map((event) => (
-          <EventCard key={event.id} event={event} />
-        ))}
-      </ScrollView>
+  const statsData = {
+    total: events.length,
+    scraped: events.filter((e) => e.status === "scraped").length,
+    available: events.filter((e) => e.status === "available").length,
+    inactive: events.filter((e) => e.status === "inactive").length,
+    completed: events.filter((e) => e.status === "completed").length,
+    cancelled: events.filter((e) => e.status === "cancelled").length,
+  };
 
-      {/* Create Event Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={createModalVisible}
-        onRequestClose={() => setCreateModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create New Event</Text>
-
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Event Title"
-              value={newEvent.title}
-              onChangeText={(text) => setNewEvent({ ...newEvent, title: text })}
-            />
-
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Sport"
-              value={newEvent.sport}
-              onChangeText={(text) => setNewEvent({ ...newEvent, sport: text })}
-            />
-
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Location"
-              value={newEvent.location}
-              onChangeText={(text) =>
-                setNewEvent({ ...newEvent, location: text })
-              }
-            />
-
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Event Date (YYYY-MM-DD)"
-              value={newEvent.event_date}
-              onChangeText={(text) =>
-                setNewEvent({ ...newEvent, event_date: text })
-              }
-            />
-
-            <View style={styles.modalButtons}>
+  return (
+    <AdminLayout
+      title="Event Management"
+      subtitle={`${filteredEvents.length} of ${events.length} events`}
+      showBackButton={false}
+    >
+      <View style={styles.container}>
+        {selectMode && (
+          <View style={styles.selectionHeader}>
+            <Text style={styles.selectionText}>
+              {selectedEvents.size} selected
+            </Text>
+            <View style={styles.selectionActions}>
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: "#6b7280" }]}
-                onPress={() => setCreateModalVisible(false)}
+                style={styles.selectionBtn}
+                onPress={selectAllVisible}
               >
-                <Text style={styles.modalButtonText}>Cancel</Text>
+                <Text style={styles.selectionBtnText}>All</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: "#18453b" }]}
-                onPress={createEvent}
+                style={styles.selectionBtn}
+                onPress={clearSelection}
               >
-                <Text style={styles.modalButtonText}>Create</Text>
+                <Text style={styles.selectionBtnText}>Clear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.selectionBtn, styles.bulkBtn]}
+                onPress={() => setBulkModalVisible(true)}
+                disabled={selectedEvents.size === 0}
+              >
+                <Text style={styles.selectionBtnText}>Update</Text>
               </TouchableOpacity>
             </View>
           </View>
+        )}
+
+        {/* Stats Row */}
+        <View style={styles.statsContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{statsData.total}</Text>
+                <Text style={styles.statLabel}>Total</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text
+                  style={[styles.statNumber, { color: STATUS_COLORS.scraped }]}
+                >
+                  {statsData.scraped}
+                </Text>
+                <Text style={styles.statLabel}>Scraped</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text
+                  style={[
+                    styles.statNumber,
+                    { color: STATUS_COLORS.available },
+                  ]}
+                >
+                  {statsData.available}
+                </Text>
+                <Text style={styles.statLabel}>Available</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text
+                  style={[styles.statNumber, { color: STATUS_COLORS.inactive }]}
+                >
+                  {statsData.inactive}
+                </Text>
+                <Text style={styles.statLabel}>Inactive</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text
+                  style={[
+                    styles.statNumber,
+                    { color: STATUS_COLORS.completed },
+                  ]}
+                >
+                  {statsData.completed}
+                </Text>
+                <Text style={styles.statLabel}>Completed</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text
+                  style={[
+                    styles.statNumber,
+                    { color: STATUS_COLORS.cancelled },
+                  ]}
+                >
+                  {statsData.cancelled}
+                </Text>
+                <Text style={styles.statLabel}>Cancelled</Text>
+              </View>
+            </View>
+          </ScrollView>
         </View>
-      </Modal>
-    </View>
+
+        {/* Search and Filters */}
+        <View style={styles.filtersContainer}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search-outline" size={20} color="#9CA3AF" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search events..."
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholderTextColor="#9CA3AF"
+            />
+            {searchText.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchText("")}>
+                <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterScrollView}
+          >
+            {/* Status Filter */}
+            <View style={styles.filterGroup}>
+              <Text style={styles.filterLabel}>Status:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {[
+                  "all",
+                  "scraped",
+                  "available",
+                  "inactive",
+                  "completed",
+                  "cancelled",
+                ].map((status) => (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.filterChip,
+                      statusFilter === status && styles.activeFilterChip,
+                    ]}
+                    onPress={() => setStatusFilter(status)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        statusFilter === status && styles.activeFilterChipText,
+                      ]}
+                    >
+                      {status === "all"
+                        ? "All"
+                        : STATUS_LABELS[status as keyof typeof STATUS_LABELS]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Sport Filter */}
+            <View style={styles.filterGroup}>
+              <Text style={styles.filterLabel}>Sport:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {["all", ...getUniqueValues("sport")].map((sport) => (
+                  <TouchableOpacity
+                    key={sport}
+                    style={[
+                      styles.filterChip,
+                      sportFilter === sport && styles.activeFilterChip,
+                    ]}
+                    onPress={() => setSportFilter(sport)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        sportFilter === sport && styles.activeFilterChipText,
+                      ]}
+                    >
+                      {sport === "all" ? "All Sports" : sport}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Events List */}
+        <ScrollView
+          style={styles.eventsContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#18453b" />
+              <Text style={styles.loadingText}>Loading events...</Text>
+            </View>
+          ) : filteredEvents.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
+              <Text style={styles.emptyTitle}>No events found</Text>
+              <Text style={styles.emptySubtitle}>
+                {searchText || statusFilter !== "all" || sportFilter !== "all"
+                  ? "Try adjusting your filters"
+                  : "Import some events to get started"}
+              </Text>
+            </View>
+          ) : (
+            filteredEvents.map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))
+          )}
+        </ScrollView>
+
+        <BulkActionsModal />
+      </View>
+    </AdminLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#F9FAFB",
   },
-  headerBackground: {
-    paddingTop: 50,
-    paddingBottom: 30,
+  selectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "#18453b",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.2)",
+  },
+  selectionText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  selectionActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  selectionBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 6,
+  },
+  bulkBtn: {
+    backgroundColor: "#10B981",
+  },
+  selectionBtnText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  statsContainer: {
+    backgroundColor: "white",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  statsRow: {
+    flexDirection: "row",
     paddingHorizontal: 20,
   },
-  header: {
+  statItem: {
     alignItems: "center",
+    marginRight: 32,
   },
-  headerTitle: {
+  statNumber: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "white",
+    color: "#1F2937",
     marginBottom: 4,
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.8)",
+  statLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    textTransform: "uppercase",
+    fontWeight: "500",
   },
   filtersContainer: {
-    padding: 20,
+    backgroundColor: "white",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
   },
-  searchBar: {
+  searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
+    marginRight: 8,
     fontSize: 16,
+    color: "#1F2937",
   },
-  statusFilters: {
-    marginBottom: 16,
+  filterScrollView: {
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
   },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "white",
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
+  filterGroup: {
+    marginRight: 20,
   },
-  activeFilter: {
-    backgroundColor: "#18453b",
-    borderColor: "#18453b",
-  },
-  filterText: {
+  filterLabel: {
     fontSize: 14,
-    color: "#6b7280",
-  },
-  activeFilterText: {
-    color: "white",
-  },
-  createButton: {
-    backgroundColor: "#18453b",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  createButtonText: {
-    color: "white",
-    fontSize: 16,
     fontWeight: "600",
-    marginLeft: 8,
+    color: "#374151",
+    marginBottom: 8,
   },
-  eventsList: {
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  activeFilterChip: {
+    backgroundColor: "#18453b",
+  },
+  filterChipText: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  activeFilterChipText: {
+    color: "white",
+    fontWeight: "600",
+  },
+  eventsContainer: {
     flex: 1,
     paddingHorizontal: 20,
   },
   eventCard: {
     backgroundColor: "white",
-    padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
+    padding: 16,
+    marginVertical: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
+  selectedCard: {
+    borderWidth: 2,
+    borderColor: "#18453b",
+  },
   eventHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 12,
+  },
+  eventTitleContainer: {
+    flex: 1,
+    marginRight: 12,
   },
   eventTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1f2937",
-    flex: 1,
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1F2937",
+    marginBottom: 8,
   },
-  eventBadge: {
-    backgroundColor: "#18453b",
+  statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
+    alignSelf: "flex-start",
   },
-  eventBadgeText: {
+  statusText: {
+    color: "white",
     fontSize: 12,
     fontWeight: "600",
-    color: "white",
   },
-  eventInfo: {
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  infoText: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginLeft: 8,
-  },
-  eventActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-  },
-  actionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
     alignItems: "center",
     justifyContent: "center",
   },
+  checkedBox: {
+    backgroundColor: "#18453b",
+    borderColor: "#18453b",
+  },
+  eventDetails: {
+    marginBottom: 12,
+  },
+  eventInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  eventInfoText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#6B7280",
+    flex: 1,
+  },
+  quickActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  quickActionBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  quickActionText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#6B7280",
+    marginTop: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#374151",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    paddingHorizontal: 40,
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
   modalContent: {
     backgroundColor: "white",
     borderRadius: 12,
-    padding: 20,
-    width: "90%",
+    padding: 24,
+    width: width * 0.8,
     maxWidth: 400,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#1f2937",
-    marginBottom: 16,
+    color: "#1F2937",
+    marginBottom: 20,
     textAlign: "center",
   },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    fontSize: 16,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 16,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
+  bulkActionBtn: {
+    paddingVertical: 14,
     borderRadius: 8,
     alignItems: "center",
+    marginBottom: 12,
   },
-  modalButtonText: {
+  bulkActionText: {
     color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  cancelBtn: {
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    marginTop: 8,
+  },
+  cancelBtnText: {
+    color: "#6B7280",
     fontSize: 16,
     fontWeight: "600",
   },
