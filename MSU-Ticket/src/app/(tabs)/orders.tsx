@@ -1,30 +1,26 @@
-// screens/orders.tsx - Updated Orders Screen
+// src/app/(tabs)/orders.tsx - Brand New Orders Tab
 import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
-  FlatList,
   View,
   Text,
-  Dimensions,
-  ScrollView,
-  RefreshControl,
+  FlatList,
   Alert,
+  RefreshControl,
 } from "react-native";
-import Colors from "@/src/constants/Colors";
-import { useColorScheme } from "@/src/components/useColorScheme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
-import { TicketService } from "@/src/services/ticketService";
-import { TicketWithSeller } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { TicketService } from "@/src/services/ticketService";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
+import WatchlistSection from "@/src/components/WatchlistSection";
+import { supabase } from "@/src/lib/supabase";
 
-const { width, height } = Dimensions.get("window");
-
-type OrderType = "buying" | "selling";
+type OrderType = "buying" | "selling" | "watchlist";
 
 interface StatusConfig {
   color: string;
@@ -32,52 +28,182 @@ interface StatusConfig {
   text: string;
 }
 
-export default function OrdersScreen() {
-  const [activeTab, setActiveTab] = useState<OrderType>("buying");
-  const [purchases, setPurchases] = useState<TicketWithSeller[]>([]);
-  const [listings, setListings] = useState<TicketWithSeller[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+interface OrderItem {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  event_date: string;
+  location: string;
+  sport?: string;
+  section?: string;
+  row_number?: string;
+  seat_number?: string;
+  status: string;
+  created_at: string;
+  order_id?: string;
+  type: "purchase" | "listing";
+}
 
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+export default function OrdersScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<OrderType>("buying");
+  const [purchases, setPurchases] = useState<OrderItem[]>([]);
+  const [listings, setListings] = useState<OrderItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const buyingStats = getTabStats("buying");
+  const sellingStats = getTabStats("selling");
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user]);
 
   const loadData = async () => {
     if (!user) return;
 
     setLoading(true);
     try {
-      // Load both purchases and listings
-      const [purchasesResult, listingsResult] = await Promise.all([
-        TicketService.getUserPurchases(),
-        TicketService.getUserTickets(),
+      console.log("🔄 Loading orders data for user:", user.id);
+
+      // Load purchases and listings in parallel
+      const [purchasesData, listingsData] = await Promise.all([
+        loadUserPurchases(),
+        loadUserListings(),
       ]);
 
-      if (purchasesResult.error) {
-        console.error("Error loading purchases:", purchasesResult.error);
-      } else {
-        setPurchases(purchasesResult.data);
-      }
+      setPurchases(purchasesData);
+      setListings(listingsData);
 
-      if (listingsResult.error) {
-        console.error("Error loading listings:", listingsResult.error);
-      } else {
-        setListings(listingsResult.data);
-      }
+      console.log("✅ Orders data loaded successfully");
+      console.log("Purchases:", purchasesData.length);
+      console.log("Listings:", listingsData.length);
     } catch (error) {
       console.error("Error loading orders:", error);
       Alert.alert("Error", "Failed to load your orders. Please try again.");
+
+      // Set empty arrays so the UI doesn't break
+      setPurchases([]);
+      setListings([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, [user]);
+  const loadUserPurchases = async (): Promise<OrderItem[]> => {
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select(
+          `
+          id,
+          amount,
+          status,
+          created_at,
+          completed_at,
+          ticket:tickets (
+            id,
+            title,
+            description,
+            price,
+            event_date,
+            location,
+            sport,
+            section,
+            row_number,
+            seat_number,
+            status
+          )
+        `
+        )
+        .eq("buyer_id", user!.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading purchases:", error);
+        return [];
+      }
+
+      return (data || [])
+        .filter((order: any) => order.ticket)
+        .map((order: any) => ({
+          id: order.ticket.id,
+          title: order.ticket.title,
+          description: order.ticket.description,
+          price: order.amount || order.ticket.price,
+          event_date: order.ticket.event_date,
+          location: order.ticket.location,
+          sport: order.ticket.sport,
+          section: order.ticket.section,
+          row_number: order.ticket.row_number,
+          seat_number: order.ticket.seat_number,
+          status: order.status,
+          created_at: order.created_at,
+          order_id: order.id,
+          type: "purchase" as const,
+        }));
+    } catch (error) {
+      console.error("Error in loadUserPurchases:", error);
+      return [];
+    }
+  };
+
+  // Replace the loadUserListings function in your orders.tsx with this:
+
+  const loadUserListings = async (): Promise<OrderItem[]> => {
+    try {
+      // Direct Supabase query instead of using TicketService
+      const { data, error } = await supabase
+        .from("tickets")
+        .select(
+          `
+        id,
+        title,
+        description,
+        price,
+        event_date,
+        location,
+        sport,
+        section,
+        row_number,
+        seat_number,
+        status,
+        created_at
+      `
+        )
+        .eq("seller_id", user!.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading listings:", error);
+        return [];
+      }
+
+      return (data || []).map((ticket: any) => ({
+        id: ticket.id,
+        title: ticket.title,
+        description: ticket.description,
+        price: ticket.price,
+        event_date: ticket.event_date,
+        location: ticket.location,
+        sport: ticket.sport,
+        section: ticket.section,
+        row_number: ticket.row_number,
+        seat_number: ticket.seat_number,
+        status: ticket.status,
+        created_at: ticket.created_at,
+        type: "listing" as const,
+      }));
+    } catch (error) {
+      console.error("Error in loadUserListings:", error);
+      return [];
+    }
+  };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -104,6 +230,18 @@ export default function OrdersScreen() {
           icon: "close-circle-outline",
           text: "Cancelled",
         };
+      case "completed":
+        return {
+          color: "#10b981",
+          icon: "checkmark-circle-outline",
+          text: "Completed",
+        };
+      case "pending":
+        return {
+          color: "#f59e0b",
+          icon: "time-outline",
+          text: "Pending",
+        };
       default:
         return {
           color: "#6b7280",
@@ -113,11 +251,11 @@ export default function OrdersScreen() {
     }
   };
 
-  const getTabStats = (tab: OrderType) => {
+  function getTabStats(tab: OrderType) {
     const orders = tab === "buying" ? purchases : listings;
     const total = orders.reduce((sum, order) => sum + order.price, 0);
     return { count: orders.length, total };
-  };
+  }
 
   const handleCancelListing = async (ticketId: string) => {
     Alert.alert(
@@ -135,7 +273,7 @@ export default function OrdersScreen() {
                 throw error;
               }
               Alert.alert("Success", "Listing cancelled successfully");
-              loadData(); // Refresh data
+              loadData();
             } catch (error) {
               console.error("Error cancelling ticket:", error);
               Alert.alert(
@@ -149,139 +287,89 @@ export default function OrdersScreen() {
     );
   };
 
-  const formatEventDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const dateStr = date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-    const timeStr = date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-    return `${dateStr} • ${timeStr}`;
-  };
-
-  const getSportFromTitle = (title: string): string => {
-    const lowerTitle = title.toLowerCase();
-    if (lowerTitle.includes("football")) return "Football";
-    if (lowerTitle.includes("basketball")) return "Basketball";
-    if (lowerTitle.includes("hockey")) return "Hockey";
-    if (lowerTitle.includes("soccer")) return "Soccer";
-    if (lowerTitle.includes("volleyball")) return "Volleyball";
-    return "Sports";
-  };
-
-  const getSportIcon = (sport: string) => {
-    switch (sport.toLowerCase()) {
-      case "football":
-        return "american-football-outline";
-      case "basketball":
-        return "basketball-outline";
-      case "hockey":
-        return "golf-outline";
-      case "soccer":
-        return "football-outline";
-      case "volleyball":
-        return "tennisball-outline";
-      default:
-        return "ticket-outline";
-    }
-  };
-
-  const renderOrder = ({ item }: { item: TicketWithSeller }) => {
+  const renderOrder = ({ item }: { item: OrderItem }) => {
     const statusConfig = getStatusConfig(item.status);
-    const sport = getSportFromTitle(item.title);
-    const formattedDate = formatEventDate(item.event_date);
 
     return (
-      <View style={styles.orderCard}>
-        <View style={styles.orderHeader}>
-          <View style={styles.sportIconContainer}>
-            <Ionicons
-              name={getSportIcon(sport) as any}
-              size={24}
-              color="#18453b"
-            />
-          </View>
-          <View style={styles.orderInfo}>
-            <Text style={styles.eventName}>{item.title}</Text>
-            <Text style={styles.sportName}>{sport}</Text>
-          </View>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: statusConfig.color },
-            ]}
-          >
-            <Ionicons name={statusConfig.icon as any} size={12} color="white" />
-            <Text style={styles.statusText}>{statusConfig.text}</Text>
-          </View>
-        </View>
-
-        <View style={styles.orderDetails}>
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="calendar-outline" size={16} color="#6b7280" />
-              <Text style={styles.detailText}>{formattedDate}</Text>
+      <BlurView intensity={20} style={styles.orderCard}>
+        <TouchableOpacity
+          onPress={() => router.push(`/ticket-details/${item.id}`)}
+          style={styles.orderContent}
+        >
+          {/* Header */}
+          <View style={styles.orderHeader}>
+            <Text style={styles.orderTitle} numberOfLines={2}>
+              {item.title}
+            </Text>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: statusConfig.color },
+              ]}
+            >
+              <Ionicons
+                name={statusConfig.icon as any}
+                size={12}
+                color="white"
+              />
+              <Text style={styles.statusText}>{statusConfig.text}</Text>
             </View>
           </View>
 
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="location-outline" size={16} color="#6b7280" />
-              <Text style={styles.detailText}>
-                Section {item.section} • Row {item.row_number} • Seat{" "}
-                {item.seat_number}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="business-outline" size={16} color="#6b7280" />
+          {/* Order Details */}
+          <View style={styles.orderDetails}>
+            <View style={styles.detailRow}>
+              <Ionicons name="location" size={14} color="#6b7280" />
               <Text style={styles.detailText}>{item.location}</Text>
             </View>
-          </View>
-        </View>
-
-        <View style={styles.orderFooter}>
-          <View style={styles.priceContainer}>
-            <Text style={styles.priceLabel}>
-              {activeTab === "buying" ? "Paid" : "Listed for"}
-            </Text>
-            <Text style={styles.priceValue}>${item.price.toFixed(2)}</Text>
-          </View>
-
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => (router.push as any)(`/ticket-details/${item.id}`)}
-            >
-              <Text style={styles.actionButtonText}>View Details</Text>
-              <Ionicons name="chevron-forward" size={16} color="#18453b" />
-            </TouchableOpacity>
-
-            {/* Show cancel button for active listings */}
-            {activeTab === "selling" && item.status === "available" && (
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => handleCancelListing(item.id)}
-              >
-                <Ionicons name="close-outline" size={16} color="#ef4444" />
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
+            <View style={styles.detailRow}>
+              <Ionicons name="calendar" size={14} color="#6b7280" />
+              <Text style={styles.detailText}>
+                {new Date(item.event_date).toLocaleDateString()}
+              </Text>
+            </View>
+            {item.section && (
+              <View style={styles.detailRow}>
+                <Ionicons name="ticket" size={14} color="#6b7280" />
+                <Text style={styles.detailText}>
+                  Sec {item.section}, Row {item.row_number}, Seat{" "}
+                  {item.seat_number}
+                </Text>
+              </View>
+            )}
+            {item.sport && (
+              <View style={styles.detailRow}>
+                <Ionicons name="trophy" size={14} color="#6b7280" />
+                <Text style={styles.detailText}>{item.sport}</Text>
+              </View>
             )}
           </View>
-        </View>
-      </View>
+
+          {/* Price */}
+          <View style={styles.priceContainer}>
+            <Text style={styles.price}>${item.price.toFixed(2)}</Text>
+            <Text style={styles.dateText}>
+              {new Date(item.created_at).toLocaleDateString()}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Actions for listings */}
+        {activeTab === "selling" && item.status === "available" && (
+          <View style={styles.orderActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.cancelButton]}
+              onPress={() => handleCancelListing(item.id)}
+            >
+              <Ionicons name="close" size={16} color="white" />
+              <Text style={styles.actionButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </BlurView>
     );
   };
 
-  const buyingStats = getTabStats("buying");
-  const sellingStats = getTabStats("selling");
   const currentData = activeTab === "buying" ? purchases : listings;
 
   return (
@@ -311,11 +399,11 @@ export default function OrdersScreen() {
           </View>
           <Text style={styles.headerTitle}>My Orders</Text>
           <Text style={styles.headerSubtitle}>
-            Track your ticket purchases and sales
+            Track your ticket purchases, sales, and watchlist
           </Text>
           <TouchableOpacity
             style={styles.notificationButton}
-            onPress={() => (router.push as any)("/notifications/")}
+            onPress={() => router.push("/notifications" as any)}
           >
             <NotificationBadge
               iconName="notifications-outline"
@@ -392,66 +480,88 @@ export default function OrdersScreen() {
                 Selling ({sellingStats.count})
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                activeTab === "watchlist" && styles.activeTab,
+              ]}
+              onPress={() => setActiveTab("watchlist")}
+            >
+              <Ionicons
+                name="bookmark-outline"
+                size={20}
+                color={activeTab === "watchlist" ? "white" : "#6b7280"}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "watchlist" && styles.activeTabText,
+                ]}
+              >
+                Watchlist
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Orders List */}
-        <View style={styles.ordersSection}>
-          {loading ? (
-            <BlurView intensity={20} style={styles.loadingState}>
-              <Text style={styles.loadingText}>Loading your orders...</Text>
-            </BlurView>
-          ) : currentData.length > 0 ? (
-            <FlatList
-              data={currentData}
-              renderItem={renderOrder}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-            />
+        {/* Content Section */}
+        <View style={styles.contentSection}>
+          {activeTab === "watchlist" ? (
+            <WatchlistSection onRefresh={onRefresh} />
           ) : (
-            <BlurView intensity={20} style={styles.emptyState}>
-              <View style={styles.emptyIconContainer}>
-                <Ionicons
-                  name={
-                    activeTab === "buying"
-                      ? "bag-outline"
-                      : "storefront-outline"
-                  }
-                  size={48}
-                  color="#6b7280"
+            <>
+              {loading ? (
+                <BlurView intensity={20} style={styles.loadingState}>
+                  <Ionicons name="refresh" size={24} color="#6b7280" />
+                  <Text style={styles.loadingText}>Loading your orders...</Text>
+                </BlurView>
+              ) : currentData.length > 0 ? (
+                <FlatList
+                  data={currentData}
+                  renderItem={renderOrder}
+                  keyExtractor={(item) => `${item.type}-${item.id}`}
+                  scrollEnabled={false}
+                  showsVerticalScrollIndicator={false}
                 />
-              </View>
-              <Text style={styles.emptyStateTitle}>
-                No {activeTab === "buying" ? "purchases" : "listings"} yet
-              </Text>
-              <Text style={styles.emptyStateText}>
-                {activeTab === "buying"
-                  ? "Start browsing tickets to make your first purchase"
-                  : "List your first ticket to start selling"}
-              </Text>
-              <TouchableOpacity
-                style={styles.emptyActionButton}
-                onPress={() => {
-                  if (activeTab === "buying") {
-                    (router.push as any)("/"); // Changed from "/(tabs)/" to just "/"
-                  } else {
-                    (router.push as any)("/(tabs)/sell");
-                  }
-                }}
-              >
-                <LinearGradient
-                  colors={["#18453b", "#2a6b5a"]}
-                  style={styles.emptyButtonGradient}
-                >
-                  <Text style={styles.emptyActionText}>
-                    {activeTab === "buying"
-                      ? "Browse Tickets"
-                      : "Sell a Ticket"}
+              ) : (
+                <BlurView intensity={20} style={styles.emptyState}>
+                  <View style={styles.emptyIconContainer}>
+                    <Ionicons
+                      name={
+                        activeTab === "buying"
+                          ? "bag-outline"
+                          : "storefront-outline"
+                      }
+                      size={48}
+                      color="#6b7280"
+                    />
+                  </View>
+                  <Text style={styles.emptyStateTitle}>
+                    No {activeTab === "buying" ? "purchases" : "listings"} yet
                   </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </BlurView>
+                  <Text style={styles.emptyStateText}>
+                    {activeTab === "buying"
+                      ? "Browse available tickets and make your first purchase"
+                      : "Create your first ticket listing to start selling"}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.emptyStateButton}
+                    onPress={() =>
+                      router.push(
+                        activeTab === "buying" ? "/(tabs)" : "/(tabs)/sell"
+                      )
+                    }
+                  >
+                    <Text style={styles.emptyStateButtonText}>
+                      {activeTab === "buying"
+                        ? "Browse Tickets"
+                        : "Create Listing"}
+                    </Text>
+                  </TouchableOpacity>
+                </BlurView>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -462,79 +572,75 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#0f2f28",
   },
   background: {
     position: "absolute",
-    top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
+    top: 0,
+    height: "100%",
   },
   floatingElement1: {
     position: "absolute",
-    top: "15%",
-    left: "10%",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255, 215, 0, 0.08)",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(255, 215, 0, 0.1)",
+    top: 100,
+    right: -50,
   },
   floatingElement2: {
     position: "absolute",
-    bottom: "30%",
-    right: "15%",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     backgroundColor: "rgba(255, 255, 255, 0.05)",
+    bottom: 200,
+    left: -30,
   },
   scrollView: {
     flex: 1,
+    paddingTop: 60,
   },
   headerSection: {
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 30,
-    position: "relative",
+    marginBottom: 32,
   },
   logoContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   logo: {
-    width: 70,
-    height: 70,
-    borderRadius: 18,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#ffd700",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   headerTitle: {
     fontSize: 32,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "white",
     marginBottom: 8,
     textAlign: "center",
   },
   headerSubtitle: {
     fontSize: 16,
-    color: "rgba(255, 255, 255, 0.9)",
+    color: "rgba(255, 255, 255, 0.8)",
     textAlign: "center",
-    paddingHorizontal: 20,
     lineHeight: 22,
   },
   notificationButton: {
     position: "absolute",
-    top: 60,
+    top: 0,
     right: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -623,167 +729,130 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: "white",
   },
-  ordersSection: {
-    paddingHorizontal: 20,
+  contentSection: {
     paddingBottom: 20,
   },
   orderCard: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 16,
+    marginHorizontal: 20,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    overflow: "hidden",
+  },
+  orderContent: {
+    padding: 16,
   },
   orderHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
   },
-  sportIconContainer: {
-    width: 40,
-    height: 40,
-    backgroundColor: "#f0f9ff",
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  orderInfo: {
-    flex: 1,
-  },
-  eventName: {
+  orderTitle: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#1e293b",
-    marginBottom: 2,
-  },
-  sportName: {
-    fontSize: 14,
-    color: "#6b7280",
-    fontWeight: "500",
+    fontWeight: "600",
+    color: "#1f2937",
+    flex: 1,
+    marginRight: 12,
   },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
     gap: 4,
   },
   statusText: {
-    color: "white",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "600",
+    color: "white",
   },
   orderDetails: {
-    marginBottom: 16,
-    gap: 8,
+    marginBottom: 12,
   },
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  detailItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    marginBottom: 4,
     gap: 8,
-    flex: 1,
   },
   detailText: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#6b7280",
-    fontWeight: "500",
-  },
-  orderFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#f1f5f9",
+    flex: 1,
   },
   priceContainer: {
-    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  priceLabel: {
-    fontSize: 12,
-    color: "#6b7280",
-    fontWeight: "500",
-    marginBottom: 2,
-  },
-  priceValue: {
-    fontSize: 20,
+  price: {
+    fontSize: 18,
     fontWeight: "700",
     color: "#18453b",
   },
-  actionButtons: {
+  dateText: {
+    fontSize: 12,
+    color: "#9ca3af",
+  },
+  orderActions: {
     flexDirection: "row",
-    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 12,
+    justifyContent: "center",
     paddingVertical: 8,
-    backgroundColor: "#f8fafc",
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 6,
+  },
+  cancelButton: {
+    backgroundColor: "#ef4444",
   },
   actionButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#18453b",
-  },
-  cancelButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: "#fef2f2",
-    borderRadius: 12,
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#ef4444",
+    color: "white",
   },
   loadingState: {
-    alignItems: "center",
     padding: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 16,
+    marginHorizontal: 20,
+    gap: 12,
   },
   loadingText: {
     fontSize: 16,
     color: "#6b7280",
-    fontStyle: "italic",
+    fontWeight: "500",
   },
   emptyState: {
-    alignItems: "center",
     padding: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 16,
+    marginHorizontal: 20,
   },
   emptyIconContainer: {
     width: 80,
     height: 80,
-    backgroundColor: "#f8fafc",
     borderRadius: 40,
+    backgroundColor: "#f3f4f6",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
   },
   emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1e293b",
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1f2937",
     marginBottom: 8,
     textAlign: "center",
   },
@@ -793,21 +862,16 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
     marginBottom: 24,
-    paddingHorizontal: 20,
   },
-  emptyActionButton: {
-    borderRadius: 12,
-  },
-  emptyButtonGradient: {
-    paddingVertical: 12,
+  emptyStateButton: {
+    backgroundColor: "#18453b",
     paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
   },
-  emptyActionText: {
-    color: "white",
+  emptyStateButtonText: {
     fontSize: 14,
     fontWeight: "600",
+    color: "white",
   },
 });

@@ -10,6 +10,56 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      // Add this to your existing database.types.ts file in the Tables interface
+
+      watchlists: {
+        Row: {
+          id: string;
+          created_at: string;
+          updated_at: string;
+          user_id: string;
+          ticket_id: string;
+          notes: string | null;
+          price_alert_threshold: number | null;
+          notification_enabled: boolean;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id: string;
+          ticket_id: string;
+          notes?: string | null;
+          price_alert_threshold?: number | null;
+          notification_enabled?: boolean;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+          ticket_id?: string;
+          notes?: string | null;
+          price_alert_threshold?: number | null;
+          notification_enabled?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "watchlists_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "watchlists_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "tickets";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       colleges: {
         Row: {
           id: string;

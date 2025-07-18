@@ -1,4 +1,4 @@
-// app/ticket-details/[id].tsx - FIXED Hook Usage
+// app/ticket-details/[id].tsx - Enhanced with Watchlist
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -17,7 +17,8 @@ import { BlurView } from "expo-blur";
 import { TicketService } from "@/src/services/ticketService";
 import { TicketWithSeller } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { useChat } from "@/src/providers/ChatProvider"; // ✅ MOVED TO TOP LEVEL
+import { useChat } from "@/src/providers/ChatProvider";
+import WatchlistButton from "@/src/components/WatchlistButton";
 
 const { width, height } = Dimensions.get("window");
 
@@ -25,7 +26,7 @@ export default function TicketDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const { getOrCreateConversation } = useChat(); // ✅ CALLED AT TOP LEVEL
+  const { getOrCreateConversation } = useChat();
 
   const [ticket, setTicket] = useState<TicketWithSeller | null>(null);
   const [loading, setLoading] = useState(true);
@@ -154,7 +155,6 @@ export default function TicketDetailsScreen() {
 
       if (conversationId) {
         console.log("✅ Conversation created/found:", conversationId);
-        // ✅ UPDATED: Navigate to chat tab first, then to specific conversation
         (router.push as any)(`/(tabs)/chat/${conversationId}`);
       } else {
         throw new Error("Failed to create conversation - no ID returned");
@@ -345,6 +345,20 @@ export default function TicketDetailsScreen() {
             </Text>
           </View>
 
+          {/* Watchlist Section - Only show for other users' tickets */}
+          {!isOwnTicket && (
+            <View style={styles.watchlistSection}>
+              <WatchlistButton
+                ticketId={ticket.id}
+                ticketTitle={ticket.title}
+                currentPrice={ticket.price}
+                style={styles.fullWidthWatchlistButton}
+                size="medium"
+                showText={true}
+              />
+            </View>
+          )}
+
           {/* Seller Info */}
           {ticket.seller && (
             <View style={styles.sellerSection}>
@@ -366,7 +380,7 @@ export default function TicketDetailsScreen() {
                 {!isOwnTicket && (
                   <TouchableOpacity
                     style={styles.contactButton}
-                    onPress={handleContactSeller} // ✅ Now properly uses the hook
+                    onPress={handleContactSeller}
                   >
                     <Ionicons
                       name="chatbubble-outline"
@@ -390,44 +404,70 @@ export default function TicketDetailsScreen() {
         </View>
       </ScrollView>
 
-      {/* Bottom Action Button */}
+      {/* Bottom Action Buttons */}
       {!isOwnTicket && isAvailable && (
         <BlurView intensity={90} style={styles.bottomBar}>
-          <TouchableOpacity
-            style={[
-              styles.purchaseButton,
-              purchasing && styles.purchaseButtonDisabled,
-            ]}
-            onPress={handlePurchase}
-            disabled={purchasing}
-          >
-            <LinearGradient
-              colors={
-                purchasing ? ["#9ca3af", "#6b7280"] : ["#18453b", "#2a6b5a"]
-              }
-              style={styles.purchaseButtonGradient}
+          <View style={styles.actionButtonsContainer}>
+            {/* Watchlist Quick Button */}
+            <WatchlistButton
+              ticketId={ticket.id}
+              ticketTitle={ticket.title}
+              currentPrice={ticket.price}
+              style={styles.watchlistQuickButton}
+              size="medium"
+              showText={false}
+            />
+
+            {/* Purchase Button */}
+            <TouchableOpacity
+              style={[
+                styles.purchaseButton,
+                purchasing && styles.purchaseButtonDisabled,
+              ]}
+              onPress={handlePurchase}
+              disabled={purchasing}
             >
-              {purchasing ? (
-                <View style={styles.purchaseButtonContent}>
-                  <Text style={styles.purchaseButtonText}>Processing...</Text>
-                </View>
-              ) : (
-                <View style={styles.purchaseButtonContent}>
-                  <Ionicons name="card-outline" size={20} color="white" />
-                  <Text style={styles.purchaseButtonText}>
-                    Purchase for ${ticket.price.toFixed(2)}
-                  </Text>
-                </View>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={
+                  purchasing ? ["#9ca3af", "#6b7280"] : ["#18453b", "#2a6b5a"]
+                }
+                style={styles.purchaseButtonGradient}
+              >
+                {purchasing ? (
+                  <View style={styles.purchaseButtonContent}>
+                    <Text style={styles.purchaseButtonText}>Processing...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.purchaseButtonContent}>
+                    <Ionicons name="card-outline" size={20} color="white" />
+                    <Text style={styles.purchaseButtonText}>
+                      Purchase for ${ticket.price.toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
+      )}
+
+      {/* Alternative: Only show watchlist when ticket is not available for purchase */}
+      {!isOwnTicket && !isAvailable && (
+        <BlurView intensity={90} style={styles.bottomBar}>
+          <WatchlistButton
+            ticketId={ticket.id}
+            ticketTitle={ticket.title}
+            currentPrice={ticket.price}
+            style={styles.fullWidthBottomButton}
+            size="large"
+            showText={true}
+          />
         </BlurView>
       )}
     </View>
   );
 }
 
-// Your existing styles remain the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -595,6 +635,14 @@ const styles = StyleSheet.create({
     color: "#4b5563",
     lineHeight: 22,
   },
+  // Watchlist Styles
+  watchlistSection: {
+    marginBottom: 32,
+  },
+  fullWidthWatchlistButton: {
+    borderRadius: 16,
+    height: 56,
+  },
   sellerSection: {
     marginBottom: 32,
   },
@@ -674,7 +722,19 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingBottom: 34,
   },
+  // Action Buttons Container
+  actionButtonsContainer: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
+  watchlistQuickButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
   purchaseButton: {
+    flex: 1,
     borderRadius: 16,
     shadowColor: "#18453b",
     shadowOffset: { width: 0, height: 4 },
@@ -702,5 +762,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     letterSpacing: 0.5,
+  },
+  // Full width bottom button (for non-available tickets)
+  fullWidthBottomButton: {
+    borderRadius: 16,
+    height: 56,
   },
 });

@@ -257,6 +257,199 @@ export class OrderService {
   /**
    * Get user's orders (as buyer or seller)
    */
+  // Add these methods to your existing OrderService class
+  // These are simplified versions for regular users (not admin-only)
+
+  /**
+   * Get user's purchases (simplified version)
+   */
+  static async getUserPurchases(): Promise<{
+    data: any[] | null;
+    error: any;
+  }> {
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        return {
+          data: null,
+          error: "User not authenticated",
+        };
+      }
+
+      console.log("📦 Loading user purchases for:", user.id);
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select(
+          `
+          id,
+          amount,
+          status,
+          created_at,
+          completed_at,
+          ticket:tickets (
+            id,
+            title,
+            description,
+            price,
+            event_date,
+            location,
+            sport,
+            section,
+            row_number,
+            seat_number,
+            status
+          )
+        `
+        )
+        .eq("buyer_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("❌ Error loading user purchases:", error);
+        return {
+          data: null,
+          error: error.message,
+        };
+      }
+
+      // Transform the data to match the expected format for the UI
+      const transformedData = (data || [])
+        .filter((order: any) => order.ticket) // Only include orders with valid tickets
+        .map((order: any) => ({
+          id: order.ticket.id,
+          title: order.ticket.title,
+          description: order.ticket.description,
+          price: order.amount || order.ticket.price,
+          event_date: order.ticket.event_date,
+          location: order.ticket.location,
+          sport: order.ticket.sport,
+          section: order.ticket.section,
+          row_number: order.ticket.row_number,
+          seat_number: order.ticket.seat_number,
+          status: order.status, // Order status (completed, pending, etc.)
+          created_at: order.created_at,
+          order_id: order.id, // Keep track of the order ID
+        }));
+
+      console.log(
+        "✅ User purchases loaded successfully:",
+        transformedData.length
+      );
+      return {
+        data: transformedData,
+        error: null,
+      };
+    } catch (error) {
+      console.error("💥 Unexpected error in getUserPurchases:", error);
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      };
+    }
+  }
+
+  /**
+   * Get user's sales (simplified version)
+   */
+  static async getUserSales(): Promise<{
+    data: any[] | null;
+    error: any;
+  }> {
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        return {
+          data: null,
+          error: "User not authenticated",
+        };
+      }
+
+      console.log("📦 Loading user sales for:", user.id);
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select(
+          `
+          id,
+          amount,
+          status,
+          created_at,
+          completed_at,
+          ticket:tickets (
+            id,
+            title,
+            description,
+            price,
+            event_date,
+            location,
+            sport,
+            section,
+            row_number,
+            seat_number,
+            status
+          ),
+          buyer:profiles!orders_buyer_id_fkey (
+            id,
+            full_name,
+            username
+          )
+        `
+        )
+        .eq("seller_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("❌ Error loading user sales:", error);
+        return {
+          data: null,
+          error: error.message,
+        };
+      }
+
+      // Transform the data to match the expected format for the UI
+      const transformedData = (data || [])
+        .filter((order: any) => order.ticket) // Only include orders with valid tickets
+        .map((order: any) => ({
+          id: order.ticket.id,
+          title: order.ticket.title,
+          description: order.ticket.description,
+          price: order.amount || order.ticket.price,
+          event_date: order.ticket.event_date,
+          location: order.ticket.location,
+          sport: order.ticket.sport,
+          section: order.ticket.section,
+          row_number: order.ticket.row_number,
+          seat_number: order.ticket.seat_number,
+          status: order.status, // Order status (completed, pending, etc.)
+          created_at: order.created_at,
+          order_id: order.id,
+          buyer: Array.isArray(order.buyer) ? order.buyer[0] : order.buyer,
+        }));
+
+      console.log("✅ User sales loaded successfully:", transformedData.length);
+      return {
+        data: transformedData,
+        error: null,
+      };
+    } catch (error) {
+      console.error("💥 Unexpected error in getUserSales:", error);
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      };
+    }
+  }
   static async getUserOrders(
     userId?: string
   ): Promise<ServiceResponse<OrderWithDetails[]>> {

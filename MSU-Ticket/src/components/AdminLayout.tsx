@@ -83,7 +83,13 @@ export default function AdminLayout({
             {showBackButton && (
               <TouchableOpacity
                 style={styles.backButton}
-                onPress={() => router.back()}
+                onPress={() => {
+                  if (router.canGoBack()) {
+                    router.back();
+                  } else {
+                    router.push("/(tabs)/profile");
+                  }
+                }}
               >
                 <Ionicons name="arrow-back" size={24} color="white" />
               </TouchableOpacity>

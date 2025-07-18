@@ -8,6 +8,9 @@ type TicketInsert = Database["public"]["Tables"]["tickets"]["Insert"];
 type TicketUpdate = Database["public"]["Tables"]["tickets"]["Update"];
 
 export class TicketService {
+  static getUserListings(): any {
+    throw new Error("Method not implemented.");
+  }
   // Create new ticket listing with event reference
   static async createTicket(ticketData: {
     event_id: string; // Now using event_id instead of manual entry
