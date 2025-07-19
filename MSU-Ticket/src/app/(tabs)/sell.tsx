@@ -1,4 +1,4 @@
-// src/app/(tabs)/sell.tsx - Updated to match other tab designs
+// src/app/(tabs)/sell.tsx - Enhanced version with season ticket support
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -19,7 +19,6 @@ import Colors from "@/src/constants/Colors";
 import { useColorScheme } from "@/src/components/useColorScheme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { TicketService } from "@/src/services/ticketService";
 import { EventService } from "@/src/services/eventService";
@@ -40,6 +39,15 @@ const sports = [
   { name: "Field Hockey", icon: "leaf-outline" },
 ];
 
+interface FormData {
+  section: string;
+  row_number: string;
+  seat_number: string;
+  price: string;
+  description: string;
+  is_season_ticket: boolean;
+}
+
 export default function SellScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
@@ -52,13 +60,14 @@ export default function SellScreen() {
   const [selectedSport, setSelectedSport] = useState("All Sports");
   const [loadingEvents, setLoadingEvents] = useState(false);
 
-  // Form state
-  const [formData, setFormData] = useState({
+  // Form state with season ticket support
+  const [formData, setFormData] = useState<FormData>({
     section: "",
     row_number: "",
     seat_number: "",
     price: "",
     description: "",
+    is_season_ticket: false,
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -122,6 +131,13 @@ export default function SellScreen() {
     return `${dateStr} • ${timeStr}`;
   };
 
+  const updateFormData = (key: keyof FormData, value: string | boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
   const isFormValid = () => {
     return (
       selectedEvent &&
@@ -141,6 +157,7 @@ export default function SellScreen() {
       seat_number: "",
       price: "",
       description: "",
+      is_season_ticket: false,
     });
   };
 
@@ -165,6 +182,7 @@ export default function SellScreen() {
         seat_number: formData.seat_number,
         price: parseFloat(formData.price),
         description: formData.description,
+        is_season_ticket: formData.is_season_ticket,
       });
 
       if (error) {
@@ -356,6 +374,50 @@ export default function SellScreen() {
               )}
             </View>
 
+            {/* Season Ticket Toggle */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Ticket Type</Text>
+              <Text style={styles.sectionSubtitle}>
+                Specify if this is a student season ticket
+              </Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.seasonTicketToggle,
+                  formData.is_season_ticket && styles.seasonTicketToggleActive,
+                ]}
+                onPress={() =>
+                  updateFormData("is_season_ticket", !formData.is_season_ticket)
+                }
+              >
+                <View style={styles.seasonTicketIcon}>
+                  <Ionicons
+                    name="trophy-outline"
+                    size={20}
+                    color={formData.is_season_ticket ? "#18453b" : "#9ca3af"}
+                  />
+                </View>
+                <View style={styles.seasonTicketContent}>
+                  <Text style={styles.seasonTicketTitle}>
+                    Season or Student Ticket
+                  </Text>
+                  <Text style={styles.seasonTicketSubtitle}>
+                    Specify if buyer might need to show student ID
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.checkbox,
+                    formData.is_season_ticket && styles.checkboxChecked,
+                  ]}
+                >
+                  {formData.is_season_ticket && (
+                    <Ionicons name="checkmark" size={16} color="white" />
+                  )}
+                </View>
+              </TouchableOpacity>
+            </View>
+
             {/* Seat Information */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Seat Information</Text>
@@ -378,7 +440,7 @@ export default function SellScreen() {
                       placeholder="Section"
                       value={formData.section}
                       onChangeText={(section) =>
-                        setFormData({ ...formData, section })
+                        updateFormData("section", section)
                       }
                       placeholderTextColor="#9ca3af"
                     />
@@ -399,7 +461,7 @@ export default function SellScreen() {
                       placeholder="Row"
                       value={formData.row_number}
                       onChangeText={(row_number) =>
-                        setFormData({ ...formData, row_number })
+                        updateFormData("row_number", row_number)
                       }
                       placeholderTextColor="#9ca3af"
                     />
@@ -420,7 +482,7 @@ export default function SellScreen() {
                       placeholder="Seat"
                       value={formData.seat_number}
                       onChangeText={(seat_number) =>
-                        setFormData({ ...formData, seat_number })
+                        updateFormData("seat_number", seat_number)
                       }
                       placeholderTextColor="#9ca3af"
                     />
@@ -444,9 +506,7 @@ export default function SellScreen() {
                     style={styles.input}
                     placeholder="0.00"
                     value={formData.price}
-                    onChangeText={(price) =>
-                      setFormData({ ...formData, price })
-                    }
+                    onChangeText={(price) => updateFormData("price", price)}
                     keyboardType="numeric"
                     placeholderTextColor="#9ca3af"
                   />
@@ -469,7 +529,7 @@ export default function SellScreen() {
                     placeholder="Add any additional information about your tickets..."
                     value={formData.description}
                     onChangeText={(description) =>
-                      setFormData({ ...formData, description })
+                      updateFormData("description", description)
                     }
                     multiline
                     numberOfLines={4}
@@ -501,7 +561,11 @@ export default function SellScreen() {
                 ) : (
                   <>
                     <Ionicons name="checkmark-circle" size={20} color="white" />
-                    <Text style={styles.submitButtonText}>List Ticket</Text>
+                    <Text style={styles.submitButtonText}>
+                      {formData.is_season_ticket
+                        ? "List Season Ticket"
+                        : "List Ticket"}
+                    </Text>
                   </>
                 )}
               </LinearGradient>
@@ -780,6 +844,61 @@ const styles = StyleSheet.create({
     color: "#18453b",
     flex: 1,
     marginLeft: 12,
+  },
+  // Season Ticket Toggle Styles
+  seasonTicketToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  seasonTicketToggleActive: {
+    borderColor: "#18453b",
+    backgroundColor: "#f0f9ff",
+  },
+  seasonTicketIcon: {
+    marginRight: 12,
+  },
+  seasonTicketContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  seasonTicketTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#18453b",
+    marginBottom: 4,
+  },
+  seasonTicketSubtitle: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: "#e2e8f0",
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  checkboxChecked: {
+    backgroundColor: "#18453b",
+    borderColor: "#18453b",
   },
   inputGroup: {
     marginBottom: 20,

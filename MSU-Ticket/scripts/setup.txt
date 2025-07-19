@@ -1,3 +1,7 @@
+HOW TO RUN
+node scripts/importEvents.js ./calendar-data/msu msu
+
+
 # Event Import Script Setup Guide
 
 ## 📋 Overview
@@ -332,3 +336,43 @@ CREATE TABLE public.tickets (
   CONSTRAINT tickets_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
   CONSTRAINT tickets_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(id)
 );
+
+archive-expired-conversations
+Active
+
+History
+
+Schedule
+At 02:00 AM
+Last run
+12 Jul 2025 21:00:00 (-0500)succeeded
+Next run
+13 Jul 2025 21:00:00 (-0500)
+Command
+delete-expired-tickets-job
+Active
+
+History
+
+Schedule
+At 02:00 AM
+Last run
+12 Jul 2025 21:00:00 (-0500)succeeded
+Next run
+13 Jul 2025 21:00:00 (-0500)
+Command
+SELECT
+ public.delete_expired_tickets();
+
+delete-old-notifications-job
+Active
+
+History
+
+Schedule
+At 03:00 AM
+Last run
+12 Jul 2025 22:00:00 (-0500)succeeded
+Next run
+13 Jul 2025 22:00:00 (-0500)
+Command

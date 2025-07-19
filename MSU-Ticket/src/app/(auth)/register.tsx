@@ -65,22 +65,7 @@ export default function EnhancedRegisterScreen() {
       if (!result.success || !result.data) {
         console.error("❌ Error loading colleges:", result.error);
 
-        // Fallback to MSU if there's an error
-        setColleges([
-          {
-            id: "temp-msu",
-            created_at: new Date().toISOString(),
-            name: "Michigan State University",
-            short_name: "MSU",
-            email_domain: "msu.edu",
-            logo_url: "",
-            primary_color: "#18453b",
-            secondary_color: "#ffd700",
-            is_active: true,
-          },
-        ]);
-
-        Alert.alert("Error", "Failed to load colleges. Using MSU as default.");
+        // Fallback to MSU if there's an
         return;
       }
 
@@ -88,21 +73,6 @@ export default function EnhancedRegisterScreen() {
       setColleges(result.data);
     } catch (error) {
       console.error("💥 Unexpected error loading colleges:", error);
-
-      // Fallback to MSU if there's an error
-      setColleges([
-        {
-          id: "temp-msu",
-          created_at: new Date().toISOString(),
-          name: "Michigan State University",
-          short_name: "MSU",
-          email_domain: "msu.edu",
-          logo_url: "",
-          primary_color: "#18453b",
-          secondary_color: "#ffd700",
-          is_active: true,
-        },
-      ]);
     } finally {
       setLoadingColleges(false);
     }

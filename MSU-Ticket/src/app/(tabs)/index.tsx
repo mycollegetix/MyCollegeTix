@@ -1,4 +1,4 @@
-// src/app/(tabs)/index.tsx - Complete Updated Browse Screen
+// src/app/(tabs)/index.tsx - Fixed Browse Screen
 import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   View,
   Text,
-  Dimensions,
   ScrollView,
   RefreshControl,
   Alert,
+  ActivityIndicator,
+  Image,
 } from "react-native";
 import { TicketCard } from "@/src/components/TicketCard";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,8 +23,6 @@ import { TicketWithSeller } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 
-const { width, height } = Dimensions.get("window");
-
 const sports = [
   { name: "All Sports", icon: "grid-outline" },
   { name: "Football", icon: "american-football-outline" },
@@ -31,6 +30,8 @@ const sports = [
   { name: "Hockey", icon: "golf-outline" },
   { name: "Soccer", icon: "football-outline" },
   { name: "Volleyball", icon: "tennisball-outline" },
+  { name: "Baseball", icon: "baseball-outline" },
+  { name: "Tennis", icon: "tennisball-outline" },
 ];
 
 const sortOptions = [
@@ -42,13 +43,14 @@ const sortOptions = [
 
 export default function BrowseScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSport, setSelectedSport] = useState("All Sports");
   const [sortBy, setSortBy] = useState<
     "price_asc" | "price_desc" | "event_date" | "created_at"
   >("event_date");
   const [showSortModal, setShowSortModal] = useState(false);
+  const [showSeasonTicketsOnly, setShowSeasonTicketsOnly] = useState(false);
   const [tickets, setTickets] = useState<TicketWithSeller[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -56,42 +58,54 @@ export default function BrowseScreen() {
   const [hasMore, setHasMore] = useState(true);
 
   const loadTickets = async (reset = false) => {
+    if (!user?.id || !profile?.college_id) {
+      console.log("⚠️ User or college not loaded yet, skipping ticket load");
+      return;
+    }
+
     if (loading && !reset) return;
 
     setLoading(true);
     const currentOffset = reset ? 0 : offset;
 
     try {
-      const { data, error } = await TicketService.getTickets({
+      const { data, error } = await TicketService.getTicketsForCollege({
+        collegeId: profile.college_id,
         sport: selectedSport,
         searchQuery: searchQuery.trim() || undefined,
         sortBy,
         limit: 20,
         offset: currentOffset,
-        excludeUserId: user?.id,
+        excludeUserId: user.id,
+        onlySeasonTickets: showSeasonTicketsOnly,
       });
-      if (!user) {
-        console.log("⚠️ User not loaded yet, skipping ticket load");
-        setLoading(false);
-        return;
-      }
 
       if (error) {
         console.error("Error loading tickets:", error);
         Alert.alert("Error", "Failed to load tickets. Please try again.");
         return;
       }
-      // FRONTEND FILTER - Remove tickets from current user
-      const filteredData = data.filter(
-        (ticket) => ticket.seller_id !== user.id
-      );
+
+      // Process tickets with college context
+      const processedData = data.map((ticket) => {
+        // The collegeMatchup and isFromUserCollege are already added by the service
+        return {
+          ...ticket,
+          // These properties are already included by the service, but ensuring they exist
+          collegeMatchup: ticket.collegeMatchup || getCollegeMatchup(ticket),
+          isFromUserCollege:
+            ticket.isFromUserCollege ||
+            ticket.home_college?.id === profile.college_id ||
+            ticket.away_college?.id === profile.college_id,
+        };
+      });
 
       if (reset) {
-        setTickets(data);
-        setOffset(data.length);
+        setTickets(processedData);
+        setOffset(processedData.length);
       } else {
-        setTickets((prev) => [...prev, ...data]);
-        setOffset((prev) => prev + data.length);
+        setTickets((prev) => [...prev, ...processedData]);
+        setOffset((prev) => prev + processedData.length);
       }
 
       setHasMore(data.length === 20);
@@ -104,36 +118,55 @@ export default function BrowseScreen() {
     }
   };
 
+  const getCollegeMatchup = (ticket: TicketWithSeller) => {
+    if (ticket.home_college && ticket.away_college) {
+      return `${ticket.home_college.short_name} vs ${ticket.away_college.short_name}`;
+    }
+    return (
+      ticket.home_college?.short_name || ticket.away_college?.short_name || null
+    );
+  };
+
   // Load tickets on mount and when filters change
   useEffect(() => {
-    if (user?.id) {
-      // Only load when user is authenticated
+    if (user?.id && profile?.college_id) {
       loadTickets(true);
     }
-  }, [selectedSport, sortBy, user?.id]);
+  }, [
+    selectedSport,
+    sortBy,
+    user?.id,
+    profile?.college_id,
+    showSeasonTicketsOnly,
+  ]);
 
   // Search with debounce
   useEffect(() => {
-    if (user?.id) {
-      // Only search when user is authenticated
+    if (user?.id && profile?.college_id) {
       const timeoutId = setTimeout(() => {
         loadTickets(true);
       }, 500);
 
       return () => clearTimeout(timeoutId);
     }
-  }, [searchQuery, user?.id]);
+  }, [searchQuery, user?.id, profile?.college_id]);
 
   const onRefresh = useCallback(() => {
-    if (user?.id) {
-      // Only refresh when user is authenticated
+    if (user?.id && profile?.college_id) {
       setRefreshing(true);
       loadTickets(true);
     }
-  }, [selectedSport, sortBy, searchQuery, user?.id]);
+  }, [
+    selectedSport,
+    sortBy,
+    searchQuery,
+    user?.id,
+    profile?.college_id,
+    showSeasonTicketsOnly,
+  ]);
 
   const loadMore = () => {
-    if (hasMore && !loading) {
+    if (hasMore && !loading && user?.id && profile?.college_id) {
       loadTickets(false);
     }
   };
@@ -220,6 +253,8 @@ export default function BrowseScreen() {
       seat: ticket.seat_number || "N/A",
       location: ticket.location,
       seller: ticket.seller,
+      isSeasonTicket: ticket.is_season_ticket,
+      collegeMatchup: ticket.collegeMatchup,
     };
   };
 
@@ -238,7 +273,7 @@ export default function BrowseScreen() {
 
     return (
       <View style={styles.ticketCardContainer}>
-        <TicketCard
+        <EnhancedTicketCard
           sport={formattedTicket.sport}
           event={formattedTicket.event}
           date={formattedTicket.date}
@@ -247,15 +282,9 @@ export default function BrowseScreen() {
           row={item.row_number || "N/A"}
           seat={item.seat_number || "N/A"}
           onPress={() => handleTicketPress(item)}
+          isSeasonTicket={item.is_season_ticket}
+          collegeMatchup={formattedTicket.collegeMatchup}
         />
-        <View style={styles.sportBadge}>
-          <Ionicons
-            name={getSportIcon(formattedTicket.sport) as any}
-            size={14}
-            color="#18453b"
-          />
-          <Text style={styles.sportBadgeText}>{formattedTicket.sport}</Text>
-        </View>
       </View>
     );
   };
@@ -265,10 +294,29 @@ export default function BrowseScreen() {
 
     return (
       <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#18453b" />
         <Text style={styles.footerLoaderText}>Loading more tickets...</Text>
       </View>
     );
   };
+
+  // Show loading or error state if user/profile not ready
+  if (!user || !profile?.college_id) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+          style={styles.background}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ffd700" />
+          <Text style={styles.loadingText}>
+            Loading your college information...
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -292,7 +340,7 @@ export default function BrowseScreen() {
         <View style={styles.headerSection}>
           <TouchableOpacity
             style={styles.notificationButton}
-            onPress={() => (router.push as any)("../notifications/")}
+            onPress={() => router.push("/notifications" as any)}
           >
             <NotificationBadge
               iconName="notifications-outline"
@@ -308,7 +356,7 @@ export default function BrowseScreen() {
           </View>
           <Text style={styles.headerTitle}>Browse Tickets</Text>
           <Text style={styles.headerSubtitle}>
-            Find the perfect tickets for MSU events
+            Find tickets for {profile.college?.name || "your college"} events
           </Text>
         </View>
 
@@ -344,13 +392,36 @@ export default function BrowseScreen() {
           {/* Filter and Sort Row */}
           <View style={styles.filterRow}>
             <Text style={styles.filterLabel}>Filter by Sport</Text>
-            <TouchableOpacity
-              style={styles.sortButton}
-              onPress={() => setShowSortModal(true)}
-            >
-              <Ionicons name="funnel-outline" size={16} color="#18453b" />
-              <Text style={styles.sortButtonText}>Sort</Text>
-            </TouchableOpacity>
+            <View style={styles.filterButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.seasonFilter,
+                  showSeasonTicketsOnly && styles.seasonFilterActive,
+                ]}
+                onPress={() => setShowSeasonTicketsOnly(!showSeasonTicketsOnly)}
+              >
+                <Ionicons
+                  name="ticket"
+                  size={16}
+                  color={showSeasonTicketsOnly ? "white" : "#18453b"}
+                />
+                <Text
+                  style={[
+                    styles.seasonFilterText,
+                    showSeasonTicketsOnly && styles.seasonFilterTextActive,
+                  ]}
+                >
+                  Season Only
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.sortButton}
+                onPress={() => setShowSortModal(true)}
+              >
+                <Ionicons name="funnel-outline" size={16} color="#18453b" />
+                <Text style={styles.sortButtonText}>Sort</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Sport Filters */}
@@ -414,6 +485,7 @@ export default function BrowseScreen() {
                     onPress={() => {
                       setSearchQuery("");
                       setSelectedSport("All Sports");
+                      setShowSeasonTicketsOnly(false);
                     }}
                   >
                     <Text style={styles.clearFiltersText}>Clear Filters</Text>
@@ -468,6 +540,75 @@ export default function BrowseScreen() {
     </View>
   );
 }
+
+// Enhanced TicketCard component that includes season ticket and college info
+const EnhancedTicketCard = ({
+  sport,
+  event,
+  date,
+  price,
+  section,
+  row,
+  seat,
+  onPress,
+  isSeasonTicket,
+  collegeMatchup,
+}: {
+  sport: string;
+  event: string;
+  date: string;
+  price: number;
+  section: string;
+  row: string;
+  seat: string;
+  onPress?: () => void;
+  isSeasonTicket?: boolean;
+  collegeMatchup?: string | null;
+}) => {
+  return (
+    <TouchableOpacity
+      style={styles.enhancedTicketCard}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      {/* Header with badges */}
+      <View style={styles.ticketHeader}>
+        <View style={styles.leftBadges}>
+          <View style={styles.sportBadge}>
+            <Text style={styles.sportBadgeText}>{sport}</Text>
+          </View>
+          {isSeasonTicket && (
+            <View style={styles.seasonBadge}>
+              <Text style={styles.seasonBadgeText}>SEASON</Text>
+            </View>
+          )}
+        </View>
+        {collegeMatchup && (
+          <View style={styles.collegeBadge}>
+            <Ionicons name="shield-outline" size={12} color="#18453b" />
+            <Text style={styles.collegeBadgeText}>{collegeMatchup}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Content */}
+      <View style={styles.ticketContent}>
+        <Text style={styles.eventText} numberOfLines={2}>
+          {event}
+        </Text>
+        <Text style={styles.dateText}>{date}</Text>
+        <View style={styles.detailsRow}>
+          <Text style={styles.locationText}>
+            Section {section} • Row {row} • Seat {seat}
+          </Text>
+          <View style={styles.priceContainer}>
+            <Text style={styles.priceText}>${price.toFixed(2)}</Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -552,6 +693,16 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     elevation: 5,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "white",
+    fontSize: 16,
+    marginTop: 16,
+  },
   searchSection: {
     backgroundColor: "white",
     borderTopLeftRadius: 24,
@@ -594,6 +745,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#18453b",
+  },
+  filterButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  seasonFilter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  seasonFilterActive: {
+    backgroundColor: "#18453b",
+    borderColor: "#18453b",
+  },
+  seasonFilterText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#18453b",
+  },
+  seasonFilterTextActive: {
+    color: "white",
   },
   sortButton: {
     flexDirection: "row",
@@ -675,30 +853,110 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   ticketCardContainer: {
-    position: "relative",
     marginBottom: 16,
   },
-  sportBadge: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+  // Enhanced Ticket Card Styles
+  enhancedTicketCard: {
+    backgroundColor: "white",
+    borderRadius: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    overflow: "hidden",
+  },
+  ticketHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    padding: 16,
+    paddingBottom: 8,
+  },
+  leftBadges: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  sportBadge: {
+    backgroundColor: "#18453b",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   sportBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  seasonBadge: {
+    backgroundColor: "#f59e0b",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  seasonBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  collegeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#f0f9ff",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  collegeBadgeText: {
     fontSize: 12,
     fontWeight: "600",
     color: "#18453b",
+  },
+  ticketContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  eventText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 6,
+    lineHeight: 24,
+  },
+  dateText: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 12,
+    fontWeight: "500",
+  },
+  detailsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  locationText: {
+    fontSize: 14,
+    color: "#6b7280",
+    flex: 1,
+    marginRight: 12,
+  },
+  priceContainer: {
+    backgroundColor: "#18453b",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  priceText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "700",
   },
   emptyState: {
     alignItems: "center",
@@ -745,6 +1003,9 @@ const styles = StyleSheet.create({
   footerLoader: {
     padding: 20,
     alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
   },
   footerLoaderText: {
     fontSize: 14,

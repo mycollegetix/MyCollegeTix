@@ -337,6 +337,16 @@ export default function TicketDetailsScreen() {
             </View>
           </View>
 
+          {/* Is Season Ticket */}
+          {ticket.is_season_ticket && (
+            <View style={styles.seasonTicketSection}>
+              <Text style={styles.sectionTitle}>Season Ticket</Text>
+              <Text style={styles.seasonTicketText}>
+                This is a season ticket. Additional details may apply.
+              </Text>
+            </View>
+          )}
+
           {/* Description */}
           <View style={styles.descriptionSection}>
             <Text style={styles.sectionTitle}>Description</Text>
@@ -624,11 +634,19 @@ const styles = StyleSheet.create({
   descriptionSection: {
     marginBottom: 32,
   },
+  seasonTicketSection: {
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#18453b",
     marginBottom: 12,
+  },
+  seasonTicketText: {
+    fontSize: 15,
+    color: "#4b5563",
+    lineHeight: 22,
   },
   descriptionText: {
     fontSize: 15,

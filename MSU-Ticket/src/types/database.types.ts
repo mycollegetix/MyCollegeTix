@@ -1,4 +1,4 @@
-// src/types/database.types.ts - Fixed with college support added
+// src/types/database.types.ts - Final Fixed Version
 export type Json =
   | string
   | number
@@ -10,8 +10,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      // Add this to your existing database.types.ts file in the Tables interface
-
       watchlists: {
         Row: {
           id: string;
@@ -67,7 +65,9 @@ export type Database = {
           name: string;
           short_name: string;
           email_domain: string;
-          logo_url: string | "";
+          logo_url: string | null;
+          website_url: string | null;
+          support_email: string | null;
           primary_color: string;
           secondary_color: string;
           is_active: boolean;
@@ -78,7 +78,9 @@ export type Database = {
           name: string;
           short_name: string;
           email_domain: string;
-          logo_url?: string | "";
+          logo_url?: string | null;
+          website_url?: string | null;
+          support_email?: string | null;
           primary_color?: string;
           secondary_color?: string;
           is_active?: boolean;
@@ -89,7 +91,9 @@ export type Database = {
           name?: string;
           short_name?: string;
           email_domain?: string;
-          logo_url?: string | "";
+          logo_url?: string | null;
+          website_url?: string | null;
+          support_email?: string | null;
           primary_color?: string;
           secondary_color?: string;
           is_active?: boolean;
@@ -180,7 +184,9 @@ export type Database = {
           title: string;
           updated_at: string;
           venue: string | null;
-          college_id: string | null; // Added college support
+          college_id: string | null;
+          home_college_id: string | null;
+          away_college_id: string | null;
         };
         Insert: {
           away_team?: string | null;
@@ -198,7 +204,7 @@ export type Database = {
           source?: string;
           source_file?: string | null;
           sport?: string | null;
-          status:
+          status?:
             | "scraped"
             | "available"
             | "inactive"
@@ -207,7 +213,9 @@ export type Database = {
           title: string;
           updated_at?: string;
           venue?: string | null;
-          college_id?: string | null; // Added college support
+          college_id?: string | null;
+          home_college_id?: string | null;
+          away_college_id?: string | null;
         };
         Update: {
           away_team?: string | null;
@@ -225,7 +233,7 @@ export type Database = {
           source?: string;
           source_file?: string | null;
           sport?: string | null;
-          status:
+          status?:
             | "scraped"
             | "available"
             | "inactive"
@@ -234,12 +242,28 @@ export type Database = {
           title?: string;
           updated_at?: string;
           venue?: string | null;
-          college_id?: string | null; // Added college support
+          college_id?: string | null;
+          home_college_id?: string | null;
+          away_college_id?: string | null;
         };
         Relationships: [
           {
             foreignKeyName: "events_college_id_fkey";
             columns: ["college_id"];
+            isOneToOne: false;
+            referencedRelation: "colleges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_home_college_id_fkey";
+            columns: ["home_college_id"];
+            isOneToOne: false;
+            referencedRelation: "colleges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_away_college_id_fkey";
+            columns: ["away_college_id"];
             isOneToOne: false;
             referencedRelation: "colleges";
             referencedColumns: ["id"];
@@ -428,7 +452,7 @@ export type Database = {
           id: string;
           username: string;
           is_admin: boolean;
-          college_id: string | null; // Added college support
+          college_id: string | null;
         };
         Insert: {
           avatar_url?: string | null;
@@ -438,7 +462,7 @@ export type Database = {
           id: string;
           username: string;
           is_admin?: boolean;
-          college_id?: string | null; // Added college support
+          college_id?: string | null;
         };
         Update: {
           avatar_url?: string | null;
@@ -448,7 +472,7 @@ export type Database = {
           id?: string;
           username?: string;
           is_admin?: boolean;
-          college_id?: string | null; // Added college support
+          college_id?: string | null;
         };
         Relationships: [
           {
@@ -499,6 +523,9 @@ export type Database = {
           sport: string | null;
           status: string;
           title: string;
+          is_season_ticket: boolean;
+          home_college_id: string | null;
+          away_college_id: string | null;
         };
         Insert: {
           buyer_id?: string | null;
@@ -517,6 +544,9 @@ export type Database = {
           sport?: string | null;
           status?: string;
           title: string;
+          is_season_ticket?: boolean;
+          home_college_id?: string | null;
+          away_college_id?: string | null;
         };
         Update: {
           buyer_id?: string | null;
@@ -535,6 +565,9 @@ export type Database = {
           sport?: string | null;
           status?: string;
           title?: string;
+          is_season_ticket?: boolean;
+          home_college_id?: string | null;
+          away_college_id?: string | null;
         };
         Relationships: [
           {
@@ -557,6 +590,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tickets_home_college_id_fkey";
+            columns: ["home_college_id"];
+            isOneToOne: false;
+            referencedRelation: "colleges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tickets_away_college_id_fkey";
+            columns: ["away_college_id"];
+            isOneToOne: false;
+            referencedRelation: "colleges";
+            referencedColumns: ["id"];
           }
         ];
       };
@@ -565,7 +612,6 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      // Existing functions
       delete_expired_tickets: {
         Args: Record<PropertyKey, never>;
         Returns: undefined;
@@ -581,7 +627,7 @@ export type Database = {
       purchase_ticket: {
         Args: {
           p_ticket_id: string;
-          p_buyer_id?: string; // Optional since it has a default
+          p_buyer_id?: string;
         };
         Returns: {
           success: boolean;
@@ -617,8 +663,10 @@ export type Database = {
         };
         Returns: string;
       };
-
-      // New admin functions
+      get_college_by_team_name: {
+        Args: { team_name: string };
+        Returns: string;
+      };
       admin_toggle_college_status: {
         Args: {
           college_id: string;
@@ -660,7 +708,6 @@ export type Database = {
         Returns: Json;
       };
     };
-
     Enums: {
       [_ in never]: never;
     };
@@ -670,57 +717,8 @@ export type Database = {
   };
 };
 
-// Extended types for specific functionality (keeping your existing ones)
-export type ConversationWithParticipants =
-  Database["public"]["Tables"]["conversations"]["Row"] & {
-    participant_1: Database["public"]["Tables"]["profiles"]["Row"];
-    participant_2: Database["public"]["Tables"]["profiles"]["Row"];
-    last_message?: Database["public"]["Tables"]["messages"]["Row"];
-    unread_count?: number;
-  };
-
-export type MessageWithSender =
-  Database["public"]["Tables"]["messages"]["Row"] & {
-    sender: Database["public"]["Tables"]["profiles"]["Row"];
-  };
-
-export type ConversationWithDetails =
-  Database["public"]["Tables"]["conversations"]["Row"] & {
-    participant_1: Database["public"]["Tables"]["profiles"]["Row"];
-    participant_2: Database["public"]["Tables"]["profiles"]["Row"];
-    last_message?: Database["public"]["Tables"]["messages"]["Row"];
-    ticket?: Database["public"]["Tables"]["tickets"]["Row"];
-    unread_count: number;
-    is_expired?: boolean; // ✅ ADDED: Expired status flag
-  };
-
-export type TicketWithSeller = Tables<"tickets"> & {
-  seller: Tables<"profiles">;
-  event?: Tables<"events">;
-};
-
-export type TicketWithEvent = Tables<"tickets"> & {
-  event: Tables<"events">;
-};
-
-// Event type from database
-export type Event = Database["public"]["Tables"]["events"]["Row"];
-
-// NEW: College types
-export type College = Database["public"]["Tables"]["colleges"]["Row"];
-
-export type ProfileWithCollege =
-  Database["public"]["Tables"]["profiles"]["Row"] & {
-    colleges?: College | null;
-  };
-
-export type EventWithCollege = Database["public"]["Tables"]["events"]["Row"] & {
-  colleges?: College | null;
-};
-
-// Helper type for database operations
+// Helper types
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
-
 type DefaultSchema = DatabaseWithoutInternals[Extract<
   keyof Database,
   "public"
@@ -804,3 +802,67 @@ export type TablesUpdate<
     ? U
     : never
   : never;
+
+// Base types
+export type Event = Tables<"events">;
+export type Ticket = Tables<"tickets">;
+export type Profile = Tables<"profiles">;
+export type College = Tables<"colleges">;
+
+// Extended types with proper relationships
+export type ProfileWithCollege = Profile & {
+  college?: College | null;
+};
+
+export type EventWithColleges = Event & {
+  home_college?: College | null;
+  away_college?: College | null;
+};
+
+export type TicketWithSeller = Ticket & {
+  seller: Profile & {
+    college?: College | null;
+  };
+  event?: Event | null;
+  home_college?: College | null;
+  away_college?: College | null;
+  // Add computed properties for frontend
+  collegeMatchup?: string | null;
+  isFromUserCollege?: boolean;
+};
+
+export type TicketWithEvent = Ticket & {
+  event: Event;
+  home_college?: College | null;
+  away_college?: College | null;
+};
+
+export type TicketWithDetails = Ticket & {
+  seller: Profile & {
+    college?: College | null;
+  };
+  event?: Event | null;
+  home_college?: College | null;
+  away_college?: College | null;
+};
+
+// Legacy type compatibility
+export type ConversationWithParticipants = Tables<"conversations"> & {
+  participant_1: Profile;
+  participant_2: Profile;
+  last_message?: Tables<"messages"> | null;
+  unread_count?: number;
+};
+
+export type MessageWithSender = Tables<"messages"> & {
+  sender: Profile;
+};
+
+export type ConversationWithDetails = Tables<"conversations"> & {
+  participant_1: Profile;
+  participant_2: Profile;
+  last_message?: Tables<"messages"> | null;
+  ticket?: Ticket | null;
+  unread_count: number;
+  is_expired?: boolean;
+};
