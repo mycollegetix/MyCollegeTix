@@ -24,7 +24,7 @@ export class EventService {
       // Filter by college if specified (multi-tenant support)
       if (collegeId) {
         query = query.or(
-          `home_college_id.eq.${collegeId},away_college_id.eq.${collegeId}`
+          `home_college_id.eq.${collegeId},away_college_id.eq.${collegeId},college_id.eq${collegeId}`
         );
       }
 
@@ -95,7 +95,7 @@ export class EventService {
         } else if (onlyAwayGames) {
           query = query.eq("away_college_id", collegeId);
         } else {
-          // Show events where user's college is involved (home or away)
+          // Show events where user's college is involved (home or away) OR events with no college affiliation
           query = query.or(
             `home_college_id.eq.${collegeId},away_college_id.eq.${collegeId}`
           );

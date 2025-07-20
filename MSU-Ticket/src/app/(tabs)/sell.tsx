@@ -24,6 +24,7 @@ import { TicketService } from "@/src/services/ticketService";
 import { EventService } from "@/src/services/eventService";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 import { Event } from "@/src/types/database.types";
+import { useAuth } from "@/src/providers/AuthProvider";
 import { useNotifications } from "@/src/providers/NotificationProvider";
 
 const { width, height } = Dimensions.get("window");
@@ -72,6 +73,7 @@ export default function SellScreen() {
 
   const [isLoading, setIsLoading] = useState(false);
 
+  const { profile } = useAuth();
   const { refreshNotifications } = useNotifications();
 
   // Load available events when sport changes
@@ -82,9 +84,10 @@ export default function SellScreen() {
   const loadAvailableEvents = async () => {
     setLoadingEvents(true);
     try {
-      const { data, error } = await EventService.getAvailableEvents({
+      const { data, error } = await EventService.getEventsForCollege({
         sport: selectedSport !== "All Sports" ? selectedSport : undefined,
         limit: 100,
+        collegeId: profile?.college_id ?? undefined,
       });
 
       if (error) {
@@ -100,6 +103,11 @@ export default function SellScreen() {
     } finally {
       setLoadingEvents(false);
     }
+  };
+
+  const handleOpenEventModal = async () => {
+    await loadAvailableEvents();
+    setShowEventModal(true);
   };
 
   const handleEventSelect = (event: Event) => {
@@ -365,7 +373,7 @@ export default function SellScreen() {
               ) : (
                 <TouchableOpacity
                   style={styles.selectEventButton}
-                  onPress={() => setShowEventModal(true)}
+                  onPress={handleOpenEventModal}
                 >
                   <Ionicons name="calendar-outline" size={20} color="#18453b" />
                   <Text style={styles.selectEventText}>Select an Event</Text>
