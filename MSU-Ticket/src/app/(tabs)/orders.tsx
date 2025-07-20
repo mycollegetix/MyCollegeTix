@@ -1,4 +1,4 @@
-// src/app/(tabs)/orders.tsx - Brand New Orders Tab
+// src/app/(tabs)/orders.tsx - Brand New Orders Tab with College Theme
 import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
@@ -16,6 +16,7 @@ import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { TicketService } from "@/src/services/ticketService";
+import { useTheme } from "@/src/providers/ThemeProvider";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 import WatchlistSection from "@/src/components/WatchlistSection";
 import { supabase } from "@/src/lib/supabase";
@@ -47,6 +48,7 @@ interface OrderItem {
 
 export default function OrdersScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<OrderType>("buying");
   const [purchases, setPurchases] = useState<OrderItem[]>([]);
@@ -153,8 +155,6 @@ export default function OrdersScreen() {
     }
   };
 
-  // Replace the loadUserListings function in your orders.tsx with this:
-
   const loadUserListings = async (): Promise<OrderItem[]> => {
     try {
       // Direct Supabase query instead of using TicketService
@@ -214,7 +214,7 @@ export default function OrdersScreen() {
     switch (status.toLowerCase()) {
       case "sold":
         return {
-          color: "#10b981",
+          color: theme.primary,
           icon: "checkmark-circle-outline",
           text: "Sold",
         };
@@ -232,13 +232,13 @@ export default function OrdersScreen() {
         };
       case "completed":
         return {
-          color: "#10b981",
+          color: theme.primary,
           icon: "checkmark-circle-outline",
           text: "Completed",
         };
       case "pending":
         return {
-          color: "#f59e0b",
+          color: theme.secondary,
           icon: "time-outline",
           text: "Pending",
         };
@@ -347,7 +347,9 @@ export default function OrdersScreen() {
 
           {/* Price */}
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>${item.price.toFixed(2)}</Text>
+            <Text style={[styles.price, { color: theme.primary }]}>
+              ${item.price.toFixed(2)}
+            </Text>
             <Text style={styles.dateText}>
               {new Date(item.created_at).toLocaleDateString()}
             </Text>
@@ -375,13 +377,23 @@ export default function OrdersScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+        colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
         style={styles.background}
       />
 
       {/* Floating elements */}
-      <View style={styles.floatingElement1} />
-      <View style={styles.floatingElement2} />
+      <View
+        style={[
+          styles.floatingElement1,
+          { backgroundColor: `${theme.secondary}10` },
+        ]}
+      />
+      <View
+        style={[
+          styles.floatingElement2,
+          { backgroundColor: "rgba(255, 255, 255, 0.05)" },
+        ]}
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -393,8 +405,15 @@ export default function OrdersScreen() {
         {/* Header Section */}
         <View style={styles.headerSection}>
           <View style={styles.logoContainer}>
-            <LinearGradient colors={["#ffd700", "#ffed4a"]} style={styles.logo}>
-              <Ionicons name="receipt-outline" size={32} color="#18453b" />
+            <LinearGradient
+              colors={[theme.secondary, `${theme.secondary}DD`]}
+              style={styles.logo}
+            >
+              <Ionicons
+                name="receipt-outline"
+                size={32}
+                color={theme.primary}
+              />
             </LinearGradient>
           </View>
           <Text style={styles.headerTitle}>My Orders</Text>
@@ -408,7 +427,7 @@ export default function OrdersScreen() {
             <NotificationBadge
               iconName="notifications-outline"
               iconSize={24}
-              iconColor="#ffd700"
+              iconColor={theme.secondary}
             />
           </TouchableOpacity>
         </View>
@@ -417,22 +436,30 @@ export default function OrdersScreen() {
         <View style={styles.statsSection}>
           <View style={styles.statsCard}>
             <View style={styles.statItem}>
-              <Ionicons name="bag-outline" size={24} color="#18453b" />
+              <Ionicons name="bag-outline" size={24} color={theme.primary} />
               <View style={styles.statContent}>
-                <Text style={styles.statNumber}>{buyingStats.count}</Text>
+                <Text style={[styles.statNumber, { color: theme.primary }]}>
+                  {buyingStats.count}
+                </Text>
                 <Text style={styles.statLabel}>Purchases</Text>
-                <Text style={styles.statValue}>
+                <Text style={[styles.statValue, { color: theme.primary }]}>
                   ${buyingStats.total.toFixed(2)}
                 </Text>
               </View>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Ionicons name="storefront-outline" size={24} color="#18453b" />
+              <Ionicons
+                name="storefront-outline"
+                size={24}
+                color={theme.primary}
+              />
               <View style={styles.statContent}>
-                <Text style={styles.statNumber}>{sellingStats.count}</Text>
+                <Text style={[styles.statNumber, { color: theme.primary }]}>
+                  {sellingStats.count}
+                </Text>
                 <Text style={styles.statLabel}>Listings</Text>
-                <Text style={styles.statValue}>
+                <Text style={[styles.statValue, { color: theme.primary }]}>
                   ${sellingStats.total.toFixed(2)}
                 </Text>
               </View>
@@ -444,7 +471,10 @@ export default function OrdersScreen() {
         <View style={styles.tabSection}>
           <View style={styles.tabContainer}>
             <TouchableOpacity
-              style={[styles.tab, activeTab === "buying" && styles.activeTab]}
+              style={[
+                styles.tab,
+                activeTab === "buying" && { backgroundColor: theme.primary },
+              ]}
               onPress={() => setActiveTab("buying")}
             >
               <Ionicons
@@ -463,7 +493,10 @@ export default function OrdersScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.tab, activeTab === "selling" && styles.activeTab]}
+              style={[
+                styles.tab,
+                activeTab === "selling" && { backgroundColor: theme.primary },
+              ]}
               onPress={() => setActiveTab("selling")}
             >
               <Ionicons
@@ -484,7 +517,7 @@ export default function OrdersScreen() {
             <TouchableOpacity
               style={[
                 styles.tab,
-                activeTab === "watchlist" && styles.activeTab,
+                activeTab === "watchlist" && { backgroundColor: theme.primary },
               ]}
               onPress={() => setActiveTab("watchlist")}
             >
@@ -546,7 +579,10 @@ export default function OrdersScreen() {
                       : "Create your first ticket listing to start selling"}
                   </Text>
                   <TouchableOpacity
-                    style={styles.emptyStateButton}
+                    style={[
+                      styles.emptyStateButton,
+                      { backgroundColor: theme.primary },
+                    ]}
                     onPress={() =>
                       router.push(
                         activeTab === "buying" ? "/(tabs)" : "/(tabs)/sell"
@@ -586,7 +622,6 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: "rgba(255, 215, 0, 0.1)",
     top: 100,
     right: -50,
   },
@@ -595,7 +630,6 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
     bottom: 200,
     left: -30,
   },
@@ -675,7 +709,6 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#18453b",
   },
   statLabel: {
     fontSize: 14,
@@ -684,7 +717,6 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 12,
-    color: "#10b981",
     fontWeight: "600",
   },
   statDivider: {
@@ -717,9 +749,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 8,
-  },
-  activeTab: {
-    backgroundColor: "#18453b",
   },
   tabText: {
     fontSize: 14,
@@ -790,7 +819,6 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#18453b",
   },
   dateText: {
     fontSize: 12,
@@ -864,7 +892,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   emptyStateButton: {
-    backgroundColor: "#18453b",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,

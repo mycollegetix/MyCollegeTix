@@ -1,4 +1,4 @@
-// src/app/(tabs)/chat/index.tsx - UPDATED with Expired Sections
+// src/app/(tabs)/chat/index.tsx - FIXED with proper theme usage and no linear gradients
 import React, { useEffect, useMemo } from "react";
 import {
   StyleSheet,
@@ -12,15 +12,13 @@ import {
   SectionList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
+import { useTheme } from "@/src/providers/ThemeProvider";
 import { useChat } from "@/src/providers/ChatProvider";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ConversationWithDetails } from "@/src/types/database.types";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
-
-const { width, height } = Dimensions.get("window");
 
 interface ConversationSection {
   title: string;
@@ -29,6 +27,7 @@ interface ConversationSection {
 }
 
 export default function ChatListScreen() {
+  const theme = useTheme();
   const router = useRouter();
   const { user } = useAuth();
   const {
@@ -100,9 +99,7 @@ export default function ChatListScreen() {
     return date.toLocaleDateString();
   };
 
-  const handleConversationPress = (
-    conversation: ConversationWithDetails
-  ) => {
+  const handleConversationPress = (conversation: ConversationWithDetails) => {
     setCurrentConversation(conversation);
     (router.push as any)(`/(tabs)/chat/${conversation.id}`);
   };
@@ -117,7 +114,7 @@ export default function ChatListScreen() {
         <Ionicons
           name={section.key === "active" ? "chatbubbles" : "time-outline"}
           size={16}
-          color={section.key === "active" ? "#18453b" : "#94a3b8"}
+          color={section.key === "active" ? theme.primary : "#94a3b8"}
         />
         <Text
           style={[
@@ -130,6 +127,10 @@ export default function ChatListScreen() {
         <View
           style={[
             styles.sectionCount,
+            {
+              backgroundColor:
+                section.key === "active" ? theme.primary : "#94a3b8",
+            },
             section.key === "expired" && styles.expiredSectionCount,
           ]}
         >
@@ -156,7 +157,11 @@ export default function ChatListScreen() {
       <TouchableOpacity
         style={[
           styles.conversationCard,
-          hasUnread && !isExpired && styles.unreadConversation,
+          hasUnread &&
+            !isExpired && [
+              styles.unreadConversation,
+              { borderColor: theme.primary },
+            ],
           isExpired && styles.expiredConversation,
         ]}
         onPress={() => handleConversationPress(item)}
@@ -164,7 +169,12 @@ export default function ChatListScreen() {
         <View style={styles.conversationContent}>
           {/* Avatar */}
           <View style={styles.avatarContainer}>
-            <View style={[styles.avatar, isExpired && styles.expiredAvatar]}>
+            <View
+              style={[
+                styles.avatar,
+                { backgroundColor: isExpired ? "#94a3b8" : theme.primary },
+              ]}
+            >
               <Text
                 style={[
                   styles.avatarText,
@@ -230,11 +240,14 @@ export default function ChatListScreen() {
                 <Ionicons
                   name="ticket-outline"
                   size={12}
-                  color={isExpired ? "#94a3b8" : "#18453b"}
+                  color={isExpired ? "#94a3b8" : theme.primary}
                 />
                 <Text
                   style={[
-                    styles.ticketText,
+                    [
+                      styles.ticketText,
+                      { color: isExpired ? "#94a3b8" : theme.primary },
+                    ],
                     isExpired && styles.expiredTicketText,
                   ]}
                   numberOfLines={1}
@@ -257,21 +270,20 @@ export default function ChatListScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.primary }]}>
       <StatusBar barStyle="light-content" />
 
-      <LinearGradient
-        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
-        style={styles.background}
-      />
+      <View style={[styles.background, { backgroundColor: theme.primary }]} />
 
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <View style={styles.logoContainer}>
-            <LinearGradient colors={["#ffd700", "#ffed4a"]} style={styles.logo}>
-              <Ionicons name="chatbubbles" size={20} color="#18453b" />
-            </LinearGradient>
+          <View
+            style={[styles.logoContainer, { backgroundColor: theme.secondary }]}
+          >
+            <View style={styles.logo}>
+              <Ionicons name="chatbubbles" size={20} color={theme.primary} />
+            </View>
           </View>
           <Text style={styles.headerTitle}>Messages</Text>
         </View>
@@ -283,7 +295,7 @@ export default function ChatListScreen() {
           <NotificationBadge
             iconName="notifications-outline"
             iconSize={24}
-            iconColor="#ffd700"
+            iconColor={theme.secondary}
           />
         </TouchableOpacity>
       </View>
@@ -291,13 +303,24 @@ export default function ChatListScreen() {
       {/* Stats */}
       <View style={styles.statsContainer}>
         <BlurView intensity={30} style={styles.statsCard}>
-          <LinearGradient
-            colors={["rgba(255,255,255,0.1)", "rgba(255,255,255,0.05)"]}
-            style={styles.statsGradient}
+          <View
+            style={[
+              styles.statsGradient,
+              { backgroundColor: `${theme.primary}20` },
+            ]}
           >
             <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <Ionicons name="chatbubbles" size={20} color="#18453b" />
+              <View
+                style={[
+                  styles.statIconContainer,
+                  { backgroundColor: `${theme.secondary}20` },
+                ]}
+              >
+                <Ionicons
+                  name="chatbubbles"
+                  size={20}
+                  color={theme.secondary}
+                />
               </View>
               <Text style={styles.statNumber}>
                 {conversationSections.find((s) => s.key === "active")?.data
@@ -309,7 +332,12 @@ export default function ChatListScreen() {
             <View style={styles.statDivider} />
 
             <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
+              <View
+                style={[
+                  styles.statIconContainer,
+                  { backgroundColor: "rgba(239, 68, 68, 0.2)" },
+                ]}
+              >
                 <Ionicons name="mail-unread" size={20} color="#ef4444" />
               </View>
               <Text style={[styles.statNumber, { color: "#ef4444" }]}>
@@ -323,7 +351,12 @@ export default function ChatListScreen() {
             <View style={styles.statDivider} />
 
             <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
+              <View
+                style={[
+                  styles.statIconContainer,
+                  { backgroundColor: "rgba(148, 163, 184, 0.2)" },
+                ]}
+              >
                 <Ionicons name="time-outline" size={20} color="#94a3b8" />
               </View>
               <Text style={[styles.statNumber, { color: "#94a3b8" }]}>
@@ -332,7 +365,7 @@ export default function ChatListScreen() {
               </Text>
               <Text style={styles.statLabel}>Expired</Text>
             </View>
-          </LinearGradient>
+          </View>
         </BlurView>
       </View>
 
@@ -353,8 +386,8 @@ export default function ChatListScreen() {
               <RefreshControl
                 refreshing={loading}
                 onRefresh={loadConversations}
-                tintColor="#18453b"
-                colors={["#18453b"]}
+                tintColor={theme.primary}
+                colors={[theme.primary]}
               />
             }
             contentContainerStyle={styles.listContent}
@@ -363,12 +396,14 @@ export default function ChatListScreen() {
         ) : (
           <BlurView intensity={20} style={styles.emptyState}>
             <View style={styles.emptyIconContainer}>
-              <LinearGradient
-                colors={["#18453b", "#2d7a6b"]}
-                style={styles.emptyIconGradient}
+              <View
+                style={[
+                  styles.emptyIconGradient,
+                  { backgroundColor: theme.primary },
+                ]}
               >
                 <Ionicons name="chatbubbles-outline" size={32} color="white" />
-              </LinearGradient>
+              </View>
             </View>
             <Text style={styles.emptyStateTitle}>No conversations yet</Text>
             <Text style={styles.emptyStateText}>
@@ -378,13 +413,15 @@ export default function ChatListScreen() {
               style={styles.browseButton}
               onPress={() => (router.push as any)("/(tabs)/")}
             >
-              <LinearGradient
-                colors={["#18453b", "#2a6b5a"]}
-                style={styles.browseButtonGradient}
+              <View
+                style={[
+                  styles.browseButtonGradient,
+                  { backgroundColor: theme.primary },
+                ]}
               >
                 <Ionicons name="search-outline" size={16} color="white" />
                 <Text style={styles.browseButtonText}>Browse Tickets</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </BlurView>
         )}
@@ -418,6 +455,12 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginRight: 12,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   logo: {
     width: 40,
@@ -425,11 +468,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#ffd700",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   headerTitle: {
     fontSize: 24,
@@ -469,7 +507,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -499,7 +536,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  // ✅ NEW: Section header styles
+  // ✅ Section header styles
   sectionHeader: {
     paddingVertical: 12,
     paddingHorizontal: 4,
@@ -520,7 +557,6 @@ const styles = StyleSheet.create({
     color: "#64748b",
   },
   sectionCount: {
-    backgroundColor: "#18453b",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -554,12 +590,10 @@ const styles = StyleSheet.create({
     borderColor: "#f1f5f9",
   },
   unreadConversation: {
-    borderColor: "#18453b",
     backgroundColor: "#fefffe",
-    shadowColor: "#18453b",
     shadowOpacity: 0.1,
   },
-  // ✅ NEW: Expired conversation styles
+  // ✅ Expired conversation styles
   expiredConversation: {
     backgroundColor: "#f8fafc",
     borderColor: "#e2e8f0",
@@ -578,12 +612,8 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#18453b",
     alignItems: "center",
     justifyContent: "center",
-  },
-  expiredAvatar: {
-    backgroundColor: "#94a3b8",
   },
   avatarText: {
     fontSize: 18,
@@ -604,7 +634,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "white",
   },
-  // ✅ NEW: Expired indicator
+  // ✅ Expired indicator
   expiredIndicator: {
     position: "absolute",
     top: -2,
@@ -637,7 +667,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#0f172a",
   },
-  // ✅ NEW: Expired text styles
+  // ✅ Expired text styles
   expiredText: {
     color: "#64748b",
     fontWeight: "500",
@@ -682,13 +712,11 @@ const styles = StyleSheet.create({
   },
   ticketText: {
     fontSize: 12,
-    color: "#18453b",
     fontWeight: "500",
     flex: 1,
   },
-  // ✅ NEW: Expired ticket text
+  // ✅ Expired ticket text
   expiredTicketText: {
-    color: "#94a3b8",
     fontStyle: "italic",
   },
   loadingState: {

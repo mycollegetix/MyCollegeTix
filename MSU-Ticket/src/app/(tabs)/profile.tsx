@@ -12,8 +12,7 @@ import {
   Text,
 } from "react-native";
 import { UserAvatar } from "@/src/components/UserAvatar";
-import Colors from "@/src/constants/Colors";
-import { useColorScheme } from "@/src/components/useColorScheme";
+import { useTheme } from "@/src/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
@@ -27,8 +26,7 @@ const { width, height } = Dimensions.get("window");
 export default function ProfileScreen() {
   const { signOut, profile, user } = useAuth();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const theme = useTheme();
 
   const [activeSection, setActiveSection] = useState<"profile" | "settings">(
     "profile"
@@ -156,11 +154,18 @@ export default function ProfileScreen() {
     value: string;
   }) => (
     <View style={styles.infoCard}>
-      <View style={styles.infoIconContainer}>
-        <Ionicons name={icon as any} size={20} color="#18453b" />
+      <View
+        style={[
+          styles.infoIconContainer,
+          { backgroundColor: `${theme.primary}15` },
+        ]}
+      >
+        <Ionicons name={icon as any} size={20} color={theme.primary} />
       </View>
       <View style={styles.infoContent}>
-        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={[styles.infoLabel, { color: theme.primary }]}>
+          {label}
+        </Text>
         <Text style={styles.infoValue}>{value}</Text>
       </View>
     </View>
@@ -169,13 +174,23 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+        colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
         style={styles.background}
       />
 
       {/* Floating elements */}
-      <View style={styles.floatingElement1} />
-      <View style={styles.floatingElement2} />
+      <View
+        style={[
+          styles.floatingElement1,
+          { backgroundColor: `${theme.secondary}08` },
+        ]}
+      />
+      <View
+        style={[
+          styles.floatingElement2,
+          { backgroundColor: "rgba(255, 255, 255, 0.05)" },
+        ]}
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -191,13 +206,13 @@ export default function ProfileScreen() {
           <View style={styles.headerSection}>
             <View style={styles.logoContainer}>
               <LinearGradient
-                colors={["#ffd700", "#ffed4a"]}
+                colors={[theme.secondary, `${theme.secondary}DD`]}
                 style={styles.logo}
               >
                 <Ionicons
                   name="person-circle-outline"
                   size={32}
-                  color="#18453b"
+                  color={theme.primary}
                 />
               </LinearGradient>
             </View>
@@ -208,9 +223,25 @@ export default function ProfileScreen() {
 
             {/* Admin Badge */}
             {isAdmin && (
-              <View style={styles.adminBadge}>
-                <Ionicons name="shield-checkmark" size={16} color="#ffd700" />
-                <Text style={styles.adminBadgeText}>Administrator</Text>
+              <View
+                style={[
+                  styles.adminBadge,
+                  {
+                    backgroundColor: `${theme.secondary}20`,
+                    borderColor: theme.secondary,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="shield-checkmark"
+                  size={16}
+                  color={theme.secondary}
+                />
+                <Text
+                  style={[styles.adminBadgeText, { color: theme.secondary }]}
+                >
+                  Administrator
+                </Text>
               </View>
             )}
           </View>
@@ -221,7 +252,9 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={[
                   styles.tab,
-                  activeSection === "profile" && styles.activeTab,
+                  activeSection === "profile" && {
+                    backgroundColor: theme.primary,
+                  },
                 ]}
                 onPress={() => setActiveSection("profile")}
               >
@@ -243,7 +276,9 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={[
                   styles.tab,
-                  activeSection === "settings" && styles.activeTab,
+                  activeSection === "settings" && {
+                    backgroundColor: theme.primary,
+                  },
                 ]}
                 onPress={() => setActiveSection("settings")}
               >
@@ -268,7 +303,9 @@ export default function ProfileScreen() {
           <View style={styles.contentSection}>
             {activeSection === "profile" ? (
               <View style={styles.profileContent}>
-                <Text style={styles.sectionTitle}>Account Information</Text>
+                <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                  Account Information
+                </Text>
                 <Text style={styles.sectionSubtitle}>
                   Your personal account details
                 </Text>
@@ -304,7 +341,9 @@ export default function ProfileScreen() {
 
                 {/* Quick Actions */}
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Quick Actions</Text>
+                  <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                    Quick Actions
+                  </Text>
                   <Text style={styles.sectionSubtitle}>
                     Manage your account preferences
                   </Text>
@@ -314,13 +353,26 @@ export default function ProfileScreen() {
                       style={styles.quickActionCard}
                       onPress={() => (router.push as any)("/notifications")}
                     >
-                      <View style={styles.quickActionIcon}>
+                      <View
+                        style={[
+                          styles.quickActionIcon,
+                          { backgroundColor: `${theme.primary}15` },
+                        ]}
+                      >
                         <NotificationBadge
                           iconName="notifications-outline"
                           iconSize={24}
+                          iconColor={theme.primary}
                         />
                       </View>
-                      <Text style={styles.quickActionText}>Notifications</Text>
+                      <Text
+                        style={[
+                          styles.quickActionText,
+                          { color: theme.primary },
+                        ]}
+                      >
+                        Notifications
+                      </Text>
                       <Ionicons
                         name="chevron-forward"
                         size={16}
@@ -332,14 +384,26 @@ export default function ProfileScreen() {
                       style={styles.quickActionCard}
                       onPress={() => (router.push as any)("/support/")}
                     >
-                      <View style={styles.quickActionIcon}>
+                      <View
+                        style={[
+                          styles.quickActionIcon,
+                          { backgroundColor: `${theme.primary}15` },
+                        ]}
+                      >
                         <Ionicons
                           name="help-circle-outline"
                           size={24}
-                          color="#18453b"
+                          color={theme.primary}
                         />
                       </View>
-                      <Text style={styles.quickActionText}>Help & Support</Text>
+                      <Text
+                        style={[
+                          styles.quickActionText,
+                          { color: theme.primary },
+                        ]}
+                      >
+                        Help & Support
+                      </Text>
                       <Ionicons
                         name="chevron-forward"
                         size={16}
@@ -350,21 +414,31 @@ export default function ProfileScreen() {
                     {/* Admin Panel Button - Only show if user is admin */}
                     {isAdmin && (
                       <TouchableOpacity
-                        style={[styles.quickActionCard, styles.adminActionCard]}
+                        style={[
+                          styles.quickActionCard,
+                          {
+                            backgroundColor: `${theme.primary}10`,
+                            borderColor: theme.secondary,
+                          },
+                        ]}
                         onPress={() => (router.push as any)("/(admin)/")}
                       >
                         <View
                           style={[
                             styles.quickActionIcon,
-                            styles.adminActionIcon,
+                            { backgroundColor: `${theme.secondary}20` },
                           ]}
                         >
-                          <Ionicons name="settings" size={24} color="#ffd700" />
+                          <Ionicons
+                            name="settings"
+                            size={24}
+                            color={theme.secondary}
+                          />
                         </View>
                         <Text
                           style={[
                             styles.quickActionText,
-                            styles.adminActionText,
+                            { color: theme.secondary },
                           ]}
                         >
                           Admin Panel
@@ -372,7 +446,7 @@ export default function ProfileScreen() {
                         <Ionicons
                           name="chevron-forward"
                           size={16}
-                          color="#ffd700"
+                          color={theme.secondary}
                         />
                       </TouchableOpacity>
                     )}
@@ -381,22 +455,45 @@ export default function ProfileScreen() {
               </View>
             ) : (
               <View style={styles.settingsContent}>
-                <Text style={styles.sectionTitle}>Security Settings</Text>
+                <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                  Security Settings
+                </Text>
                 <Text style={styles.sectionSubtitle}>
                   Manage your account security and privacy
                 </Text>
 
                 {/* Password Reset Card */}
                 <View style={styles.formCard}>
-                  <Text style={styles.formTitle}>Reset Password</Text>
+                  <Text style={[styles.formTitle, { color: theme.primary }]}>
+                    Reset Password
+                  </Text>
                   <Text style={styles.formSubtitle}>
                     Send a secure password reset link to your email address
                   </Text>
 
-                  <View style={styles.resetInfoBox}>
-                    <Ionicons name="mail-outline" size={24} color="#18453b" />
+                  <View
+                    style={[
+                      styles.resetInfoBox,
+                      {
+                        backgroundColor: `${theme.primary}10`,
+                        borderColor: `${theme.primary}40`,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="mail-outline"
+                      size={24}
+                      color={theme.primary}
+                    />
                     <View style={styles.resetInfoContent}>
-                      <Text style={styles.resetInfoTitle}>Email Reset</Text>
+                      <Text
+                        style={[
+                          styles.resetInfoTitle,
+                          { color: theme.primary },
+                        ]}
+                      >
+                        Email Reset
+                      </Text>
                       <Text style={styles.resetInfoText}>
                         We'll send a secure link to{" "}
                         {user?.email || "your email"} to reset your password
@@ -414,7 +511,7 @@ export default function ProfileScreen() {
                     disabled={isLoading}
                   >
                     <LinearGradient
-                      colors={["#18453b", "#2a6b5a"]}
+                      colors={[theme.primary, `${theme.primary}CC`]}
                       style={styles.buttonGradient}
                     >
                       <View style={styles.buttonContent}>
@@ -473,7 +570,9 @@ export default function ProfileScreen() {
                 <View style={styles.modalIcon}>
                   <Ionicons name="warning-outline" size={32} color="#ef4444" />
                 </View>
-                <Text style={styles.modalTitle}>Delete Account</Text>
+                <Text style={[styles.modalTitle, { color: theme.primary }]}>
+                  Delete Account
+                </Text>
                 <Text style={styles.modalSubtitle}>
                   This action cannot be undone
                 </Text>
@@ -529,7 +628,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "rgba(255, 215, 0, 0.08)",
   },
   floatingElement2: {
     position: "absolute",
@@ -538,7 +636,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   keyboardContainer: {
     flex: 1,
@@ -564,7 +661,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#ffd700",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -588,16 +685,13 @@ const styles = StyleSheet.create({
   adminBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 215, 0, 0.2)",
     borderWidth: 1,
-    borderColor: "#ffd700",
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
     gap: 6,
   },
   adminBadgeText: {
-    color: "#ffd700",
     fontSize: 12,
     fontWeight: "600",
     textTransform: "uppercase",
@@ -628,9 +722,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  activeTab: {
-    backgroundColor: "#18453b",
-  },
   tabText: {
     fontSize: 14,
     fontWeight: "600",
@@ -659,7 +750,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#18453b",
     marginBottom: 4,
   },
   sectionSubtitle: {
@@ -682,7 +772,6 @@ const styles = StyleSheet.create({
   infoIconContainer: {
     width: 40,
     height: 40,
-    backgroundColor: "#f0f9ff",
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -693,7 +782,6 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    color: "#6b7280",
     fontWeight: "500",
     marginBottom: 4,
     textTransform: "uppercase",
@@ -719,7 +807,6 @@ const styles = StyleSheet.create({
   quickActionIcon: {
     width: 40,
     height: 40,
-    backgroundColor: "#f0f9ff",
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -729,18 +816,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: "600",
-    color: "#1e293b",
-  },
-  // Admin-specific styles
-  adminActionCard: {
-    backgroundColor: "#0f2f28",
-    borderColor: "#ffd700",
-  },
-  adminActionIcon: {
-    backgroundColor: "rgba(255, 215, 0, 0.1)",
-  },
-  adminActionText: {
-    color: "#ffd700",
   },
   formCard: {
     backgroundColor: "#f8fafc",
@@ -752,7 +827,6 @@ const styles = StyleSheet.create({
   formTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#18453b",
     marginBottom: 4,
   },
   formSubtitle: {
@@ -763,12 +837,10 @@ const styles = StyleSheet.create({
   resetInfoBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f9ff",
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#bfdbfe",
     gap: 12,
   },
   resetInfoContent: {
@@ -777,7 +849,6 @@ const styles = StyleSheet.create({
   resetInfoTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#18453b",
     marginBottom: 4,
   },
   resetInfoText: {
@@ -787,7 +858,7 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     borderRadius: 12,
-    shadowColor: "#18453b",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -897,7 +968,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#18453b",
     marginBottom: 8,
   },
   modalSubtitle: {

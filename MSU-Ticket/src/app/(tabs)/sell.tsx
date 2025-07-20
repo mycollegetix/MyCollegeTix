@@ -1,4 +1,4 @@
-// src/app/(tabs)/sell.tsx - Enhanced version with season ticket support
+// src/app/(tabs)/sell.tsx - Enhanced version with season ticket support and college theme
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -25,6 +25,7 @@ import { EventService } from "@/src/services/eventService";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 import { Event } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { useTheme } from "@/src/providers/ThemeProvider";
 import { useNotifications } from "@/src/providers/NotificationProvider";
 
 const { width, height } = Dimensions.get("window");
@@ -50,8 +51,7 @@ interface FormData {
 }
 
 export default function SellScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const theme = useTheme();
   const router = useRouter();
 
   // Event selection state
@@ -245,19 +245,23 @@ export default function SellScreen() {
     <TouchableOpacity
       style={[
         styles.sportCard,
-        selectedSport === sport && styles.sportCardActive,
+        selectedSport === sport && {
+          backgroundColor: theme.primary,
+          borderColor: theme.secondary,
+        },
       ]}
       onPress={() => setSelectedSport(sport)}
     >
       <Ionicons
         name={icon as any}
         size={20}
-        color={selectedSport === sport ? "white" : "#18453b"}
+        color={selectedSport === sport ? theme.secondary : theme.primary}
       />
       <Text
         style={[
           styles.sportText,
-          selectedSport === sport && styles.sportTextActive,
+          { color: theme.primary },
+          selectedSport === sport && { color: "white" },
         ]}
       >
         {sport}
@@ -283,8 +287,18 @@ export default function SellScreen() {
             <Text style={styles.eventItemOpponent}>vs {item.opponent}</Text>
           )}
         </View>
-        <View style={styles.eventItemSport}>
-          <Text style={styles.eventItemSportText}>{item.sport}</Text>
+        <View
+          style={[
+            styles.eventItemSport,
+            {
+              backgroundColor: `${theme.primary}15`,
+              borderColor: `${theme.primary}40`,
+            },
+          ]}
+        >
+          <Text style={[styles.eventItemSportText, { color: theme.primary }]}>
+            {item.sport}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -294,24 +308,37 @@ export default function SellScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+        colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
         style={styles.background}
       />
 
-      {/* Floating elements - Same as other tabs */}
-      <View style={styles.floatingElement1} />
-      <View style={styles.floatingElement2} />
+      {/* Floating elements */}
+      <View
+        style={[
+          styles.floatingElement1,
+          { backgroundColor: `${theme.secondary}08` },
+        ]}
+      />
+      <View
+        style={[
+          styles.floatingElement2,
+          { backgroundColor: "rgba(255, 255, 255, 0.05)" },
+        ]}
+      />
 
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Header Section - Same structure as other tabs */}
+        {/* Header Section */}
         <View style={styles.headerSection}>
           <View style={styles.logoContainer}>
-            <LinearGradient colors={["#ffd700", "#ffed4a"]} style={styles.logo}>
-              <Ionicons name="cash-outline" size={32} color="#18453b" />
+            <LinearGradient
+              colors={[theme.secondary, `${theme.secondary}DD`]}
+              style={styles.logo}
+            >
+              <Ionicons name="cash-outline" size={32} color={theme.primary} />
             </LinearGradient>
           </View>
           <Text style={styles.headerTitle}>Sell Tickets</Text>
@@ -325,12 +352,12 @@ export default function SellScreen() {
             <NotificationBadge
               iconName="notifications-outline"
               iconSize={24}
-              iconColor="#ffd700"
+              iconColor={theme.secondary}
             />
           </TouchableOpacity>
         </View>
 
-        {/* Main Content Container - Same structure as other tabs */}
+        {/* Main Content Container */}
         <View style={styles.contentContainer}>
           <KeyboardAvoidingView
             style={styles.keyboardView}
@@ -338,19 +365,39 @@ export default function SellScreen() {
           >
             {/* Event Selection */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Select Event</Text>
+              <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                Select Event
+              </Text>
               <Text style={styles.sectionSubtitle}>
                 Choose the event you're selling tickets for
               </Text>
 
               {selectedEvent ? (
-                <View style={styles.selectedEventContainer}>
+                <View
+                  style={[
+                    styles.selectedEventContainer,
+                    {
+                      backgroundColor: `${theme.primary}10`,
+                      borderColor: theme.primary,
+                    },
+                  ]}
+                >
                   <View style={styles.selectedEventHeader}>
                     <View style={styles.selectedEventInfo}>
-                      <Text style={styles.selectedEventTitle}>
+                      <Text
+                        style={[
+                          styles.selectedEventTitle,
+                          { color: theme.primary },
+                        ]}
+                      >
                         {selectedEvent.title}
                       </Text>
-                      <Text style={styles.selectedEventDate}>
+                      <Text
+                        style={[
+                          styles.selectedEventDate,
+                          { color: theme.primary },
+                        ]}
+                      >
                         {formatEventDate(selectedEvent.event_date)}
                       </Text>
                       <Text style={styles.selectedEventLocation}>
@@ -363,20 +410,41 @@ export default function SellScreen() {
                       )}
                     </View>
                     <TouchableOpacity
-                      style={styles.changeEventButton}
+                      style={[
+                        styles.changeEventButton,
+                        { borderColor: theme.primary },
+                      ]}
                       onPress={() => setShowEventModal(true)}
                     >
-                      <Text style={styles.changeEventText}>Change</Text>
+                      <Text
+                        style={[
+                          styles.changeEventText,
+                          { color: theme.primary },
+                        ]}
+                      >
+                        Change
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
                 <TouchableOpacity
-                  style={styles.selectEventButton}
+                  style={[
+                    styles.selectEventButton,
+                    { borderColor: `${theme.primary}30` },
+                  ]}
                   onPress={handleOpenEventModal}
                 >
-                  <Ionicons name="calendar-outline" size={20} color="#18453b" />
-                  <Text style={styles.selectEventText}>Select an Event</Text>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={20}
+                    color={theme.primary}
+                  />
+                  <Text
+                    style={[styles.selectEventText, { color: theme.primary }]}
+                  >
+                    Select an Event
+                  </Text>
                   <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
                 </TouchableOpacity>
               )}
@@ -384,7 +452,9 @@ export default function SellScreen() {
 
             {/* Season Ticket Toggle */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Ticket Type</Text>
+              <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                Ticket Type
+              </Text>
               <Text style={styles.sectionSubtitle}>
                 Specify if this is a student season ticket
               </Text>
@@ -392,7 +462,11 @@ export default function SellScreen() {
               <TouchableOpacity
                 style={[
                   styles.seasonTicketToggle,
-                  formData.is_season_ticket && styles.seasonTicketToggleActive,
+                  { borderColor: `${theme.primary}30` },
+                  formData.is_season_ticket && {
+                    borderColor: theme.primary,
+                    backgroundColor: `${theme.primary}10`,
+                  },
                 ]}
                 onPress={() =>
                   updateFormData("is_season_ticket", !formData.is_season_ticket)
@@ -402,11 +476,15 @@ export default function SellScreen() {
                   <Ionicons
                     name="trophy-outline"
                     size={20}
-                    color={formData.is_season_ticket ? "#18453b" : "#9ca3af"}
+                    color={
+                      formData.is_season_ticket ? theme.primary : "#9ca3af"
+                    }
                   />
                 </View>
                 <View style={styles.seasonTicketContent}>
-                  <Text style={styles.seasonTicketTitle}>
+                  <Text
+                    style={[styles.seasonTicketTitle, { color: theme.primary }]}
+                  >
                     Season or Student Ticket
                   </Text>
                   <Text style={styles.seasonTicketSubtitle}>
@@ -416,7 +494,11 @@ export default function SellScreen() {
                 <View
                   style={[
                     styles.checkbox,
-                    formData.is_season_ticket && styles.checkboxChecked,
+                    { borderColor: `${theme.primary}30` },
+                    formData.is_season_ticket && {
+                      backgroundColor: theme.primary,
+                      borderColor: theme.primary,
+                    },
                   ]}
                 >
                   {formData.is_season_ticket && (
@@ -428,15 +510,24 @@ export default function SellScreen() {
 
             {/* Seat Information */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Seat Information</Text>
+              <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                Seat Information
+              </Text>
               <Text style={styles.sectionSubtitle}>
                 Specify your seat location
               </Text>
 
               <View style={styles.row}>
                 <View style={[styles.inputGroup, styles.thirdWidth]}>
-                  <Text style={styles.inputLabel}>Section *</Text>
-                  <View style={styles.inputWrapper}>
+                  <Text style={[styles.inputLabel, { color: theme.primary }]}>
+                    Section *
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      { borderColor: `${theme.primary}30` },
+                    ]}
+                  >
                     <Ionicons
                       name="location-outline"
                       size={20}
@@ -456,8 +547,15 @@ export default function SellScreen() {
                 </View>
 
                 <View style={[styles.inputGroup, styles.thirdWidth]}>
-                  <Text style={styles.inputLabel}>Row *</Text>
-                  <View style={styles.inputWrapper}>
+                  <Text style={[styles.inputLabel, { color: theme.primary }]}>
+                    Row *
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      { borderColor: `${theme.primary}30` },
+                    ]}
+                  >
                     <Ionicons
                       name="list-outline"
                       size={20}
@@ -477,8 +575,15 @@ export default function SellScreen() {
                 </View>
 
                 <View style={[styles.inputGroup, styles.thirdWidth]}>
-                  <Text style={styles.inputLabel}>Seat *</Text>
-                  <View style={styles.inputWrapper}>
+                  <Text style={[styles.inputLabel, { color: theme.primary }]}>
+                    Seat *
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      { borderColor: `${theme.primary}30` },
+                    ]}
+                  >
                     <Ionicons
                       name="person-outline"
                       size={20}
@@ -501,14 +606,25 @@ export default function SellScreen() {
 
             {/* Price */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Price</Text>
+              <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                Price
+              </Text>
               <Text style={styles.sectionSubtitle}>Set your asking price</Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Price *</Text>
-                <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: theme.primary }]}>
+                  Price *
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    { borderColor: `${theme.primary}30` },
+                  ]}
+                >
                   <View style={styles.dollarContainer}>
-                    <Text style={styles.dollarSign}>$</Text>
+                    <Text style={[styles.dollarSign, { color: theme.primary }]}>
+                      $
+                    </Text>
                   </View>
                   <TextInput
                     style={styles.input}
@@ -524,14 +640,24 @@ export default function SellScreen() {
 
             {/* Description */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Description</Text>
+              <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                Description
+              </Text>
               <Text style={styles.sectionSubtitle}>
                 Add any additional details (optional)
               </Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Additional Details</Text>
-                <View style={[styles.inputWrapper, styles.textAreaWrapper]}>
+                <Text style={[styles.inputLabel, { color: theme.primary }]}>
+                  Additional Details
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    styles.textAreaWrapper,
+                    { borderColor: `${theme.primary}30` },
+                  ]}
+                >
                   <TextInput
                     style={[styles.input, styles.textArea]}
                     placeholder="Add any additional information about your tickets..."
@@ -559,7 +685,7 @@ export default function SellScreen() {
               <LinearGradient
                 colors={
                   isFormValid()
-                    ? ["#18453b", "#2a6b5a"]
+                    ? [theme.primary, `${theme.primary}E6`]
                     : ["#9ca3af", "#6b7280"]
                 }
                 style={styles.submitButtonGradient}
@@ -590,7 +716,7 @@ export default function SellScreen() {
       >
         <View style={styles.modalContainer}>
           <LinearGradient
-            colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+            colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
             style={styles.modalBackground}
           />
 
@@ -625,7 +751,7 @@ export default function SellScreen() {
 
           {/* Events List */}
           <View style={styles.modalEventsContainer}>
-            <Text style={styles.modalEventsHeader}>
+            <Text style={[styles.modalEventsHeader, { color: theme.primary }]}>
               {availableEvents.length} Available Events
             </Text>
 
@@ -669,7 +795,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  // Floating elements - Same as other tabs
+  // Floating elements
   floatingElement1: {
     position: "absolute",
     top: "15%",
@@ -677,7 +803,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "rgba(255, 215, 0, 0.08)",
   },
   floatingElement2: {
     position: "absolute",
@@ -686,7 +811,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   scrollView: {
     flex: 1,
@@ -694,7 +818,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
-  // Header Section - Same structure as other tabs
+  // Header Section
   headerSection: {
     alignItems: "center",
     paddingHorizontal: 20,
@@ -711,7 +835,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#ffd700",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -744,7 +868,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
-  // Main Content Container - Same structure as other tabs
+  // Main Content Container
   contentContainer: {
     flex: 1,
     backgroundColor: "#f8fafc",
@@ -763,7 +887,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#18453b",
     marginBottom: 4,
   },
   sectionSubtitle: {
@@ -772,11 +895,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   selectedEventContainer: {
-    backgroundColor: "#f0f9ff",
     borderRadius: 16,
     padding: 16,
     borderWidth: 2,
-    borderColor: "#18453b",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -795,12 +916,10 @@ const styles = StyleSheet.create({
   selectedEventTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#18453b",
     marginBottom: 4,
   },
   selectedEventDate: {
     fontSize: 14,
-    color: "#18453b",
     fontWeight: "600",
     marginBottom: 2,
   },
@@ -819,7 +938,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#18453b",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -829,7 +947,6 @@ const styles = StyleSheet.create({
   changeEventText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#18453b",
   },
   selectEventButton: {
     flexDirection: "row",
@@ -839,7 +956,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 2,
-    borderColor: "#e2e8f0",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -849,7 +965,6 @@ const styles = StyleSheet.create({
   selectEventText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#18453b",
     flex: 1,
     marginLeft: 12,
   },
@@ -861,16 +976,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 2,
-    borderColor: "#e2e8f0",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  seasonTicketToggleActive: {
-    borderColor: "#18453b",
-    backgroundColor: "#f0f9ff",
   },
   seasonTicketIcon: {
     marginRight: 12,
@@ -882,7 +992,6 @@ const styles = StyleSheet.create({
   seasonTicketTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#18453b",
     marginBottom: 4,
   },
   seasonTicketSubtitle: {
@@ -893,7 +1002,6 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderWidth: 2,
-    borderColor: "#e2e8f0",
     borderRadius: 6,
     alignItems: "center",
     justifyContent: "center",
@@ -904,17 +1012,12 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  checkboxChecked: {
-    backgroundColor: "#18453b",
-    borderColor: "#18453b",
-  },
   inputGroup: {
     marginBottom: 20,
   },
   inputLabel: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#18453b",
     marginBottom: 8,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -925,7 +1028,6 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: "#e5e7eb",
     paddingHorizontal: 16,
     height: 52,
     shadowColor: "#000",
@@ -965,7 +1067,6 @@ const styles = StyleSheet.create({
   dollarSign: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#18453b",
   },
   submitButton: {
     borderRadius: 16,
@@ -1042,17 +1143,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "transparent",
   },
-  sportCardActive: {
-    backgroundColor: "#18453b",
-    borderColor: "white",
-  },
   sportText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#18453b",
-  },
-  sportTextActive: {
-    color: "white",
   },
   modalEventsContainer: {
     flex: 1,
@@ -1064,7 +1157,6 @@ const styles = StyleSheet.create({
   modalEventsHeader: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1e293b",
     paddingHorizontal: 20,
     marginBottom: 16,
   },
@@ -1133,7 +1225,6 @@ const styles = StyleSheet.create({
   eventItemDate: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#18453b",
     marginBottom: 2,
   },
   eventItemLocation: {
@@ -1147,17 +1238,14 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   eventItemSport: {
-    backgroundColor: "#f0f9ff",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#bfdbfe",
   },
   eventItemSportText: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#1e40af",
     textTransform: "uppercase",
   },
 });

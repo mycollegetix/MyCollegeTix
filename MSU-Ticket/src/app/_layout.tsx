@@ -1,6 +1,7 @@
 // app/_layout.tsx - Fixed to prevent infinite loops and loading issues
 import { AuthProvider, useAuth } from "@/src/providers/AuthProvider";
 import { NotificationProvider } from "@/src/providers/NotificationProvider";
+import { ThemeProvider } from "@/src/providers/ThemeProvider";
 import { ChatProvider } from "@/src/providers/ChatProvider";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useColorScheme } from "react-native";
@@ -53,7 +54,9 @@ export default function RootLayout() {
     <AuthProvider>
       <NotificationProvider>
         <ChatProvider>
-          <RootLayoutNav />
+          <ThemeProvider>
+            <RootLayoutNav />
+          </ThemeProvider>
         </ChatProvider>
       </NotificationProvider>
     </AuthProvider>

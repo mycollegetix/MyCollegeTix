@@ -1,11 +1,13 @@
 // src/app/chat/_layout.tsx
+import { useTheme } from "@/src/providers/ThemeProvider";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
 export default function ChatLayout() {
+  const { primary } = useTheme();
   return (
     <>
-      <StatusBar style="light" backgroundColor="#18453b" />
+      
       <Stack
         screenOptions={{
           headerShown: false,

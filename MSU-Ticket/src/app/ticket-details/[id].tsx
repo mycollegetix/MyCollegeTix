@@ -1,4 +1,4 @@
-// app/ticket-details/[id].tsx - Enhanced with Watchlist
+// app/ticket-details/[id].tsx - Enhanced with theme support and Watchlist
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -18,6 +18,7 @@ import { TicketService } from "@/src/services/ticketService";
 import { TicketWithSeller } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useChat } from "@/src/providers/ChatProvider";
+import { useTheme } from "@/src/providers/ThemeProvider";
 import WatchlistButton from "@/src/components/WatchlistButton";
 
 const { width, height } = Dimensions.get("window");
@@ -27,6 +28,7 @@ export default function TicketDetailsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { getOrCreateConversation } = useChat();
+  const theme = useTheme();
 
   const [ticket, setTicket] = useState<TicketWithSeller | null>(null);
   const [loading, setLoading] = useState(true);
@@ -212,7 +214,7 @@ export default function TicketDetailsScreen() {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+          colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
           style={styles.background}
         />
         <View style={styles.loadingContainer}>
@@ -226,7 +228,7 @@ export default function TicketDetailsScreen() {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+          colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
           style={styles.background}
         />
         <View style={styles.errorContainer}>
@@ -251,7 +253,7 @@ export default function TicketDetailsScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+        colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
         style={styles.background}
       />
 
@@ -277,13 +279,20 @@ export default function TicketDetailsScreen() {
         <View style={styles.contentCard}>
           {/* Sport Badge */}
           <View style={styles.sportBadgeContainer}>
-            <View style={styles.sportBadge}>
+            <View
+              style={[
+                styles.sportBadge,
+                { backgroundColor: `${theme.primary}1A` },
+              ]}
+            >
               <Ionicons
                 name={getSportIcon(sport) as any}
                 size={16}
-                color="#18453b"
+                color={theme.primary}
               />
-              <Text style={styles.sportBadgeText}>{sport}</Text>
+              <Text style={[styles.sportBadgeText, { color: theme.primary }]}>
+                {sport}
+              </Text>
             </View>
 
             {/* Status Badge */}
@@ -309,7 +318,11 @@ export default function TicketDetailsScreen() {
           {/* Event Details */}
           <View style={styles.eventDetails}>
             <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={20} color="#18453b" />
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={theme.primary}
+              />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Date & Time</Text>
                 <Text style={styles.detailValue}>{dateStr}</Text>
@@ -318,7 +331,11 @@ export default function TicketDetailsScreen() {
             </View>
 
             <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={20} color="#18453b" />
+              <Ionicons
+                name="location-outline"
+                size={20}
+                color={theme.primary}
+              />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Venue</Text>
                 <Text style={styles.detailValue}>{ticket.location}</Text>
@@ -326,7 +343,7 @@ export default function TicketDetailsScreen() {
             </View>
 
             <View style={styles.detailRow}>
-              <Ionicons name="ticket-outline" size={20} color="#18453b" />
+              <Ionicons name="ticket-outline" size={20} color={theme.primary} />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Seat Location</Text>
                 <Text style={styles.detailValue}>
@@ -340,7 +357,9 @@ export default function TicketDetailsScreen() {
           {/* Is Season Ticket */}
           {ticket.is_season_ticket && (
             <View style={styles.seasonTicketSection}>
-              <Text style={styles.sectionTitle}>Season Ticket</Text>
+              <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                Season Ticket
+              </Text>
               <Text style={styles.seasonTicketText}>
                 This is a season ticket. Additional details may apply.
               </Text>
@@ -349,7 +368,9 @@ export default function TicketDetailsScreen() {
 
           {/* Description */}
           <View style={styles.descriptionSection}>
-            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+              Description
+            </Text>
             <Text style={styles.descriptionText}>
               {ticket.description || "No description provided"}
             </Text>
@@ -372,9 +393,16 @@ export default function TicketDetailsScreen() {
           {/* Seller Info */}
           {ticket.seller && (
             <View style={styles.sellerSection}>
-              <Text style={styles.sectionTitle}>Seller Information</Text>
+              <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                Seller Information
+              </Text>
               <View style={styles.sellerCard}>
-                <View style={styles.sellerAvatar}>
+                <View
+                  style={[
+                    styles.sellerAvatar,
+                    { backgroundColor: theme.primary },
+                  ]}
+                >
                   <Text style={styles.sellerInitials}>
                     {ticket.seller.full_name.charAt(0).toUpperCase()}
                   </Text>
@@ -389,15 +417,25 @@ export default function TicketDetailsScreen() {
                 </View>
                 {!isOwnTicket && (
                   <TouchableOpacity
-                    style={styles.contactButton}
+                    style={[
+                      styles.contactButton,
+                      { borderColor: theme.primary },
+                    ]}
                     onPress={handleContactSeller}
                   >
                     <Ionicons
                       name="chatbubble-outline"
                       size={16}
-                      color="#18453b"
+                      color={theme.primary}
                     />
-                    <Text style={styles.contactButtonText}>Message</Text>
+                    <Text
+                      style={[
+                        styles.contactButtonText,
+                        { color: theme.primary },
+                      ]}
+                    >
+                      Message
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -408,7 +446,9 @@ export default function TicketDetailsScreen() {
           <View style={styles.priceSection}>
             <View style={styles.priceContainer}>
               <Text style={styles.priceLabel}>Ticket Price</Text>
-              <Text style={styles.priceValue}>${ticket.price.toFixed(2)}</Text>
+              <Text style={[styles.priceValue, { color: theme.primary }]}>
+                ${ticket.price.toFixed(2)}
+              </Text>
             </View>
           </View>
         </View>
@@ -418,16 +458,6 @@ export default function TicketDetailsScreen() {
       {!isOwnTicket && isAvailable && (
         <BlurView intensity={90} style={styles.bottomBar}>
           <View style={styles.actionButtonsContainer}>
-            {/* Watchlist Quick Button */}
-            <WatchlistButton
-              ticketId={ticket.id}
-              ticketTitle={ticket.title}
-              currentPrice={ticket.price}
-              style={styles.watchlistQuickButton}
-              size="medium"
-              showText={false}
-            />
-
             {/* Purchase Button */}
             <TouchableOpacity
               style={[
@@ -439,7 +469,9 @@ export default function TicketDetailsScreen() {
             >
               <LinearGradient
                 colors={
-                  purchasing ? ["#9ca3af", "#6b7280"] : ["#18453b", "#2a6b5a"]
+                  purchasing
+                    ? ["#9ca3af", "#6b7280"]
+                    : [theme.primary, theme.secondary]
                 }
                 style={styles.purchaseButtonGradient}
               >
@@ -564,7 +596,6 @@ const styles = StyleSheet.create({
   sportBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f9ff",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -573,7 +604,6 @@ const styles = StyleSheet.create({
   sportBadgeText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#18453b",
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -640,7 +670,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#18453b",
     marginBottom: 12,
   },
   seasonTicketText: {
@@ -677,7 +706,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#18453b",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -709,12 +737,10 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#18453b",
   },
   contactButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#18453b",
   },
   priceSection: {
     paddingTop: 24,
@@ -733,7 +759,6 @@ const styles = StyleSheet.create({
   priceValue: {
     fontSize: 36,
     fontWeight: "800",
-    color: "#18453b",
   },
   bottomBar: {
     paddingHorizontal: 20,
@@ -754,8 +779,6 @@ const styles = StyleSheet.create({
   purchaseButton: {
     flex: 1,
     borderRadius: 16,
-    shadowColor: "#18453b",
-    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 6,

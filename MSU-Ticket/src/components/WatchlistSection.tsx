@@ -1,4 +1,4 @@
-// src/components/WatchlistSection.tsx
+// src/components/WatchlistSection.tsx - With theme support
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
+import { useTheme } from "@/src/providers/ThemeProvider";
 import {
   WatchlistService,
   WatchlistWithTicket,
@@ -30,6 +31,7 @@ interface WatchlistSectionProps {
 
 const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
   const router = useRouter();
+  const theme = useTheme();
   const [watchlist, setWatchlist] = useState<WatchlistWithTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -278,7 +280,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
           {/* Price and Alerts */}
           <View style={styles.priceSection}>
             <View style={styles.priceContainer}>
-              <Text style={styles.currentPrice}>
+              <Text style={[styles.currentPrice, { color: theme.primary }]}>
                 ${item.ticket.price.toFixed(2)}
               </Text>
               {item.price_alert_threshold && (
@@ -330,9 +332,11 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
       <View style={styles.statsSection}>
         <View style={styles.statsCard}>
           <View style={styles.statItem}>
-            <Ionicons name="bookmark" size={24} color="#18453b" />
+            <Ionicons name="bookmark" size={24} color={theme.primary} />
             <View style={styles.statContent}>
-              <Text style={styles.statNumber}>{stats.totalItems}</Text>
+              <Text style={[styles.statNumber, { color: theme.primary }]}>
+                {stats.totalItems}
+              </Text>
               <Text style={styles.statLabel}>Watching</Text>
             </View>
           </View>
@@ -340,7 +344,9 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
           <View style={styles.statItem}>
             <Ionicons name="checkmark-circle" size={24} color="#10b981" />
             <View style={styles.statContent}>
-              <Text style={styles.statNumber}>{stats.availableTickets}</Text>
+              <Text style={[styles.statNumber, { color: "#10b981" }]}>
+                {stats.availableTickets}
+              </Text>
               <Text style={styles.statLabel}>Available</Text>
             </View>
           </View>
@@ -348,7 +354,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
           <View style={styles.statItem}>
             <Ionicons name="trending-down" size={24} color="#3b82f6" />
             <View style={styles.statContent}>
-              <Text style={styles.statNumber}>
+              <Text style={[styles.statNumber, { color: "#3b82f6" }]}>
                 ${stats.averagePrice.toFixed(0)}
               </Text>
               <Text style={styles.statLabel}>Avg Price</Text>
@@ -362,8 +368,10 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
             style={styles.cleanupButton}
             onPress={handleCleanupWatchlist}
           >
-            <Ionicons name="refresh-outline" size={16} color="#18453b" />
-            <Text style={styles.cleanupButtonText}>Clean Up</Text>
+            <Ionicons name="refresh-outline" size={16} color={theme.primary} />
+            <Text style={[styles.cleanupButtonText, { color: theme.primary }]}>
+              Clean Up
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -381,7 +389,12 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
           scrollEnabled={false}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefreshData} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefreshData}
+              tintColor={theme.primary}
+              colors={[theme.primary]}
+            />
           }
         />
       ) : (
@@ -395,7 +408,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
             price changes
           </Text>
           <TouchableOpacity
-            style={styles.browseButton}
+            style={[styles.browseButton, { backgroundColor: theme.primary }]}
             onPress={() => router.push("/(tabs)")}
           >
             <Text style={styles.browseButtonText}>Browse Tickets</Text>
@@ -422,7 +435,9 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
             <View style={styles.modalContent}>
               {/* Notes */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Notes</Text>
+                <Text style={[styles.inputLabel, { color: theme.primary }]}>
+                  Notes
+                </Text>
                 <TextInput
                   style={styles.textInput}
                   value={editForm.notes}
@@ -437,7 +452,9 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
 
               {/* Price Alert Threshold */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Price Alert Threshold</Text>
+                <Text style={[styles.inputLabel, { color: theme.primary }]}>
+                  Price Alert Threshold
+                </Text>
                 <TextInput
                   style={styles.textInput}
                   value={editForm.priceAlertThreshold}
@@ -455,13 +472,15 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
               {/* Notification Toggle */}
               <View style={styles.inputGroup}>
                 <View style={styles.switchRow}>
-                  <Text style={styles.inputLabel}>Enable Notifications</Text>
+                  <Text style={[styles.inputLabel, { color: theme.primary }]}>
+                    Enable Notifications
+                  </Text>
                   <Switch
                     value={editForm.notificationEnabled}
                     onValueChange={(value) =>
                       setEditForm({ ...editForm, notificationEnabled: value })
                     }
-                    trackColor={{ false: "#d1d5db", true: "#18453b" }}
+                    trackColor={{ false: "#d1d5db", true: theme.primary }}
                     thumbColor="#ffffff"
                   />
                 </View>
@@ -479,7 +498,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.saveButton}
+                style={[styles.saveButton, { backgroundColor: theme.primary }]}
                 onPress={handleSaveEdit}
               >
                 <Text style={styles.saveButtonText}>Save Changes</Text>
@@ -525,7 +544,6 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#18453b",
   },
   statLabel: {
     fontSize: 12,
@@ -554,7 +572,6 @@ const styles = StyleSheet.create({
   cleanupButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#18453b",
   },
   watchlistCard: {
     backgroundColor: "rgba(255, 255, 255, 0.95)",
@@ -638,7 +655,6 @@ const styles = StyleSheet.create({
   currentPrice: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#18453b",
   },
   alertThreshold: {
     fontSize: 12,
@@ -731,7 +747,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   browseButton: {
-    backgroundColor: "#18453b",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -776,7 +791,6 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#374151",
     marginBottom: 8,
   },
   textInput: {
@@ -822,7 +836,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     alignItems: "center",
-    backgroundColor: "#18453b",
     borderRadius: 8,
   },
   saveButtonText: {

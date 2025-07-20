@@ -4,8 +4,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Tabs } from "expo-router";
 import { View } from "react-native";
 
-import Colors from "@/src/constants/Colors";
-import { useColorScheme } from "@/src/components/useColorScheme";
+import { ThemeProvider, useTheme } from "@/src/providers/ThemeProvider";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
@@ -30,59 +29,62 @@ function ChatTabIcon({ color }: { color: string }) {
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const theme = useTheme();
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].primary,
-        tabBarInactiveTintColor: Colors[colorScheme ?? "light"].tabIconDefault,
-        tabBarStyle: {
-          borderTopColor: Colors[colorScheme ?? "light"].border,
-        },
-        headerShown: false,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Browse",
-          tabBarIcon: ({ color }) => <TabBarIcon name="ticket" color={color} />,
+    <ThemeProvider>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: theme.primary,
+          tabBarInactiveTintColor: "#A9A9A9",
+          tabBarStyle: {
+            borderTopColor: "#E5E7EB",
+          },
+          headerShown: false,
         }}
-      />
-      <Tabs.Screen
-        name="sell"
-        options={{
-          title: "Sell",
-          tabBarIcon: ({ color }) => (
-            <TabBarIcon name="plus-circle" color={color} />
-          ),
-        }}
-      />
-      {/* ✅ FIXED: Points to chat folder, not chat.tsx */}
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: "Chat",
-          tabBarIcon: ({ color }) => <ChatTabIcon color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="orders"
-        options={{
-          title: "Orders",
-          tabBarIcon: ({ color }) => (
-            <TabBarIcon name="list-alt" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: "Browse",
+            tabBarIcon: ({ color }) => <TabBarIcon name="ticket" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="sell"
+          options={{
+            title: "Sell",
+            tabBarIcon: ({ color }) => (
+              <TabBarIcon name="plus-circle" color={color} />
+            ),
+          }}
+        />
+        {/* ✅ FIXED: Points to chat folder, not chat.tsx */}
+        <Tabs.Screen
+          name="chat"
+          options={{
+            title: "Chat",
+            tabBarIcon: ({ color }) => <ChatTabIcon color={color} />,
+          }}
+          initialParams={{ primary: theme.primary, secondary: theme.secondary }}
+        />
+        <Tabs.Screen
+          name="orders"
+          options={{
+            title: "Orders",
+            tabBarIcon: ({ color }) => (
+              <TabBarIcon name="list-alt" color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: "Profile",
+            tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+          }}
+        />
+      </Tabs>
+    </ThemeProvider>
   );
 }

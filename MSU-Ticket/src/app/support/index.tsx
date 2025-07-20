@@ -1,4 +1,4 @@
-// screens/HelpAndSupportScreen.tsx
+// screens/HelpAndSupportScreen.tsx - With theme support
 import React, { useState } from "react";
 import {
   StyleSheet,
@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
+import { useTheme } from "@/src/providers/ThemeProvider";
 
 const { width, height } = Dimensions.get("window");
 
@@ -42,21 +43,21 @@ const faqData: FAQItem[] = [
     id: "3",
     question: "How do I sell my tickets?",
     answer:
-      "Go to the 'Sell' tab, fill out the ticket details including event, date, seat information, and your asking price. Once listed, your ticket will be visible to other MSU students. You'll receive payment once the ticket is sold and the transaction is completed.",
+      "Go to the 'Sell' tab, fill out the ticket details including event, date, seat information, and your asking price. Once listed, your ticket will be visible to other students. You'll receive payment once the ticket is sold and the transaction is completed.",
     category: "selling",
   },
   {
     id: "5",
-    question: "How do I verify my MSU student status?",
+    question: "How do I verify my student status?",
     answer:
-      "During registration, you'll need to use your official MSU email address (@msu.edu). We'll send a verification link to confirm your student status. Only verified MSU students can buy and sell on the platform.",
+      "During registration, you'll need to use your official college email address. We'll send a verification link to confirm your student status. Only verified students can buy and sell on the platform.",
     category: "account",
   },
   {
     id: "8",
     question: "What if I can't attend after buying?",
     answer:
-      "You can resell your ticket on the platform. Just go to your Orders tab, find the ticket, and select 'Resell'. We'll help you list it at a fair market price. Remember that ticket resale must comply with MSU policies.",
+      "You can resell your ticket on the platform. Just go to your Orders tab, find the ticket, and select 'Resell'. We'll help you list it at a fair market price. Remember that ticket resale must comply with your college's policies.",
     category: "selling",
   },
 ];
@@ -71,6 +72,7 @@ const categories = [
 
 export default function HelpAndSupportScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -81,6 +83,7 @@ export default function HelpAndSupportScreen() {
     priority: "medium",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const contactMethods: ContactMethod[] = [
     {
       id: "form",
@@ -108,7 +111,7 @@ export default function HelpAndSupportScreen() {
       return;
     }
 
-    const email = "msutickets.help1855@gmail.com";
+    const email = "support@tickets.college.edu";
     const subject = contactForm.subject;
     const body = contactForm.message;
     const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(
@@ -128,18 +131,22 @@ export default function HelpAndSupportScreen() {
     <TouchableOpacity
       style={[
         styles.categoryPill,
-        selectedCategory === category.id && styles.activeCategoryPill,
+        selectedCategory === category.id && [
+          styles.activeCategoryPill,
+          { backgroundColor: theme.primary },
+        ],
       ]}
       onPress={() => setSelectedCategory(category.id)}
     >
       <Ionicons
         name={category.icon as any}
         size={16}
-        color={selectedCategory === category.id ? "white" : "#18453b"}
+        color={selectedCategory === category.id ? "white" : theme.primary}
       />
       <Text
         style={[
           styles.categoryPillText,
+          { color: theme.primary },
           selectedCategory === category.id && styles.activeCategoryPillText,
         ]}
       >
@@ -161,7 +168,7 @@ export default function HelpAndSupportScreen() {
           <Ionicons
             name={isExpanded ? "chevron-up" : "chevron-down"}
             size={20}
-            color="#18453b"
+            color={theme.primary}
           />
         </TouchableOpacity>
 
@@ -195,7 +202,7 @@ export default function HelpAndSupportScreen() {
       <StatusBar barStyle="light-content" />
 
       <LinearGradient
-        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+        colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
         style={styles.background}
       />
 
@@ -203,7 +210,7 @@ export default function HelpAndSupportScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => useRouter().back()}
+          onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
@@ -214,8 +221,15 @@ export default function HelpAndSupportScreen() {
       {/* Hero Section */}
       <View style={styles.heroSection}>
         <View style={styles.logoContainer}>
-          <LinearGradient colors={["#ffd700", "#ffed4a"]} style={styles.logo}>
-            <Ionicons name="help-circle-outline" size={32} color="#18453b" />
+          <LinearGradient
+            colors={[theme.secondary, `${theme.secondary}DD`]}
+            style={styles.logo}
+          >
+            <Ionicons
+              name="help-circle-outline"
+              size={32}
+              color={theme.primary}
+            />
           </LinearGradient>
         </View>
         <Text style={styles.heroTitle}>How can we help you?</Text>
@@ -234,7 +248,9 @@ export default function HelpAndSupportScreen() {
         >
           {/* Quick Contact Methods */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Get Help Now</Text>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+              Get Help Now
+            </Text>
             <Text style={styles.sectionSubtitle}>
               Choose the best way to reach our support team
             </Text>
@@ -248,7 +264,9 @@ export default function HelpAndSupportScreen() {
 
           {/* FAQ Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+              Frequently Asked Questions
+            </Text>
             <Text style={styles.sectionSubtitle}>
               Find quick answers to common questions
             </Text>
@@ -309,15 +327,21 @@ export default function HelpAndSupportScreen() {
 
           {/* Additional Resources */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Additional Resources</Text>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+              Additional Resources
+            </Text>
 
             <View style={styles.resourcesGrid}>
               <TouchableOpacity
                 style={styles.resourceCard}
-                onPress={() => Linking.openURL("https://msu.edu")}
+                onPress={() => Linking.openURL("https://college.edu")}
               >
-                <Ionicons name="school-outline" size={24} color="#18453b" />
-                <Text style={styles.resourceTitle}>MSU Policies</Text>
+                <Ionicons
+                  name="school-outline"
+                  size={24}
+                  color={theme.primary}
+                />
+                <Text style={styles.resourceTitle}>College Policies</Text>
                 <Text style={styles.resourceDescription}>
                   Official university ticket policies
                 </Text>
@@ -335,7 +359,7 @@ export default function HelpAndSupportScreen() {
                 <Ionicons
                   name="shield-checkmark-outline"
                   size={24}
-                  color="#18453b"
+                  color={theme.primary}
                 />
                 <Text style={styles.resourceTitle}>Safety Tips</Text>
                 <Text style={styles.resourceDescription}>
@@ -360,7 +384,9 @@ export default function HelpAndSupportScreen() {
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Subject *</Text>
+                <Text style={[styles.formLabel, { color: theme.primary }]}>
+                  Subject *
+                </Text>
                 <TextInput
                   style={styles.formInput}
                   placeholder="Brief description of your issue"
@@ -373,15 +399,19 @@ export default function HelpAndSupportScreen() {
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Priority</Text>
+                <Text style={[styles.formLabel, { color: theme.primary }]}>
+                  Priority
+                </Text>
                 <View style={styles.prioritySelector}>
                   {["low", "medium", "high"].map((priority) => (
                     <TouchableOpacity
                       key={priority}
                       style={[
                         styles.priorityOption,
-                        contactForm.priority === priority &&
+                        contactForm.priority === priority && [
                           styles.activePriorityOption,
+                          { backgroundColor: theme.primary },
+                        ],
                       ]}
                       onPress={() =>
                         setContactForm({ ...contactForm, priority })
@@ -402,7 +432,9 @@ export default function HelpAndSupportScreen() {
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Message *</Text>
+                <Text style={[styles.formLabel, { color: theme.primary }]}>
+                  Message *
+                </Text>
                 <TextInput
                   style={[styles.formInput, styles.messageInput]}
                   placeholder="Please describe your issue in detail..."
@@ -433,7 +465,7 @@ export default function HelpAndSupportScreen() {
                   colors={
                     isSubmitting
                       ? ["#9ca3af", "#6b7280"]
-                      : ["#18453b", "#2a6b5a"]
+                      : [theme.primary, theme.secondary]
                   }
                   style={styles.submitButtonGradient}
                 >
@@ -538,7 +570,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#18453b",
     marginBottom: 4,
   },
   sectionSubtitle: {
@@ -624,13 +655,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   activeCategoryPill: {
-    backgroundColor: "#18453b",
-    borderColor: "#18453b",
+    borderColor: "transparent",
   },
   categoryPillText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#18453b",
   },
   activeCategoryPillText: {
     color: "white",
@@ -687,46 +716,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
     textAlign: "center",
-  },
-  emergencySection: {
-    margin: 20,
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)",
-    backgroundColor: "rgba(254, 242, 242, 0.8)",
-  },
-  emergencyHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    gap: 8,
-  },
-  emergencyTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#dc2626",
-  },
-  emergencyText: {
-    fontSize: 14,
-    color: "#7f1d1d",
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  emergencyButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#dc2626",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    gap: 8,
-  },
-  emergencyButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "white",
   },
   resourcesGrid: {
     flexDirection: "row",
@@ -798,7 +787,6 @@ const styles = StyleSheet.create({
   formLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#18453b",
     marginBottom: 8,
   },
   formInput: {
@@ -830,8 +818,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   activePriorityOption: {
-    backgroundColor: "#18453b",
-    borderColor: "#18453b",
+    borderColor: "transparent",
   },
   priorityText: {
     fontSize: 14,
@@ -843,8 +830,6 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     borderRadius: 12,
-    shadowColor: "#18453b",
-    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,

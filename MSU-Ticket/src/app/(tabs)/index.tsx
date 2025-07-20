@@ -1,4 +1,4 @@
-// src/app/(tabs)/index.tsx - Fixed Browse Screen
+// src/app/(tabs)/index.tsx - Fixed Browse Screen with College Theme
 import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
@@ -21,6 +21,7 @@ import { useRouter } from "expo-router";
 import { TicketService } from "@/src/services/ticketService";
 import { TicketWithSeller } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { useTheme } from "@/src/providers/ThemeProvider";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 
 const sports = [
@@ -43,6 +44,7 @@ const sortOptions = [
 
 export default function BrowseScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { user, profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSport, setSelectedSport] = useState("All Sports");
@@ -202,26 +204,31 @@ export default function BrowseScreen() {
     <TouchableOpacity
       style={[
         styles.sportFilterCard,
-        selectedSport === sport && styles.sportFilterCardSelected,
+        selectedSport === sport && {
+          backgroundColor: theme.primary,
+          borderColor: theme.secondary,
+        },
       ]}
       onPress={() => setSelectedSport(sport)}
     >
       <View
         style={[
           styles.sportFilterIconContainer,
-          selectedSport === sport && styles.sportFilterIconSelected,
+          selectedSport === sport && {
+            backgroundColor: `${theme.secondary}30`,
+          },
         ]}
       >
         <Ionicons
           name={icon as any}
           size={20}
-          color={selectedSport === sport ? "#ffd700" : "#18453b"}
+          color={selectedSport === sport ? theme.secondary : theme.primary}
         />
       </View>
       <Text
         style={[
           styles.sportFilterText,
-          selectedSport === sport && styles.sportFilterTextSelected,
+          selectedSport === sport && { color: "white" },
         ]}
       >
         {sport}
@@ -294,7 +301,7 @@ export default function BrowseScreen() {
 
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#18453b" />
+        <ActivityIndicator size="small" color={theme.primary} />
         <Text style={styles.footerLoaderText}>Loading more tickets...</Text>
       </View>
     );
@@ -305,11 +312,11 @@ export default function BrowseScreen() {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+          colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
           style={styles.background}
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#ffd700" />
+          <ActivityIndicator size="large" color={theme.secondary} />
           <Text style={styles.loadingText}>
             Loading your college information...
           </Text>
@@ -321,13 +328,23 @@ export default function BrowseScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+        colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
         style={styles.background}
       />
 
       {/* Floating elements */}
-      <View style={styles.floatingElement1} />
-      <View style={styles.floatingElement2} />
+      <View
+        style={[
+          styles.floatingElement1,
+          { backgroundColor: `${theme.secondary}08` },
+        ]}
+      />
+      <View
+        style={[
+          styles.floatingElement2,
+          { backgroundColor: "rgba(255, 255, 255, 0.05)" },
+        ]}
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -345,13 +362,16 @@ export default function BrowseScreen() {
             <NotificationBadge
               iconName="notifications-outline"
               iconSize={24}
-              iconColor="#ffd700"
+              iconColor={theme.secondary}
             />
           </TouchableOpacity>
 
           <View style={styles.logoContainer}>
-            <LinearGradient colors={["#ffd700", "#ffed4a"]} style={styles.logo}>
-              <Ionicons name="search-outline" size={32} color="#18453b" />
+            <LinearGradient
+              colors={[theme.secondary, `${theme.secondary}DD`]}
+              style={styles.logo}
+            >
+              <Ionicons name="search-outline" size={32} color={theme.primary} />
             </LinearGradient>
           </View>
           <Text style={styles.headerTitle}>Browse Tickets</Text>
@@ -364,7 +384,12 @@ export default function BrowseScreen() {
         <View style={styles.searchSection}>
           {/* Search Bar */}
           <View style={styles.searchContainer}>
-            <View style={styles.searchWrapper}>
+            <View
+              style={[
+                styles.searchWrapper,
+                { borderColor: `${theme.primary}30` },
+              ]}
+            >
               <Ionicons
                 name="search-outline"
                 size={20}
@@ -391,35 +416,51 @@ export default function BrowseScreen() {
 
           {/* Filter and Sort Row */}
           <View style={styles.filterRow}>
-            <Text style={styles.filterLabel}>Filter by Sport</Text>
+            <Text style={[styles.filterLabel, { color: theme.primary }]}>
+              Filter by Sport
+            </Text>
             <View style={styles.filterButtons}>
               <TouchableOpacity
                 style={[
                   styles.seasonFilter,
-                  showSeasonTicketsOnly && styles.seasonFilterActive,
+                  { borderColor: `${theme.primary}30` },
+                  showSeasonTicketsOnly && {
+                    backgroundColor: theme.primary,
+                    borderColor: theme.primary,
+                  },
                 ]}
                 onPress={() => setShowSeasonTicketsOnly(!showSeasonTicketsOnly)}
               >
                 <Ionicons
                   name="ticket"
                   size={16}
-                  color={showSeasonTicketsOnly ? "white" : "#18453b"}
+                  color={showSeasonTicketsOnly ? "white" : theme.primary}
                 />
                 <Text
                   style={[
                     styles.seasonFilterText,
-                    showSeasonTicketsOnly && styles.seasonFilterTextActive,
+                    { color: theme.primary },
+                    showSeasonTicketsOnly && { color: "white" },
                   ]}
                 >
                   Season Only
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.sortButton}
+                style={[
+                  styles.sortButton,
+                  { borderColor: `${theme.primary}30` },
+                ]}
                 onPress={() => setShowSortModal(true)}
               >
-                <Ionicons name="funnel-outline" size={16} color="#18453b" />
-                <Text style={styles.sortButtonText}>Sort</Text>
+                <Ionicons
+                  name="funnel-outline"
+                  size={16}
+                  color={theme.primary}
+                />
+                <Text style={[styles.sortButtonText, { color: theme.primary }]}>
+                  Sort
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -442,7 +483,7 @@ export default function BrowseScreen() {
 
           {/* Results Header */}
           <View style={styles.resultsHeader}>
-            <Text style={styles.resultsCount}>
+            <Text style={[styles.resultsCount, { color: theme.primary }]}>
               {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} found
               {hasMore && !loading && " (scroll for more)"}
             </Text>
@@ -481,7 +522,10 @@ export default function BrowseScreen() {
                     tickets
                   </Text>
                   <TouchableOpacity
-                    style={styles.clearFiltersButton}
+                    style={[
+                      styles.clearFiltersButton,
+                      { backgroundColor: theme.primary },
+                    ]}
                     onPress={() => {
                       setSearchQuery("");
                       setSelectedSport("All Sports");
@@ -503,7 +547,9 @@ export default function BrowseScreen() {
           <BlurView intensity={50} style={styles.modalBlur}>
             <View style={styles.sortModal}>
               <View style={styles.sortModalHeader}>
-                <Text style={styles.sortModalTitle}>Sort by</Text>
+                <Text style={[styles.sortModalTitle, { color: theme.primary }]}>
+                  Sort by
+                </Text>
                 <TouchableOpacity onPress={() => setShowSortModal(false)}>
                   <Ionicons name="close" size={24} color="#6b7280" />
                 </TouchableOpacity>
@@ -513,7 +559,9 @@ export default function BrowseScreen() {
                   key={option.value}
                   style={[
                     styles.sortOption,
-                    sortBy === option.value && styles.sortOptionSelected,
+                    sortBy === option.value && {
+                      backgroundColor: `${theme.primary}15`,
+                    },
                   ]}
                   onPress={() => {
                     setSortBy(option.value as any);
@@ -523,13 +571,20 @@ export default function BrowseScreen() {
                   <Text
                     style={[
                       styles.sortOptionText,
-                      sortBy === option.value && styles.sortOptionTextSelected,
+                      sortBy === option.value && {
+                        fontWeight: "600",
+                        color: theme.primary,
+                      },
                     ]}
                   >
                     {option.label}
                   </Text>
                   {sortBy === option.value && (
-                    <Ionicons name="checkmark" size={20} color="#18453b" />
+                    <Ionicons
+                      name="checkmark"
+                      size={20}
+                      color={theme.primary}
+                    />
                   )}
                 </TouchableOpacity>
               ))}
@@ -565,6 +620,8 @@ const EnhancedTicketCard = ({
   isSeasonTicket?: boolean;
   collegeMatchup?: string | null;
 }) => {
+  const theme = useTheme();
+
   return (
     <TouchableOpacity
       style={styles.enhancedTicketCard}
@@ -574,19 +631,31 @@ const EnhancedTicketCard = ({
       {/* Header with badges */}
       <View style={styles.ticketHeader}>
         <View style={styles.leftBadges}>
-          <View style={styles.sportBadge}>
+          <View style={[styles.sportBadge, { backgroundColor: theme.primary }]}>
             <Text style={styles.sportBadgeText}>{sport}</Text>
           </View>
           {isSeasonTicket && (
-            <View style={styles.seasonBadge}>
+            <View
+              style={[styles.seasonBadge, { backgroundColor: theme.secondary }]}
+            >
               <Text style={styles.seasonBadgeText}>SEASON</Text>
             </View>
           )}
         </View>
         {collegeMatchup && (
-          <View style={styles.collegeBadge}>
-            <Ionicons name="shield-outline" size={12} color="#18453b" />
-            <Text style={styles.collegeBadgeText}>{collegeMatchup}</Text>
+          <View
+            style={[
+              styles.collegeBadge,
+              {
+                backgroundColor: `${theme.primary}15`,
+                borderColor: `${theme.primary}40`,
+              },
+            ]}
+          >
+            <Ionicons name="shield-outline" size={12} color={theme.primary} />
+            <Text style={[styles.collegeBadgeText, { color: theme.primary }]}>
+              {collegeMatchup}
+            </Text>
           </View>
         )}
       </View>
@@ -601,7 +670,9 @@ const EnhancedTicketCard = ({
           <Text style={styles.locationText}>
             Section {section} • Row {row} • Seat {seat}
           </Text>
-          <View style={styles.priceContainer}>
+          <View
+            style={[styles.priceContainer, { backgroundColor: theme.primary }]}
+          >
             <Text style={styles.priceText}>${price.toFixed(2)}</Text>
           </View>
         </View>
@@ -628,7 +699,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "rgba(255, 215, 0, 0.08)",
   },
   floatingElement2: {
     position: "absolute",
@@ -637,7 +707,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   scrollView: {
     flex: 1,
@@ -658,7 +727,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#ffd700",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -720,7 +789,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8fafc",
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: "#e2e8f0",
     paddingHorizontal: 16,
     height: 52,
   },
@@ -744,7 +812,6 @@ const styles = StyleSheet.create({
   filterLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#18453b",
   },
   filterButtons: {
     flexDirection: "row",
@@ -759,19 +826,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8fafc",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  seasonFilterActive: {
-    backgroundColor: "#18453b",
-    borderColor: "#18453b",
   },
   seasonFilterText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#18453b",
-  },
-  seasonFilterTextActive: {
-    color: "white",
   },
   sortButton: {
     flexDirection: "row",
@@ -782,12 +840,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8fafc",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
   },
   sortButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#18453b",
   },
   sportFiltersContainer: {
     marginBottom: 20,
@@ -805,10 +861,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#e2e8f0",
   },
-  sportFilterCardSelected: {
-    backgroundColor: "#18453b",
-    borderColor: "#ffd700",
-  },
   sportFilterIconContainer: {
     width: 32,
     height: 32,
@@ -818,17 +870,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 6,
   },
-  sportFilterIconSelected: {
-    backgroundColor: "rgba(255, 215, 0, 0.2)",
-  },
   sportFilterText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#18453b",
     textAlign: "center",
-  },
-  sportFilterTextSelected: {
-    color: "white",
+    color: "#18453b",
   },
   resultsHeader: {
     flexDirection: "row",
@@ -841,7 +887,6 @@ const styles = StyleSheet.create({
   resultsCount: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#18453b",
   },
   currentSort: {
     fontSize: 12,
@@ -880,7 +925,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sportBadge: {
-    backgroundColor: "#18453b",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -892,7 +936,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   seasonBadge: {
-    backgroundColor: "#f59e0b",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -907,17 +950,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#f0f9ff",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#bfdbfe",
   },
   collegeBadgeText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#18453b",
   },
   ticketContent: {
     paddingHorizontal: 16,
@@ -948,7 +988,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   priceContainer: {
-    backgroundColor: "#18453b",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -992,7 +1031,6 @@ const styles = StyleSheet.create({
   clearFiltersButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: "#18453b",
     borderRadius: 12,
   },
   clearFiltersText: {
@@ -1047,7 +1085,6 @@ const styles = StyleSheet.create({
   sortModalTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1e293b",
   },
   sortOption: {
     flexDirection: "row",
@@ -1058,15 +1095,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 4,
   },
-  sortOptionSelected: {
-    backgroundColor: "#f0f9ff",
-  },
   sortOptionText: {
     fontSize: 16,
     color: "#374151",
-  },
-  sortOptionTextSelected: {
-    fontWeight: "600",
-    color: "#18453b",
   },
 });

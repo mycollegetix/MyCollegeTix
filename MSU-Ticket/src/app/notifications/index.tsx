@@ -1,4 +1,4 @@
-// screens/NotificationsScreen.tsx - COMPLETE with message notification support
+// screens/NotificationsScreen.tsx - COMPLETE with theme support and message notification support
 import React, { useState } from "react";
 import {
   StyleSheet,
@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { useNotifications } from "@/src/providers/NotificationProvider";
+import { useTheme } from "@/src/providers/ThemeProvider";
 import { Database } from "@/src/types/database.types";
 
 const { width, height } = Dimensions.get("window");
@@ -25,6 +26,7 @@ type Notification = Database["public"]["Tables"]["notifications"]["Row"];
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const {
     notifications,
     unreadCount,
@@ -150,9 +152,9 @@ export default function NotificationsScreen() {
         };
       default:
         return {
-          primary: "#18453b",
+          primary: theme.primary,
           secondary: "#f0fdf4",
-          gradient: ["#18453b", "#15803d"],
+          gradient: [theme.primary, theme.primary],
         };
     }
   };
@@ -190,7 +192,10 @@ export default function NotificationsScreen() {
         <TouchableOpacity
           style={[
             styles.notificationCard,
-            !item.read && styles.unreadNotification,
+            !item.read && [
+              styles.unreadNotification,
+              { borderColor: theme.primary },
+            ],
             { transform: [{ scale: isDeleting ? 0.95 : 1 }] },
           ]}
           onPress={() => handleNotificationPress(item)}
@@ -276,7 +281,7 @@ export default function NotificationsScreen() {
       <StatusBar barStyle="light-content" />
 
       <LinearGradient
-        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+        colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
         style={styles.background}
       />
 
@@ -298,8 +303,12 @@ export default function NotificationsScreen() {
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Notifications</Text>
           {unreadCount > 0 && (
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeText}>{unreadCount}</Text>
+            <View
+              style={[styles.headerBadge, { backgroundColor: theme.secondary }]}
+            >
+              <Text style={[styles.headerBadgeText, { color: theme.primary }]}>
+                {unreadCount}
+              </Text>
             </View>
           )}
         </View>
@@ -323,7 +332,11 @@ export default function NotificationsScreen() {
           >
             <View style={styles.statItem}>
               <View style={styles.statIconContainer}>
-                <Ionicons name="notifications" size={20} color="#18453b" />
+                <Ionicons
+                  name="notifications"
+                  size={20}
+                  color={theme.primary}
+                />
               </View>
               <Text style={styles.statNumber}>{notifications.length}</Text>
               <Text style={styles.statLabel}>Total</Text>
@@ -368,8 +381,8 @@ export default function NotificationsScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor="#18453b"
-                colors={["#18453b"]}
+                tintColor={theme.primary}
+                colors={[theme.primary]}
               />
             }
             contentContainerStyle={styles.listContent}
@@ -379,12 +392,12 @@ export default function NotificationsScreen() {
           <View style={styles.emptyStateContainer}>
             <BlurView intensity={20} style={styles.emptyState}>
               <LinearGradient
-                colors={["rgba(24,69,59,0.1)", "rgba(24,69,59,0.05)"]}
+                colors={[`${theme.primary}1A`, `${theme.primary}0D`]}
                 style={styles.emptyStateGradient}
               >
                 <View style={styles.emptyIconContainer}>
                   <LinearGradient
-                    colors={["#18453b", "#2d7a6b"]}
+                    colors={[theme.primary, theme.secondary]}
                     style={styles.emptyIconGradient}
                   >
                     <Ionicons
@@ -448,7 +461,6 @@ const styles = StyleSheet.create({
     color: "white",
   },
   headerBadge: {
-    backgroundColor: "#18453b",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -458,7 +470,6 @@ const styles = StyleSheet.create({
   headerBadgeText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "white",
   },
   statsContainer: {
     paddingHorizontal: 20,
@@ -534,9 +545,7 @@ const styles = StyleSheet.create({
     borderColor: "#f1f5f9",
   },
   unreadNotification: {
-    borderColor: "#18453b",
     backgroundColor: "#fefffe",
-    shadowColor: "#18453b",
     shadowOpacity: 0.1,
   },
   notificationContent: {

@@ -340,14 +340,6 @@ export default function LoginScreen() {
                   <Text style={styles.registerText}>Create Account</Text>
                 </TouchableOpacity>
               </Link>
-
-              {/* Security Badge */}
-              <View style={styles.securityBadge}>
-                <Ionicons name="shield-checkmark" size={16} color="#ffd700" />
-                <Text style={styles.securityText}>
-                  Your data is protected with bank-level security
-                </Text>
-              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -557,8 +549,10 @@ const styles = StyleSheet.create({
   },
   formSection: {
     backgroundColor: "white",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 40, // Increased radius for a more pronounced curve
+    borderTopRightRadius: 40, // Increased radius for a more pronounced curve
+    borderBottomLeftRadius: 40, // Added for bottom curve
+    borderBottomRightRadius: 40, // Added for bottom curve
     paddingTop: 40,
     paddingBottom: 40,
     minHeight: height * 0.6,

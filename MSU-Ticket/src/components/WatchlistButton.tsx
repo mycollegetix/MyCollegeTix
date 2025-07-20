@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { WatchlistService } from "@/src/services/watchlistService";
+import { useTheme } from "@/src/providers/ThemeProvider";
 
 interface WatchlistButtonProps {
   ticketId: string;
@@ -32,6 +33,7 @@ const WatchlistButton: React.FC<WatchlistButtonProps> = ({
   size = "medium",
   showText = true,
 }) => {
+  const theme = useTheme();
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -178,7 +180,7 @@ const WatchlistButton: React.FC<WatchlistButtonProps> = ({
           colors={
             isInWatchlist
               ? ["#ef4444", "#dc2626"] // Red gradient for remove
-              : ["#18453b", "#2a6b5a"] // Green gradient for add
+              : [theme.primary, `${theme.primary}E6`] // College primary color
           }
           style={styles.gradient}
         >
@@ -209,7 +211,9 @@ const WatchlistButton: React.FC<WatchlistButtonProps> = ({
         <BlurView intensity={50} style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add to Watchlist</Text>
+              <Text style={[styles.modalTitle, { color: theme.primary }]}>
+                Add to Watchlist
+              </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#666" />
               </TouchableOpacity>
@@ -217,20 +221,30 @@ const WatchlistButton: React.FC<WatchlistButtonProps> = ({
 
             <View style={styles.modalContent}>
               {/* Ticket Info */}
-              <View style={styles.ticketInfo}>
+              <View
+                style={[
+                  styles.ticketInfo,
+                  { backgroundColor: `${theme.primary}15` },
+                ]}
+              >
                 <Text style={styles.ticketTitle} numberOfLines={2}>
                   {ticketTitle}
                 </Text>
-                <Text style={styles.ticketPrice}>
+                <Text style={[styles.ticketPrice, { color: theme.primary }]}>
                   Current Price: ${currentPrice.toFixed(2)}
                 </Text>
               </View>
 
               {/* Notes */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Notes (Optional)</Text>
+                <Text style={[styles.inputLabel, { color: theme.primary }]}>
+                  Notes (Optional)
+                </Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={[
+                    styles.textInput,
+                    { borderColor: `${theme.primary}40` },
+                  ]}
                   value={formData.notes}
                   onChangeText={(text) =>
                     setFormData({ ...formData, notes: text })
@@ -243,9 +257,14 @@ const WatchlistButton: React.FC<WatchlistButtonProps> = ({
 
               {/* Price Alert */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Price Alert (Optional)</Text>
+                <Text style={[styles.inputLabel, { color: theme.primary }]}>
+                  Price Alert (Optional)
+                </Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={[
+                    styles.textInput,
+                    { borderColor: `${theme.primary}40` },
+                  ]}
                   value={formData.priceAlertThreshold}
                   onChangeText={(text) =>
                     setFormData({ ...formData, priceAlertThreshold: text })
@@ -263,13 +282,15 @@ const WatchlistButton: React.FC<WatchlistButtonProps> = ({
               {/* Notifications Toggle */}
               <View style={styles.inputGroup}>
                 <View style={styles.switchRow}>
-                  <Text style={styles.inputLabel}>Enable Notifications</Text>
+                  <Text style={[styles.inputLabel, { color: theme.primary }]}>
+                    Enable Notifications
+                  </Text>
                   <Switch
                     value={formData.notificationEnabled}
                     onValueChange={(value) =>
                       setFormData({ ...formData, notificationEnabled: value })
                     }
-                    trackColor={{ false: "#d1d5db", true: "#18453b" }}
+                    trackColor={{ false: "#d1d5db", true: theme.primary }}
                     thumbColor="#ffffff"
                   />
                 </View>
@@ -287,7 +308,7 @@ const WatchlistButton: React.FC<WatchlistButtonProps> = ({
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.addButton}
+                style={[styles.addButton, { backgroundColor: theme.primary }]}
                 onPress={addToWatchlist}
                 disabled={loading}
               >
@@ -342,13 +363,11 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1f2937",
   },
   modalContent: {
     padding: 20,
   },
   ticketInfo: {
-    backgroundColor: "#f9fafb",
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
@@ -361,7 +380,6 @@ const styles = StyleSheet.create({
   },
   ticketPrice: {
     fontSize: 14,
-    color: "#18453b",
     fontWeight: "600",
   },
   inputGroup: {
@@ -370,12 +388,10 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#374151",
     marginBottom: 8,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
@@ -416,7 +432,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     alignItems: "center",
-    backgroundColor: "#18453b",
     borderRadius: 8,
   },
   addButtonText: {

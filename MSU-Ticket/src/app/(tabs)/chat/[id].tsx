@@ -1,4 +1,4 @@
-// src/app/(tabs)/chat/[id].tsx - UPDATED with better navigation
+// src/app/(tabs)/chat/[id].tsx - FIXED with proper theme usage
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   StyleSheet,
@@ -19,6 +19,7 @@ import { BlurView } from "expo-blur";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useChat } from "@/src/providers/ChatProvider";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { useTheme } from "@/src/providers/ThemeProvider";
 import { MessageWithSender } from "@/src/types/database.types";
 
 const { width, height } = Dimensions.get("window");
@@ -27,6 +28,7 @@ export default function ChatConversationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const theme = useTheme();
   const {
     currentConversation,
     messages,
@@ -274,7 +276,9 @@ export default function ChatConversationScreen() {
         <View
           style={[
             styles.messageBubble,
-            isMyMessage ? styles.myMessage : styles.otherMessage,
+            isMyMessage
+              ? [styles.myMessage, { backgroundColor: theme.primary }]
+              : styles.otherMessage,
           ]}
         >
           {!isMyMessage && (
@@ -322,7 +326,7 @@ export default function ChatConversationScreen() {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+          colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
           style={styles.background}
         />
         <View style={styles.loadingContainer}>
@@ -337,7 +341,7 @@ export default function ChatConversationScreen() {
       <StatusBar barStyle="light-content" />
 
       <LinearGradient
-        colors={["#18453b", "#2a6b5a", "#0f2f28"]}
+        colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
         style={styles.background}
       />
 
@@ -351,8 +355,15 @@ export default function ChatConversationScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <View style={styles.participantAvatar}>
-            <Text style={styles.participantAvatarText}>
+          <View
+            style={[
+              styles.participantAvatar,
+              { backgroundColor: theme.secondary },
+            ]}
+          >
+            <Text
+              style={[styles.participantAvatarText, { color: theme.primary }]}
+            >
               {otherParticipant.full_name.charAt(0).toUpperCase()}
             </Text>
           </View>
@@ -377,21 +388,7 @@ export default function ChatConversationScreen() {
                   Alert.alert("Profile", "User profile feature coming soon!");
                 },
               },
-              {
-                text: "View Ticket",
-                onPress: () => {
-                  if (currentConversation.ticket) {
-                    (router.push as any)(
-                      `/ticket-details/${currentConversation.ticket.id}`
-                    );
-                  } else {
-                    Alert.alert(
-                      "No Ticket",
-                      "This conversation is not related to a specific ticket."
-                    );
-                  }
-                },
-              },
+
               {
                 text: "Chat List",
                 onPress: () => {
@@ -408,25 +405,31 @@ export default function ChatConversationScreen() {
 
       {/* Ticket Reference (if applicable) */}
       {currentConversation.ticket && (
-        <View style={styles.ticketReference}>
+        <TouchableOpacity
+          style={styles.ticketReference}
+          onPress={() =>
+            (router.push as any)(
+              `/ticket-details/${currentConversation.ticket!.id}`
+            )
+          }
+        >
           <BlurView intensity={20} style={styles.ticketReferenceBlur}>
             <View style={styles.ticketReferenceContent}>
-              <Ionicons name="ticket-outline" size={16} color="#18453b" />
-              <Text style={styles.ticketReferenceText} numberOfLines={1}>
+              <Ionicons
+                name="ticket-outline"
+                size={16}
+                color={theme.secondary}
+              />
+              <Text
+                style={[styles.ticketReferenceText, { color: theme.secondary }]}
+                numberOfLines={1}
+              >
                 About: {currentConversation.ticket.title}
               </Text>
-              <TouchableOpacity
-                onPress={() =>
-                  (router.push as any)(
-                    `/ticket-details/${currentConversation.ticket!.id}`
-                  )
-                }
-              >
-                <Ionicons name="open-outline" size={16} color="#18453b" />
-              </TouchableOpacity>
+              <Ionicons name="open-outline" size={16} color={theme.secondary} />
             </View>
           </BlurView>
-        </View>
+        </TouchableOpacity>
       )}
 
       <KeyboardAvoidingView
@@ -484,14 +487,17 @@ export default function ChatConversationScreen() {
                 onChangeText={setMessageText}
                 multiline
                 maxLength={1000}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={theme.secondary}
               />
 
               <TouchableOpacity
                 style={[
                   styles.sendButton,
                   messageText.trim() && !sending
-                    ? styles.sendButtonActive
+                    ? [
+                        styles.sendButtonActive,
+                        { backgroundColor: theme.primary },
+                      ]
                     : styles.sendButtonInactive,
                 ]}
                 onPress={handleSendMessage}
@@ -552,7 +558,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#ffd700",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -560,7 +565,6 @@ const styles = StyleSheet.create({
   participantAvatarText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#18453b",
   },
   participantInfo: {
     flex: 1,
@@ -568,15 +572,26 @@ const styles = StyleSheet.create({
   participantName: {
     fontSize: 16,
     fontWeight: "700",
-    color: "white",
+    color: "black",
   },
   participantUsername: {
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "black",
   },
   ticketReference: {
-    paddingHorizontal: 20,
-    paddingBottom: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.15)", // A subtle background
+    borderRadius: 12,
+    marginHorizontal: 20, // Add some horizontal margin to make it float
+    marginBottom: 16, // Space from chat input
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1, // Add a border
+    borderColor: "rgba(255, 255, 255, 0.2)", // Border color
   },
   ticketReferenceBlur: {
     borderRadius: 12,
@@ -592,8 +607,8 @@ const styles = StyleSheet.create({
   ticketReferenceText: {
     flex: 1,
     fontSize: 12,
-    color: "#18453b",
     fontWeight: "500",
+    color: "black",
   },
   chatContainer: {
     flex: 1,
@@ -628,7 +643,7 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 11,
-    color: "#9ca3af",
+    color: "black",
     textAlign: "center",
     marginBottom: 8,
     fontWeight: "500",
@@ -646,7 +661,6 @@ const styles = StyleSheet.create({
   },
   myMessage: {
     alignSelf: "flex-end",
-    backgroundColor: "#18453b",
     borderBottomRightRadius: 4,
   },
   otherMessage: {
@@ -662,11 +676,12 @@ const styles = StyleSheet.create({
   senderName: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#6b7280",
+    color: "black",
   },
   messageText: {
     fontSize: 15,
     lineHeight: 20,
+    color: "black",
   },
   myMessageText: {
     color: "white",
@@ -724,7 +739,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     gap: 12,
   },
   messageInput: {
@@ -742,7 +757,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sendButtonActive: {
-    backgroundColor: "#18453b",
+    // backgroundColor set dynamically with theme.primary
   },
   sendButtonInactive: {
     backgroundColor: "#f1f5f9",
