@@ -58,6 +58,7 @@ export default function OrdersScreen() {
 
   const buyingStats = getTabStats("buying");
   const sellingStats = getTabStats("selling");
+  const watchlistStats = getTabStats("watchlist");
 
   useEffect(() => {
     if (user) {
@@ -532,7 +533,7 @@ export default function OrdersScreen() {
                   activeTab === "watchlist" && styles.activeTabText,
                 ]}
               >
-                Watchlist
+                Watchlist ({watchlistStats.count})
               </Text>
             </TouchableOpacity>
           </View>
@@ -751,7 +752,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
     color: "#6b7280",
   },
