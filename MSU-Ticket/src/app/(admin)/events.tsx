@@ -15,10 +15,12 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/src/lib/supabase";
-import { Tables } from "@/src/types/database.types";
+import { Tables, EventWithColleges } from "@/src/types/database.types";
 import AdminLayout from "@/src/components/AdminLayout";
 
 type Event = Tables<"events">;
+
+type College = Tables<"colleges">;
 
 const { width } = Dimensions.get("window");
 
@@ -39,8 +41,13 @@ const STATUS_LABELS = {
 };
 
 export default function EventManagement() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<EventWithColleges[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<EventWithColleges[]>([]);
+  const [groupedEvents, setGroupedEvents] = useState<{
+    [key: string]: EventWithColleges[];
+  }>({});
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [openColleges, setOpenColleges] = useState<Set<string>>(new Set());
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sportFilter, setSportFilter] = useState<string>("all");
@@ -54,23 +61,34 @@ export default function EventManagement() {
     fetchEvents();
   }, []);
 
-  useEffect(() => {
-    filterEvents();
-  }, [searchText, statusFilter, sportFilter, events]);
-
   const fetchEvents = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      const { data: eventData, error: eventError } = await supabase
         .from("events")
-        .select("*")
+        .select(
+          `
+          *,
+          home_college:colleges!events_home_college_id_fkey(*),
+          away_college:colleges!events_away_college_id_fkey(*)
+        `
+        )
         .order("event_date", { ascending: true });
 
-      if (error) throw error;
-      setEvents(data || []);
+      if (eventError) throw eventError;
+
+      const { data: collegeData, error: collegeError } = await supabase
+        .from("colleges")
+        .select("*")
+        .order("name");
+
+      if (collegeError) throw collegeError;
+
+      setEvents(eventData || []);
+      setColleges(collegeData || []);
     } catch (error) {
-      console.error("Error fetching events:", error);
-      Alert.alert("Error", "Failed to load events");
+      console.error("Error fetching data:", error);
+      Alert.alert("Error", "Failed to load data");
     } finally {
       setIsLoading(false);
     }
@@ -82,28 +100,70 @@ export default function EventManagement() {
     setRefreshing(false);
   };
 
-  const filterEvents = () => {
-    let filtered = events;
+  useEffect(() => {
+    const groupAndFilterEvents = () => {
+      let filtered = events;
 
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((event) => event.status === statusFilter);
+      if (statusFilter !== "all") {
+        filtered = filtered.filter((event) => event.status === statusFilter);
+      }
+
+      if (sportFilter !== "all") {
+        filtered = filtered.filter((event) => event.sport === sportFilter);
+      }
+
+      if (searchText.trim()) {
+        filtered = filtered.filter(
+          (event) =>
+            event.title.toLowerCase().includes(searchText.toLowerCase()) ||
+            event.sport?.toLowerCase().includes(searchText.toLowerCase()) ||
+            event.location.toLowerCase().includes(searchText.toLowerCase()) ||
+            event.opponent?.toLowerCase().includes(searchText.toLowerCase()) ||
+            event.home_college?.name
+              .toLowerCase()
+              .includes(searchText.toLowerCase()) ||
+            event.away_college?.name
+              .toLowerCase()
+              .includes(searchText.toLowerCase())
+        );
+      }
+
+      const grouped = colleges.reduce((acc, college) => {
+        acc[college.id] = [];
+        return acc;
+      }, {} as { [key: string]: EventWithColleges[] });
+
+      // Add a group for events with no college affiliation
+      grouped["none"] = [];
+
+      filtered.forEach((event) => {
+        if (event.home_college_id) {
+          if (grouped[event.home_college_id]) {
+            grouped[event.home_college_id].push(event);
+          }
+        } else if (event.away_college_id) {
+          if (grouped[event.away_college_id]) {
+            grouped[event.away_college_id].push(event);
+          }
+        } else {
+          grouped["none"].push(event);
+        }
+      });
+
+      setGroupedEvents(grouped);
+    };
+
+    groupAndFilterEvents();
+  }, [events, colleges, searchText, statusFilter, sportFilter]);
+
+  const toggleCollege = (collegeId: string) => {
+    const newOpenColleges = new Set(openColleges);
+    if (newOpenColleges.has(collegeId)) {
+      newOpenColleges.delete(collegeId);
+    } else {
+      newOpenColleges.add(collegeId);
     }
-
-    if (sportFilter !== "all") {
-      filtered = filtered.filter((event) => event.sport === sportFilter);
-    }
-
-    if (searchText.trim()) {
-      filtered = filtered.filter(
-        (event) =>
-          event.title.toLowerCase().includes(searchText.toLowerCase()) ||
-          event.sport?.toLowerCase().includes(searchText.toLowerCase()) ||
-          event.location.toLowerCase().includes(searchText.toLowerCase()) ||
-          event.opponent?.toLowerCase().includes(searchText.toLowerCase())
-      );
-    }
-
-    setFilteredEvents(filtered);
+    setOpenColleges(newOpenColleges);
   };
 
   const updateEventStatus = async (eventId: string, newStatus: string) => {
@@ -652,7 +712,7 @@ export default function EventManagement() {
               <ActivityIndicator size="large" color="#18453b" />
               <Text style={styles.loadingText}>Loading events...</Text>
             </View>
-          ) : filteredEvents.length === 0 ? (
+          ) : Object.keys(groupedEvents).length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
               <Text style={styles.emptyTitle}>No events found</Text>
@@ -663,9 +723,42 @@ export default function EventManagement() {
               </Text>
             </View>
           ) : (
-            filteredEvents.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))
+            [...colleges, { id: "none", name: "No College Affiliation" }].map(
+              (college) => {
+                const collegeEvents = groupedEvents[college.id] || [];
+                if (collegeEvents.length === 0) return null;
+
+                const isOpen = openColleges.has(college.id);
+
+                return (
+                  <View key={college.id} style={styles.collegeSection}>
+                    <TouchableOpacity
+                      style={styles.collegeHeader}
+                      onPress={() => toggleCollege(college.id)}
+                    >
+                      <Text style={styles.collegeName}>{college.name}</Text>
+                      <View style={styles.collegeHeaderRight}>
+                        <Text style={styles.eventCount}>
+                          {collegeEvents.length} events
+                        </Text>
+                        <Ionicons
+                          name={isOpen ? "chevron-down" : "chevron-forward"}
+                          size={20}
+                          color="#6B7280"
+                        />
+                      </View>
+                    </TouchableOpacity>
+                    {isOpen && (
+                      <View style={styles.eventList}>
+                        {collegeEvents.map((event) => (
+                          <EventCard key={event.id} event={event} />
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              }
+            )
           )}
         </ScrollView>
 
@@ -953,5 +1046,33 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontSize: 16,
     fontWeight: "600",
+  },
+  collegeSection: {
+    marginBottom: 12,
+  },
+  collegeHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#E5E7EB",
+    padding: 12,
+    borderRadius: 8,
+  },
+  collegeName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1F2937",
+  },
+  collegeHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  eventCount: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  eventList: {
+    paddingTop: 8,
   },
 });
