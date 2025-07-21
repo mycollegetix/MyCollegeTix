@@ -417,6 +417,68 @@ export default function ProfileScreen() {
                       />
                     </TouchableOpacity>
 
+                    <TouchableOpacity
+                      style={styles.quickActionCard}
+                      onPress={() => (router.push as any)("/legal/terms")}
+                    >
+                      <View
+                        style={[
+                          styles.quickActionIcon,
+                          { backgroundColor: `${theme.primary}15` },
+                        ]}
+                      >
+                        <Ionicons
+                          name="document-text-outline"
+                          size={24}
+                          color={theme.primary}
+                        />
+                      </View>
+                      <Text
+                        style={[
+                          styles.quickActionText,
+                          { color: theme.primary },
+                        ]}
+                      >
+                        Terms of Service
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color="#6b7280"
+                      />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.quickActionCard}
+                      onPress={() => (router.push as any)("/legal/privacy")}
+                    >
+                      <View
+                        style={[
+                          styles.quickActionIcon,
+                          { backgroundColor: `${theme.primary}15` },
+                        ]}
+                      >
+                        <Ionicons
+                          name="shield-checkmark-outline"
+                          size={24}
+                          color={theme.primary}
+                        />
+                      </View>
+                      <Text
+                        style={[
+                          styles.quickActionText,
+                          { color: theme.primary },
+                        ]}
+                      >
+                        Privacy Policy
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color="#6b7280"
+                      />
+                    </TouchableOpacity>
+
                     {/* Admin Panel Button - Only show if user is admin */}
                     {isAdmin && (
                       <TouchableOpacity

@@ -215,7 +215,7 @@ export default function HelpAndSupportScreen() {
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Help & Support</Text>
-        <View style={styles.headerButton} />
+        <View style={{ width: 44 }} />
       </View>
 
       {/* Hero Section */}
