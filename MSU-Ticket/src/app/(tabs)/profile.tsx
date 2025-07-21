@@ -80,6 +80,7 @@ export default function ProfileScreen() {
     }
   };
 
+
   const handleDeleteAccount = async () => {
     try {
       console.log("🗑️ Starting account deletion...");
@@ -320,6 +321,11 @@ export default function ProfileScreen() {
                     icon="mail-outline"
                     label="Email Address"
                     value={user?.email || ""}
+                  />
+                  <InfoCard
+                    icon="school-outline"
+                    label="College"
+                    value={profile?.college?.name || "No college assigned"}
                   />
                   <InfoCard
                     icon="calendar-outline"

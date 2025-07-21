@@ -467,13 +467,13 @@ export default function TicketDetailsScreen() {
               onPress={handlePurchase}
               disabled={purchasing}
             >
-              <LinearGradient
-                colors={
-                  purchasing
-                    ? ["#9ca3af", "#6b7280"]
-                    : [theme.primary, theme.secondary]
-                }
-                style={styles.purchaseButtonGradient}
+              <View
+                style={[
+                  styles.purchaseButtonGradient,
+                  {
+                    backgroundColor: purchasing ? "#6b7280" : theme.primary,
+                  },
+                ]}
               >
                 {purchasing ? (
                   <View style={styles.purchaseButtonContent}>
@@ -487,7 +487,7 @@ export default function TicketDetailsScreen() {
                     </Text>
                   </View>
                 )}
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </View>
         </BlurView>

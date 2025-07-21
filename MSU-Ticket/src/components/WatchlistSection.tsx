@@ -29,10 +29,18 @@ interface WatchlistSectionProps {
   onRefresh?: () => void;
 }
 
+interface EventGroup {
+  eventTitle: string;
+  eventDate: string;
+  items: WatchlistWithTicket[];
+  expanded: boolean;
+}
+
 const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
   const router = useRouter();
   const theme = useTheme();
   const [watchlist, setWatchlist] = useState<WatchlistWithTicket[]>([]);
+  const [eventGroups, setEventGroups] = useState<EventGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
@@ -71,7 +79,9 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
         throw statsResult.error;
       }
 
-      setWatchlist(watchlistResult.data || []);
+      const watchlistData = watchlistResult.data || [];
+      setWatchlist(watchlistData);
+      setEventGroups(groupWatchlistByEvent(watchlistData));
       setStats(
         statsResult.data || {
           totalItems: 0,
@@ -88,6 +98,37 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const groupWatchlistByEvent = (
+    items: WatchlistWithTicket[]
+  ): EventGroup[] => {
+    const groups = items.reduce((acc, item) => {
+      const eventKey = `${item.ticket.title}_${item.ticket.event_date}`;
+      if (!acc[eventKey]) {
+        acc[eventKey] = {
+          eventTitle: item.ticket.title,
+          eventDate: item.ticket.event_date,
+          items: [],
+          expanded: true, // Default to expanded
+        };
+      }
+      acc[eventKey].items.push(item);
+      return acc;
+    }, {} as Record<string, EventGroup>);
+
+    return Object.values(groups).sort(
+      (a, b) =>
+        new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime()
+    );
+  };
+
+  const toggleEventGroup = (index: number) => {
+    setEventGroups((prev) =>
+      prev.map((group, i) =>
+        i === index ? { ...group, expanded: !group.expanded } : group
+      )
+    );
   };
 
   const onRefreshData = useCallback(() => {
@@ -196,6 +237,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
       ]
     );
   };
+
 
   const getStatusConfig = (status: string) => {
     switch (status.toLowerCase()) {
@@ -330,73 +372,108 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
     <View style={styles.container}>
       {/* Stats Header */}
       <View style={styles.statsSection}>
-        <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <Ionicons name="bookmark" size={24} color={theme.primary} />
-            <View style={styles.statContent}>
+        <BlurView intensity={15} style={styles.statsCard}>
+          <View style={styles.statsRow}>
+            <View
+              style={[
+                styles.statBox,
+                { backgroundColor: `${theme.primary}15` },
+              ]}
+            >
+              <Ionicons name="bookmark" size={20} color={theme.primary} />
               <Text style={[styles.statNumber, { color: theme.primary }]}>
                 {stats.totalItems}
               </Text>
               <Text style={styles.statLabel}>Watching</Text>
             </View>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-            <View style={styles.statContent}>
+
+            <View style={[styles.statBox, { backgroundColor: "#10b98115" }]}>
+              <Ionicons name="checkmark-circle" size={20} color="#10b981" />
               <Text style={[styles.statNumber, { color: "#10b981" }]}>
                 {stats.availableTickets}
               </Text>
               <Text style={styles.statLabel}>Available</Text>
             </View>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Ionicons name="trending-down" size={24} color="#3b82f6" />
-            <View style={styles.statContent}>
+
+            <View style={[styles.statBox, { backgroundColor: "#3b82f615" }]}>
+              <Ionicons name="trending-down" size={20} color="#3b82f6" />
               <Text style={[styles.statNumber, { color: "#3b82f6" }]}>
                 ${stats.averagePrice.toFixed(0)}
               </Text>
               <Text style={styles.statLabel}>Avg Price</Text>
             </View>
           </View>
-        </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionRow}>
           <TouchableOpacity
-            style={styles.cleanupButton}
+            style={[
+              styles.cleanupButton,
+              { backgroundColor: `${theme.primary}10` },
+            ]}
             onPress={handleCleanupWatchlist}
           >
             <Ionicons name="refresh-outline" size={16} color={theme.primary} />
             <Text style={[styles.cleanupButtonText, { color: theme.primary }]}>
-              Clean Up
+              Clean Up Sold Items
             </Text>
           </TouchableOpacity>
-        </View>
+        </BlurView>
       </View>
 
-      {/* Watchlist */}
+      {/* Event Groups */}
       {loading ? (
         <BlurView intensity={20} style={styles.loadingState}>
           <Text style={styles.loadingText}>Loading your watchlist...</Text>
         </BlurView>
-      ) : watchlist.length > 0 ? (
-        <FlatList
-          data={watchlist}
-          renderItem={renderWatchlistItem}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefreshData}
-              tintColor={theme.primary}
-              colors={[theme.primary]}
-            />
-          }
-        />
+      ) : eventGroups.length > 0 ? (
+        <View>
+          {eventGroups.map((group, index) => (
+            <View
+              key={`${group.eventTitle}_${group.eventDate}`}
+              style={styles.eventGroup}
+            >
+              <TouchableOpacity
+                style={styles.eventGroupHeader}
+                onPress={() => toggleEventGroup(index)}
+              >
+                <View style={styles.eventGroupInfo}>
+                  <Text style={styles.eventGroupTitle} numberOfLines={1}>
+                    {group.eventTitle}
+                  </Text>
+                  <View style={styles.eventGroupMeta}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={14}
+                      color="#6b7280"
+                    />
+                    <Text style={styles.eventGroupDate}>
+                      {new Date(group.eventDate).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </Text>
+                    <Text style={styles.eventGroupCount}>
+                      • {group.items.length} tickets
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons
+                  name={group.expanded ? "chevron-up" : "chevron-down"}
+                  size={20}
+                  color={theme.primary}
+                />
+              </TouchableOpacity>
+
+              {group.expanded && (
+                <View style={styles.eventGroupContent}>
+                  {group.items.map((item) => (
+                    <View key={item.id}>{renderWatchlistItem({ item })}</View>
+                  ))}
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
       ) : (
         <BlurView intensity={20} style={styles.emptyState}>
           <View style={styles.emptyIconContainer}>
@@ -520,54 +597,86 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   statsCard: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  statsRow: {
     flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
     marginBottom: 12,
+    gap: 8,
   },
-  statItem: {
-    flexDirection: "row",
-    alignItems: "center",
+  statBox: {
     flex: 1,
-    gap: 12,
-  },
-  statContent: {
-    alignItems: "flex-start",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 12,
+    gap: 4,
   },
   statNumber: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#6b7280",
-    fontWeight: "500",
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: "#e2e8f0",
-    marginHorizontal: 16,
-  },
-  actionRow: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
+    fontWeight: "600",
+    textTransform: "uppercase",
   },
   cleanupButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f3f4f6",
+    justifyContent: "center",
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 12,
     gap: 6,
+  },
+  eventGroup: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+  },
+  eventGroupHeader: {
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  eventGroupInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  eventGroupTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1f2937",
+    marginBottom: 4,
+  },
+  eventGroupMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  eventGroupDate: {
+    fontSize: 13,
+    color: "#6b7280",
+    fontWeight: "500",
+  },
+  eventGroupCount: {
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  eventGroupContent: {
+    marginTop: 8,
   },
   cleanupButtonText: {
     fontSize: 14,
@@ -575,10 +684,11 @@ const styles = StyleSheet.create({
   },
   watchlistCard: {
     backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginBottom: 16,
+    borderRadius: 12,
+    marginBottom: 8,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
   },
   cardContent: {
     padding: 16,

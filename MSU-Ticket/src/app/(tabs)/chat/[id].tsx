@@ -487,7 +487,7 @@ export default function ChatConversationScreen() {
                 onChangeText={setMessageText}
                 multiline
                 maxLength={1000}
-                placeholderTextColor={theme.secondary}
+                placeholderTextColor="black"
               />
 
               <TouchableOpacity

@@ -193,4 +193,5 @@ export class NotificationService {
       return { data: null, error };
     }
   }
+
 }

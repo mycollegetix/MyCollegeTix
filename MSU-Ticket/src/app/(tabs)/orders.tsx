@@ -1,4 +1,4 @@
-// src/app/(tabs)/orders.tsx - Brand New Orders Tab with College Theme
+// src/app/(tabs)/orders.tsx - Styled to match Browse Tab with Mark as Sold and Edit functionality
 import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
@@ -9,6 +9,9 @@ import {
   FlatList,
   Alert,
   RefreshControl,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -47,17 +50,30 @@ interface OrderItem {
   type: "purchase" | "listing";
 }
 
+interface EditFormData {
+  price: string;
+  description: string;
+}
+
 export default function OrdersScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState<OrderType>("buying");
   const [purchases, setPurchases] = useState<OrderItem[]>([]);
   const [listings, setListings] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
   const [watchlistCount, setWatchlistCount] = useState(0);
+
+  // Edit modal state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<OrderItem | null>(null);
+  const [editForm, setEditForm] = useState<EditFormData>({
+    price: "",
+    description: "",
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const buyingStats = getTabStats("buying");
   const sellingStats = getTabStats("selling");
@@ -223,13 +239,13 @@ export default function OrdersScreen() {
     switch (status.toLowerCase()) {
       case "sold":
         return {
-          color: theme.primary,
+          color: "#10b981",
           icon: "checkmark-circle-outline",
           text: "Sold",
         };
       case "available":
         return {
-          color: "#3b82f6",
+          color: "#10b981",
           icon: "pricetag-outline",
           text: "Listed",
         };
@@ -241,7 +257,7 @@ export default function OrdersScreen() {
         };
       case "completed":
         return {
-          color: theme.primary,
+          color: "#10b981",
           icon: "checkmark-circle-outline",
           text: "Completed",
         };
@@ -268,6 +284,90 @@ export default function OrdersScreen() {
     const total = orders.reduce((sum, order) => sum + order.price, 0);
     return { count: orders.length, total };
   }
+
+  // Mark ticket as sold
+  const handleMarkAsSold = async (ticketId: string, ticketTitle: string) => {
+    Alert.alert(
+      "Mark as Sold",
+      `Mark "${ticketTitle}" as sold? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Mark as Sold",
+          style: "default",
+          onPress: async () => {
+            try {
+              const { error } = await TicketService.updateTicket(ticketId, {
+                status: "sold",
+              });
+
+              if (error) {
+                throw error;
+              }
+
+              Alert.alert("Success", "Ticket marked as sold successfully");
+              loadData(); // Refresh the data
+            } catch (error) {
+              console.error("Error marking ticket as sold:", error);
+              Alert.alert(
+                "Error",
+                "Failed to mark ticket as sold. Please try again."
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Open edit modal
+  const handleEditTicket = (ticket: OrderItem) => {
+    setSelectedTicket(ticket);
+    setEditForm({
+      price: ticket.price.toString(),
+      description: ticket.description,
+    });
+    setEditModalVisible(true);
+  };
+
+  // Save ticket edits
+  const handleSaveEdit = async () => {
+    if (!selectedTicket) return;
+
+    // Validate price
+    const newPrice = parseFloat(editForm.price);
+    if (isNaN(newPrice) || newPrice <= 0) {
+      Alert.alert("Error", "Please enter a valid price greater than 0");
+      return;
+    }
+
+    // Validate description
+    if (!editForm.description.trim()) {
+      Alert.alert("Error", "Please enter a description");
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const { error } = await TicketService.updateTicket(selectedTicket.id, {
+        price: newPrice,
+        description: editForm.description.trim(),
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      Alert.alert("Success", "Ticket updated successfully");
+      setEditModalVisible(false);
+      loadData(); // Refresh the data
+    } catch (error) {
+      console.error("Error updating ticket:", error);
+      Alert.alert("Error", "Failed to update ticket. Please try again.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const handleCancelListing = async (ticketId: string) => {
     Alert.alert(
@@ -303,88 +403,135 @@ export default function OrdersScreen() {
     const statusConfig = getStatusConfig(item.status);
 
     return (
-      <BlurView intensity={20} style={styles.orderCard}>
-        <TouchableOpacity
-          onPress={() => router.push(`/ticket-details/${item.id}`)}
-          style={styles.orderContent}
-        >
-          {/* Header */}
-          <View style={styles.orderHeader}>
-            <Text style={styles.orderTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
+      <TouchableOpacity
+        style={styles.orderCard}
+        onPress={() => router.push(`/ticket-details/${item.id}`)}
+        activeOpacity={0.7}
+      >
+        {/* Header with badges */}
+        <View style={styles.orderHeader}>
+          <View style={styles.leftBadges}>
+            <View
+              style={[styles.sportBadge, { backgroundColor: theme.primary }]}
+            >
+              <Text style={styles.sportBadgeText}>{item.sport || "Event"}</Text>
+            </View>
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: statusConfig.color },
+            ]}
+          >
+            <Ionicons name={statusConfig.icon as any} size={12} color="white" />
+            <Text style={styles.statusText}>{statusConfig.text}</Text>
+          </View>
+        </View>
+
+        {/* Content */}
+        <View style={styles.orderContent}>
+          <Text style={styles.orderTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <Text style={styles.dateText}>
+            {new Date(item.event_date).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}{" "}
+            •{" "}
+            {new Date(item.event_date).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })}
+          </Text>
+
+          <View style={styles.detailsRow}>
+            <View style={styles.locationDetails}>
+              <View style={styles.detailItem}>
+                <Ionicons name="location" size={14} color="#6b7280" />
+                <Text style={styles.detailText}>{item.location}</Text>
+              </View>
+              {item.section && (
+                <View style={styles.detailItem}>
+                  <Ionicons name="ticket" size={14} color="#6b7280" />
+                  <Text style={styles.detailText}>
+                    Sec {item.section}, Row {item.row_number}, Seat{" "}
+                    {item.seat_number}
+                  </Text>
+                </View>
+              )}
+            </View>
             <View
               style={[
-                styles.statusBadge,
-                { backgroundColor: statusConfig.color },
+                styles.priceContainer,
+                { backgroundColor: theme.primary },
               ]}
             >
-              <Ionicons
-                name={statusConfig.icon as any}
-                size={12}
-                color="white"
-              />
-              <Text style={styles.statusText}>{statusConfig.text}</Text>
+              <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
             </View>
           </View>
-
-          {/* Order Details */}
-          <View style={styles.orderDetails}>
-            <View style={styles.detailRow}>
-              <Ionicons name="location" size={14} color="#6b7280" />
-              <Text style={styles.detailText}>{item.location}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="calendar" size={14} color="#6b7280" />
-              <Text style={styles.detailText}>
-                {new Date(item.event_date).toLocaleDateString()}
-              </Text>
-            </View>
-            {item.section && (
-              <View style={styles.detailRow}>
-                <Ionicons name="ticket" size={14} color="#6b7280" />
-                <Text style={styles.detailText}>
-                  Sec {item.section}, Row {item.row_number}, Seat{" "}
-                  {item.seat_number}
-                </Text>
-              </View>
-            )}
-            {item.sport && (
-              <View style={styles.detailRow}>
-                <Ionicons name="trophy" size={14} color="#6b7280" />
-                <Text style={styles.detailText}>{item.sport}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Price */}
-          <View style={styles.priceContainer}>
-            <Text style={[styles.price, { color: theme.primary }]}>
-              ${item.price.toFixed(2)}
-            </Text>
-            <Text style={styles.dateText}>
-              {new Date(item.created_at).toLocaleDateString()}
-            </Text>
-          </View>
-        </TouchableOpacity>
+        </View>
 
         {/* Actions for listings */}
         {activeTab === "selling" && item.status === "available" && (
           <View style={styles.orderActions}>
             <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleEditTicket(item);
+              }}
+            >
+              <Ionicons name="pencil" size={16} color="white" />
+              <Text style={styles.actionButtonText}>Edit</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.soldButton]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleMarkAsSold(item.id, item.title);
+              }}
+            >
+              <Ionicons name="checkmark" size={16} color="white" />
+              <Text style={styles.actionButtonText}>Mark Sold</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.actionButton, styles.cancelButton]}
-              onPress={() => handleCancelListing(item.id)}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleCancelListing(item.id);
+              }}
             >
               <Ionicons name="close" size={16} color="white" />
               <Text style={styles.actionButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         )}
-      </BlurView>
+      </TouchableOpacity>
     );
   };
 
   const currentData = activeTab === "buying" ? purchases : listings;
+
+  // Show loading or error state if user/profile not ready
+  if (!user || !profile?.college_id) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
+          style={styles.background}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.secondary} />
+          <Text style={styles.loadingText}>Loading your orders...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -397,7 +544,7 @@ export default function OrdersScreen() {
       <View
         style={[
           styles.floatingElement1,
-          { backgroundColor: `${theme.secondary}10` },
+          { backgroundColor: `${theme.secondary}08` },
         ]}
       />
       <View
@@ -416,6 +563,17 @@ export default function OrdersScreen() {
       >
         {/* Header Section */}
         <View style={styles.headerSection}>
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => router.push('/notifications')}
+          >
+            <NotificationBadge
+              iconName="notifications-outline"
+              iconSize={24}
+              iconColor={theme.secondary}
+            />
+          </TouchableOpacity>
+
           <View style={styles.logoContainer}>
             <LinearGradient
               colors={[theme.secondary, `${theme.secondary}DD`]}
@@ -430,119 +588,51 @@ export default function OrdersScreen() {
           </View>
           <Text style={styles.headerTitle}>My Orders</Text>
           <Text style={styles.headerSubtitle}>
-            Track your ticket purchases, sales, and watchlist
+            Track your purchases and sales for{" "}
+            {profile.college?.name || "your college"} events
           </Text>
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() => router.push("/notifications" as any)}
-          >
-            <NotificationBadge
-              iconName="notifications-outline"
-              iconSize={24}
-              iconColor={theme.secondary}
-            />
-          </TouchableOpacity>
         </View>
 
-        {/* Combined Tab Section */}
+        {/* Tab Navigation */}
         <View style={styles.tabSection}>
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === "buying" && { backgroundColor: theme.primary },
-              ]}
-              onPress={() => setActiveTab("buying")}
-            >
-              <Ionicons
-                name="bag-outline"
-                size={20}
-                color={activeTab === "buying" ? "white" : "#6b7280"}
-              />
-              <View style={styles.tabContent}>
+          {(["buying", "selling", "watchlist"] as OrderType[]).map((tab) => {
+            const stats = getTabStats(tab);
+            return (
+              <TouchableOpacity
+                key={tab}
+                style={[
+                  styles.tab,
+                  activeTab === tab && { backgroundColor: theme.primary },
+                ]}
+                onPress={() => setActiveTab(tab)}
+              >
+                <Ionicons
+                  name={
+                    tab === "buying"
+                      ? "bag-outline"
+                      : tab === "selling"
+                      ? "storefront-outline"
+                      : "bookmark-outline"
+                  }
+                  size={20}
+                  color={activeTab === tab ? "white" : "#6b7280"}
+                />
                 <Text
                   style={[
                     styles.tabText,
-                    activeTab === "buying" && styles.activeTabText,
+                    activeTab === tab && styles.activeTabText,
                   ]}
                 >
-                  Purchases
+                  {tab === "buying"
+                    ? "Buying"
+                    : tab === "selling"
+                    ? "Selling"
+                    : "Watchlist"}{" "}
+                  ({stats.count})
                 </Text>
-                <Text
-                  style={[
-                    styles.tabCount,
-                    activeTab === "buying" && styles.activeTabCount,
-                  ]}
-                >
-                  {buyingStats.count} • ${buyingStats.total.toFixed(2)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === "selling" && { backgroundColor: theme.primary },
-              ]}
-              onPress={() => setActiveTab("selling")}
-            >
-              <Ionicons
-                name="storefront-outline"
-                size={20}
-                color={activeTab === "selling" ? "white" : "#6b7280"}
-              />
-              <View style={styles.tabContent}>
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === "selling" && styles.activeTabText,
-                  ]}
-                >
-                  Listings
-                </Text>
-                <Text
-                  style={[
-                    styles.tabCount,
-                    activeTab === "selling" && styles.activeTabCount,
-                  ]}
-                >
-                  {sellingStats.count} • ${sellingStats.total.toFixed(2)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === "watchlist" && { backgroundColor: theme.primary },
-              ]}
-              onPress={() => setActiveTab("watchlist")}
-            >
-              <Ionicons
-                name="bookmark-outline"
-                size={20}
-                color={activeTab === "watchlist" ? "white" : "#6b7280"}
-              />
-              <View style={styles.tabContent}>
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === "watchlist" && styles.activeTabText,
-                  ]}
-                >
-                  Watchlist
-                </Text>
-                <Text
-                  style={[
-                    styles.tabCount,
-                    activeTab === "watchlist" && styles.activeTabCount,
-                  ]}
-                >
-                  {watchlistStats.count} items
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Content Section */}
@@ -551,9 +641,19 @@ export default function OrdersScreen() {
             <WatchlistSection onRefresh={onRefresh} />
           ) : (
             <>
+              {/* Results Header */}
+              <View style={styles.resultsHeader}>
+                <Text style={[styles.resultsCount, { color: theme.primary }]}>
+                  {currentData.length}{" "}
+                  {activeTab === "buying" ? "purchase" : "listing"}
+                  {currentData.length !== 1 ? "s" : ""} found
+                </Text>
+                <Text style={styles.currentSort}>Sorted by most recent</Text>
+              </View>
+
               {loading ? (
                 <BlurView intensity={20} style={styles.loadingState}>
-                  <Ionicons name="refresh" size={24} color="#6b7280" />
+                  <ActivityIndicator size="large" color={theme.primary} />
                   <Text style={styles.loadingText}>Loading your orders...</Text>
                 </BlurView>
               ) : currentData.length > 0 ? (
@@ -587,7 +687,7 @@ export default function OrdersScreen() {
                   </Text>
                   <TouchableOpacity
                     style={[
-                      styles.emptyStateButton,
+                      styles.clearFiltersButton,
                       { backgroundColor: theme.primary },
                     ]}
                     onPress={() =>
@@ -596,10 +696,10 @@ export default function OrdersScreen() {
                       )
                     }
                   >
-                    <Text style={styles.emptyStateButtonText}>
+                    <Text style={styles.clearFiltersText}>
                       {activeTab === "buying"
                         ? "Browse Tickets"
-                        : "Create Listing"}
+                        : "List a Ticket"}
                     </Text>
                   </TouchableOpacity>
                 </BlurView>
@@ -608,6 +708,82 @@ export default function OrdersScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Edit Modal */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <LinearGradient
+            colors={[theme.primary, `${theme.primary}CC`]}
+            style={styles.modalHeader}
+          >
+            <TouchableOpacity
+              onPress={() => setEditModalVisible(false)}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color="white" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Ticket</Text>
+            <TouchableOpacity
+              onPress={handleSaveEdit}
+              disabled={savingEdit}
+              style={[
+                styles.modalSaveButton,
+                { backgroundColor: theme.secondary },
+                savingEdit && { opacity: 0.6 },
+              ]}
+            >
+              <Text
+                style={[styles.modalSaveButtonText, { color: theme.primary }]}
+              >
+                {savingEdit ? "Saving..." : "Save"}
+              </Text>
+            </TouchableOpacity>
+          </LinearGradient>
+
+          <ScrollView style={styles.modalContent}>
+            {selectedTicket && (
+              <>
+                <Text style={styles.ticketTitle}>{selectedTicket.title}</Text>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Price ($)</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    value={editForm.price}
+                    onChangeText={(text) =>
+                      setEditForm((prev) => ({ ...prev, price: text }))
+                    }
+                    placeholder="Enter price"
+                    placeholderTextColor="#6b7280"
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Description</Text>
+                  <TextInput
+                    style={styles.formTextArea}
+                    value={editForm.description}
+                    onChangeText={(text) =>
+                      setEditForm((prev) => ({ ...prev, description: text }))
+                    }
+                    placeholder="Enter description"
+                    placeholderTextColor="#6b7280"
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </View>
+              </>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -615,246 +791,304 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0f2f28",
   },
   background: {
     position: "absolute",
+    top: 0,
     left: 0,
     right: 0,
-    top: 0,
-    height: "100%",
+    bottom: 0,
   },
   floatingElement1: {
     position: "absolute",
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    top: 100,
-    right: -50,
+    top: "15%",
+    left: "10%",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   floatingElement2: {
     position: "absolute",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    bottom: 200,
-    left: -30,
+    bottom: "30%",
+    right: "15%",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   scrollView: {
     flex: 1,
-    paddingTop: 60,
   },
   headerSection: {
     alignItems: "center",
     paddingHorizontal: 20,
-    marginBottom: 32,
+    paddingTop: 60,
+    paddingBottom: 30,
+    position: "relative",
   },
   logoContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 70,
+    height: 70,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   headerTitle: {
     fontSize: 32,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "white",
     marginBottom: 8,
     textAlign: "center",
   },
   headerSubtitle: {
     fontSize: 16,
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "rgba(255, 255, 255, 0.9)",
     textAlign: "center",
+    paddingHorizontal: 20,
     lineHeight: 22,
   },
   notificationButton: {
     position: "absolute",
-    top: 0,
+    top: 60,
     right: 20,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 1000,
+    elevation: 5,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "white",
+    fontSize: 16,
+    marginTop: 16,
   },
   tabSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  tabContainer: {
     flexDirection: "row",
+    marginHorizontal: 20,
+    marginTop: -15,
     backgroundColor: "white",
-    borderRadius: 16,
-    padding: 6,
+    borderRadius: 12,
+    padding: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 5,
   },
   tab: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    alignItems: "center",
-    borderRadius: 12,
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
-  },
-  tabContent: {
     alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    gap: 6,
   },
   tabText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "600",
     color: "#6b7280",
   },
   activeTabText: {
     color: "white",
   },
-  tabCount: {
-    fontSize: 10,
-    fontWeight: "500",
-    color: "#9ca3af",
-    marginTop: 2,
-  },
-  activeTabCount: {
-    color: "rgba(255, 255, 255, 0.8)",
-  },
   contentSection: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 32,
+    paddingHorizontal: 20,
     paddingBottom: 20,
+    marginTop: 20,
+  },
+  resultsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+    marginBottom: 20,
+  },
+  resultsCount: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  currentSort: {
+    fontSize: 12,
+    color: "#6b7280",
   },
   orderCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "white",
     borderRadius: 16,
-    marginHorizontal: 20,
-    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
     overflow: "hidden",
-  },
-  orderContent: {
-    padding: 16,
+    marginBottom: 16,
   },
   orderHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 12,
+    padding: 16,
+    paddingBottom: 8,
   },
-  orderTitle: {
-    fontSize: 16,
+  leftBadges: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  sportBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  sportBadgeText: {
+    color: "white",
+    fontSize: 12,
     fontWeight: "600",
-    color: "#1f2937",
-    flex: 1,
-    marginRight: 12,
+    textTransform: "uppercase",
   },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 12,
     gap: 4,
   },
   statusText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
     color: "white",
   },
-  orderDetails: {
-    marginBottom: 12,
+  orderContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
-  detailRow: {
+  orderTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 6,
+    lineHeight: 24,
+  },
+  dateText: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 12,
+    fontWeight: "500",
+  },
+  detailsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
+  locationDetails: {
+    flex: 1,
+    marginRight: 12,
+  },
+  detailItem: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 6,
     marginBottom: 4,
-    gap: 8,
   },
   detailText: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#6b7280",
     flex: 1,
   },
   priceContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  price: {
-    fontSize: 18,
+  priceText: {
+    color: "white",
+    fontSize: 16,
     fontWeight: "700",
-  },
-  dateText: {
-    fontSize: 12,
-    color: "#9ca3af",
   },
   orderActions: {
     flexDirection: "row",
     borderTopWidth: 1,
-    borderTopColor: "#f3f4f6",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderTopColor: "#f1f5f9",
+    padding: 12,
+    gap: 8,
   },
   actionButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    gap: 6,
+    gap: 4,
+  },
+  editButton: {
+    backgroundColor: "#3b82f6",
+  },
+  soldButton: {
+    backgroundColor: "#10b981",
   },
   cancelButton: {
     backgroundColor: "#ef4444",
   },
   actionButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
     color: "white",
+    fontSize: 12,
+    fontWeight: "600",
   },
   loadingState: {
-    padding: 40,
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 16,
-    marginHorizontal: 20,
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: "#6b7280",
-    fontWeight: "500",
+    padding: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(24, 69, 59, 0.2)",
   },
   emptyState: {
-    padding: 40,
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 16,
-    marginHorizontal: 20,
+    padding: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(24, 69, 59, 0.2)",
   },
   emptyIconContainer: {
     width: 80,
     height: 80,
+    backgroundColor: "#f8fafc",
     borderRadius: 40,
-    backgroundColor: "#f3f4f6",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
   },
   emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1f2937",
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1e293b",
     marginBottom: 8,
     textAlign: "center",
   },
@@ -863,16 +1097,93 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     textAlign: "center",
     lineHeight: 20,
-    marginBottom: 24,
+    marginBottom: 20,
+    paddingHorizontal: 20,
   },
-  emptyStateButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+  clearFiltersButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 12,
   },
-  emptyStateButtonText: {
+  clearFiltersText: {
+    color: "white",
     fontSize: 14,
     fontWeight: "600",
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
     color: "white",
+  },
+  modalSaveButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  modalSaveButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  ticketTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 24,
+    textAlign: "center",
+    color: "#1e293b",
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  formLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+    color: "#1e293b",
+  },
+  formInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: "white",
+    borderColor: "#e5e7eb",
+    color: "#1e293b",
+  },
+  formTextArea: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    minHeight: 100,
+    backgroundColor: "white",
+    borderColor: "#e5e7eb",
+    color: "#1e293b",
   },
 });
