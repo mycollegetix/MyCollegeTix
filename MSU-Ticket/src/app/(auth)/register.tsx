@@ -710,16 +710,30 @@ export default function EnhancedRegisterScreen() {
               </Link>
 
               {/* Terms and Privacy */}
-              <Text style={styles.termsText}>
-                By creating an account, you agree to our{" "}
-                <Text style={[styles.linkText, { color: themeColors.primary }]}>
-                  Terms of Service
-                </Text>{" "}
-                and{" "}
-                <Text style={[styles.linkText, { color: themeColors.primary }]}>
-                  Privacy Policy
-                </Text>
-              </Text>
+              <View style={styles.legalSection}>
+                <View style={styles.legalTextContainer}>
+                  <Text style={styles.termsText}>
+                    By creating an account, you agree to our{" "}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/legal/terms")}
+                    style={styles.legalLinkButton}
+                  >
+                    <Text style={[styles.linkText, { color: themeColors.primary }]}>
+                      Terms of Service
+                    </Text>
+                  </TouchableOpacity>
+                  <Text style={styles.termsText}> and </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/legal/privacy")}
+                    style={styles.legalLinkButton}
+                  >
+                    <Text style={[styles.linkText, { color: themeColors.primary }]}>
+                      Privacy Policy
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -1021,15 +1035,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  legalSection: {
+    alignItems: "center",
+    marginTop: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  legalTextContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   termsText: {
     fontSize: 12,
     color: "#6b7280",
     textAlign: "center",
-    marginTop: 20,
     lineHeight: 18,
+  },
+  legalLinkButton: {
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    borderRadius: 4,
   },
   linkText: {
     fontWeight: "600",
+    textDecorationLine: "underline",
   },
   // Modal styles
   modalOverlay: {

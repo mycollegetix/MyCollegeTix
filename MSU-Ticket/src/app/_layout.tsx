@@ -18,6 +18,7 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === "(auth)";
     const inAdminGroup = segments[0] === "(admin)";
     const inTabsGroup = segments[0] === "(tabs)";
+    const inLegalGroup = segments[0] === "legal";
 
     // If user is in admin group but not an admin, redirect them out
     if (inAdminGroup && session && profile && !profile.is_admin) {
@@ -31,7 +32,8 @@ function RootLayoutNav() {
       return;
     }
 
-    if (!session && !inAuthGroup) {
+    // Allow access to legal pages without authentication
+    if (!session && !inAuthGroup && !inLegalGroup) {
       router.replace("/(auth)/login");
       return;
     }
@@ -42,6 +44,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+      <Stack.Screen name="legal" options={{ headerShown: false }} />
       <Stack.Screen name="ticket-details" options={{ headerShown: false }} />
     </Stack>
   );
