@@ -235,6 +235,14 @@ export default function OrdersScreen() {
     loadData();
   }, [user]);
 
+  const handleTabChange = useCallback((tab: OrderType) => {
+    setActiveTab(tab);
+    // Refresh data when switching to buying or selling tabs
+    if (tab === "buying" || tab === "selling") {
+      onRefresh();
+    }
+  }, [onRefresh]);
+
   const getStatusConfig = (status: string): StatusConfig => {
     switch (status.toLowerCase()) {
       case "sold":
@@ -604,7 +612,7 @@ export default function OrdersScreen() {
                   styles.tab,
                   activeTab === tab && { backgroundColor: theme.primary },
                 ]}
-                onPress={() => setActiveTab(tab)}
+                onPress={() => handleTabChange(tab)}
               >
                 <Ionicons
                   name={
