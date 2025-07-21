@@ -19,6 +19,7 @@ import { TicketService } from "@/src/services/ticketService";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 import WatchlistSection from "@/src/components/WatchlistSection";
+import { WatchlistService } from "@/src/services/watchlistService";
 import { supabase } from "@/src/lib/supabase";
 
 type OrderType = "buying" | "selling" | "watchlist";
@@ -56,9 +57,11 @@ export default function OrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [watchlistCount, setWatchlistCount] = useState(0);
+
   const buyingStats = getTabStats("buying");
   const sellingStats = getTabStats("selling");
-  const watchlistStats = getTabStats("watchlist");
+  const watchlistStats = { count: watchlistCount, total: 0 };
 
   useEffect(() => {
     if (user) {
@@ -73,18 +76,22 @@ export default function OrdersScreen() {
     try {
       console.log("🔄 Loading orders data for user:", user.id);
 
-      // Load purchases and listings in parallel
-      const [purchasesData, listingsData] = await Promise.all([
-        loadUserPurchases(),
-        loadUserListings(),
-      ]);
+      // Load purchases, listings, and watchlist data in parallel
+      const [purchasesData, listingsData, watchlistStatsData] =
+        await Promise.all([
+          loadUserPurchases(),
+          loadUserListings(),
+          WatchlistService.getWatchlistStats(),
+        ]);
 
       setPurchases(purchasesData);
       setListings(listingsData);
+      setWatchlistCount(watchlistStatsData.data?.totalItems || 0);
 
       console.log("✅ Orders data loaded successfully");
       console.log("Purchases:", purchasesData.length);
       console.log("Listings:", listingsData.length);
+      console.log("Watchlist:", watchlistStatsData.data?.totalItems || 0);
     } catch (error) {
       console.error("Error loading orders:", error);
       Alert.alert("Error", "Failed to load your orders. Please try again.");
@@ -92,6 +99,7 @@ export default function OrdersScreen() {
       // Set empty arrays so the UI doesn't break
       setPurchases([]);
       setListings([]);
+      setWatchlistCount(0);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -253,6 +261,9 @@ export default function OrdersScreen() {
   };
 
   function getTabStats(tab: OrderType) {
+    if (tab === "watchlist") {
+      return watchlistStats;
+    }
     const orders = tab === "buying" ? purchases : listings;
     const total = orders.reduce((sum, order) => sum + order.price, 0);
     return { count: orders.length, total };
@@ -433,42 +444,7 @@ export default function OrdersScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Stats Cards */}
-        <View style={styles.statsSection}>
-          <View style={styles.statsCard}>
-            <View style={styles.statItem}>
-              <Ionicons name="bag-outline" size={24} color={theme.primary} />
-              <View style={styles.statContent}>
-                <Text style={[styles.statNumber, { color: theme.primary }]}>
-                  {buyingStats.count}
-                </Text>
-                <Text style={styles.statLabel}>Purchases</Text>
-                <Text style={[styles.statValue, { color: theme.primary }]}>
-                  ${buyingStats.total.toFixed(2)}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Ionicons
-                name="storefront-outline"
-                size={24}
-                color={theme.primary}
-              />
-              <View style={styles.statContent}>
-                <Text style={[styles.statNumber, { color: theme.primary }]}>
-                  {sellingStats.count}
-                </Text>
-                <Text style={styles.statLabel}>Listings</Text>
-                <Text style={[styles.statValue, { color: theme.primary }]}>
-                  ${sellingStats.total.toFixed(2)}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Tab Section */}
+        {/* Combined Tab Section */}
         <View style={styles.tabSection}>
           <View style={styles.tabContainer}>
             <TouchableOpacity
@@ -483,14 +459,24 @@ export default function OrdersScreen() {
                 size={20}
                 color={activeTab === "buying" ? "white" : "#6b7280"}
               />
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === "buying" && styles.activeTabText,
-                ]}
-              >
-                Buying ({buyingStats.count})
-              </Text>
+              <View style={styles.tabContent}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === "buying" && styles.activeTabText,
+                  ]}
+                >
+                  Purchases
+                </Text>
+                <Text
+                  style={[
+                    styles.tabCount,
+                    activeTab === "buying" && styles.activeTabCount,
+                  ]}
+                >
+                  {buyingStats.count} • ${buyingStats.total.toFixed(2)}
+                </Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -505,14 +491,24 @@ export default function OrdersScreen() {
                 size={20}
                 color={activeTab === "selling" ? "white" : "#6b7280"}
               />
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === "selling" && styles.activeTabText,
-                ]}
-              >
-                Selling ({sellingStats.count})
-              </Text>
+              <View style={styles.tabContent}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === "selling" && styles.activeTabText,
+                  ]}
+                >
+                  Listings
+                </Text>
+                <Text
+                  style={[
+                    styles.tabCount,
+                    activeTab === "selling" && styles.activeTabCount,
+                  ]}
+                >
+                  {sellingStats.count} • ${sellingStats.total.toFixed(2)}
+                </Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -527,14 +523,24 @@ export default function OrdersScreen() {
                 size={20}
                 color={activeTab === "watchlist" ? "white" : "#6b7280"}
               />
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === "watchlist" && styles.activeTabText,
-                ]}
-              >
-                Watchlist ({watchlistStats.count})
-              </Text>
+              <View style={styles.tabContent}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === "watchlist" && styles.activeTabText,
+                  ]}
+                >
+                  Watchlist
+                </Text>
+                <Text
+                  style={[
+                    styles.tabCount,
+                    activeTab === "watchlist" && styles.activeTabCount,
+                  ]}
+                >
+                  {watchlistStats.count} items
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -681,51 +687,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
-  statsSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  statsCard: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  statItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    gap: 12,
-  },
-  statContent: {
-    alignItems: "flex-start",
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: "700",
-  },
-  statLabel: {
-    fontSize: 14,
-    color: "#6b7280",
-    fontWeight: "500",
-  },
-  statValue: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  statDivider: {
-    width: 1,
-    height: 50,
-    backgroundColor: "#e2e8f0",
-    marginHorizontal: 20,
-  },
   tabSection: {
     paddingHorizontal: 20,
     marginBottom: 20,
@@ -744,12 +705,15 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     alignItems: "center",
     borderRadius: 12,
     flexDirection: "row",
     justifyContent: "center",
     gap: 8,
+  },
+  tabContent: {
+    alignItems: "center",
   },
   tabText: {
     fontSize: 12,
@@ -758,6 +722,15 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: "white",
+  },
+  tabCount: {
+    fontSize: 10,
+    fontWeight: "500",
+    color: "#9ca3af",
+    marginTop: 2,
+  },
+  activeTabCount: {
+    color: "rgba(255, 255, 255, 0.8)",
   },
   contentSection: {
     paddingBottom: 20,
