@@ -1,0 +1,378 @@
+HOW TO RUN
+node scripts/importEvents.js ./calendar-data/msu msu
+
+
+# Event Import Script Setup Guide
+
+## 📋 Overview
+This script allows you to import MSU Athletics calendar data from text files directly into your Supabase database. It automatically parses event information and creates properly formatted database entries.
+
+## 🚀 Setup Instructions
+
+### 1. Install Dependencies
+```bash
+npm install @supabase/supabase-js
+```
+
+### 2. Configure Environment
+Create a `.env` file in your project root with your Supabase credentials:
+```bash
+SUPABASE_URL=your_supabase_url_here
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+```
+
+### 3. Update Script Configuration
+Edit the `importEvents.js` file and replace the placeholder values:
+```javascript
+const supabaseUrl = process.env.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'YOUR_SUPABASE_SERVICE_ROLE_KEY';
+```
+
+## 📁 File Structure
+Create the following structure:
+```
+your-project/
+├── scripts/
+│   └── importEvents.js
+├── calendar-files/
+│   ├── fall-2025.txt
+│   ├── spring-2026.txt
+│   └── summer-2026.txt
+└── package.json
+```
+
+## 📝 Text File Format
+Your text files should follow this format:
+
+```
+Michigan State University Athletics
+**Composite Calendar**
+
+Saturday, August 9, 2025
+Women's Soccer vs TCU
+DeMartin Stadium
+
+Sunday, August 10, 2025
+Men's Soccer vs Butler (Exhibition) TBA
+East Lansing, Mich.DeMartin Stadium
+
+Thursday, August 14, 2025
+Women's Soccer at Colorado
+Boulder, CO
+
+Friday, August 29, 2025
+Football vs Western Michigan 7 P.M.
+East Lansing, Mich.Spartan Stadium
+```
+
+## ⚙️ Usage
+
+### Run the Import Script
+```bash
+node scripts/importEvents.js ./calendar-files
+```
+
+### Example Output
+```
+🚀 Starting event import process...
+📁 Processing folder: ./calendar-files
+
+Processing: fall-2025.txt
+Parsed 45 events from fall-2025.txt
+
+Processing: spring-2026.txt  
+Parsed 38 events from spring-2026.txt
+
+Total events parsed: 83
+
+Importing 83 events...
+✅ Imported: Soccer vs TCU - 2025-08-09T12:00:00-05:00
+✅ Imported: Soccer vs Butler (Exhibition) - 2025-08-10T12:00:00-05:00
+⏭️  Skipping duplicate event: Soccer vs TCU
+✅ Imported: Soccer at Colorado - 2025-08-14T12:00:00-05:00
+
+📊 Import Summary:
+✅ Imported: 81
+⏭️  Skipped: 2
+❌ Errors: 0
+```
+
+## 🏗️ How It Works
+
+### 1. **Date Parsing**
+- Recognizes format: "Saturday, August 9, 2025"
+- Converts to ISO format for database storage
+
+### 2. **Event Parsing**
+- **Home Games**: "vs [Team]" → Sets `is_home_game: true`
+- **Away Games**: "at [Team]" → Sets `is_home_game: false`  
+- **Exhibitions**: "(Exhibition)" → Included in title
+- **Time Extraction**: "7 P.M.", "7:30 PM" → Standardized format
+
+### 3. **Sport Classification**
+- Maps "Women's Soccer" → "Soccer"
+- Maps "Men's Soccer" → "Soccer"
+- Standardizes all sport names
+
+### 4. **Location Handling**
+- **Venues**: "DeMartin Stadium", "Spartan Stadium"
+- **Away Locations**: "Boulder, CO", "Pittsburgh, Pa."
+- **Home Default**: "East Lansing, MI"
+
+### 5. **Duplicate Prevention**
+- Checks for existing events with same title, date, and location
+- Skips duplicates to prevent database conflicts
+
+## 🎯 Supported Event Formats
+
+### Home Games
+```
+Women's Soccer vs TCU
+DeMartin Stadium
+```
+→ Creates: "Soccer vs TCU" at DeMartin Stadium
+
+### Away Games  
+```
+Women's Soccer at Colorado
+Boulder, CO
+```
+→ Creates: "Soccer at Colorado" in Boulder, CO
+
+### With Times
+```
+Football vs Western Michigan 7 P.M.
+East Lansing, Mich.Spartan Stadium
+```
+→ Creates: "Football vs Western Michigan" at 7:00 PM
+
+### Exhibitions
+```
+Men's Soccer vs Butler (Exhibition) TBA
+East Lansing, Mich.DeMartin Stadium
+```
+→ Creates: "Soccer vs Butler (Exhibition)" with TBA time
+
+## 🔧 Customization
+
+### Add New Sports
+Edit the `SPORT_MAPPING` object:
+```javascript
+const SPORT_MAPPING = {
+  'tennis': 'Tennis',
+  'golf': 'Golf',
+  'track': 'Track & Field',
+  // ... existing sports
+};
+```
+
+### Add New Venues
+Edit the `VENUE_MAPPING` object:
+```javascript
+const VENUE_MAPPING = {
+  'munn ice arena': 'Munn Ice Arena',
+  'jenison field house': 'Jenison Field House',
+  // ... existing venues
+};
+```
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+**1. "Supabase connection failed"**
+- Check your `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+- Ensure you're using the SERVICE ROLE key, not the anon key
+
+**2. "No events were parsed"**
+- Check text file format matches examples
+- Ensure dates start with weekday (e.g., "Saturday, August 9, 2025")
+
+**3. "Permission denied"**
+- Verify your service role key has INSERT permissions on the events table
+- Check RLS policies if enabled
+
+**4. "Duplicate key violation"**
+- The script should handle duplicates automatically
+- If errors persist, check for malformed event data
+
+### Debug Mode
+Add debug logging by modifying the script:
+```javascript
+// Add this line after each parsing step
+console.log('DEBUG:', JSON.stringify(event, null, 2));
+```
+
+## 🎉 Success!
+Once imported, your events will appear in:
+- The sell tab event dropdown
+- Filtered by sport
+- Available for ticket creation
+
+The events are automatically set to "available" status and ready for use in your ticket marketplace!
+
+DB SCHEMA COPY: -- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.conversations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  participant_1_id uuid NOT NULL,
+  participant_2_id uuid NOT NULL,
+  last_message_id uuid,
+  last_message_at timestamp with time zone,
+  ticket_id uuid,
+  archived boolean DEFAULT false,
+  CONSTRAINT conversations_pkey PRIMARY KEY (id),
+  CONSTRAINT conversations_participant_1_fkey FOREIGN KEY (participant_1_id) REFERENCES public.profiles(id),
+  CONSTRAINT conversations_participant_2_fkey FOREIGN KEY (participant_2_id) REFERENCES public.profiles(id),
+  CONSTRAINT conversations_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id)
+);
+CREATE TABLE public.events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  title text NOT NULL CHECK (char_length(title) >= 3 AND char_length(title) <= 200),
+  description text,
+  event_date timestamp with time zone NOT NULL CHECK (event_date > now()),
+  location text NOT NULL,
+  venue text,
+  sport text,
+  category text,
+  opponent text,
+  status text NOT NULL DEFAULT 'scraped'::text CHECK (status = ANY (ARRAY['scraped'::text, 'available'::text, 'completed'::text, 'cancelled'::text])),
+  source text NOT NULL DEFAULT 'parsed'::text CHECK (source = ANY (ARRAY['manual'::text, 'parsed'::text])),
+  external_id text UNIQUE,
+  source_file text,
+  home_team text DEFAULT 'Michigan State'::text,
+  away_team text,
+  game_time text,
+  is_home_game boolean DEFAULT true,
+  CONSTRAINT events_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  conversation_id uuid NOT NULL,
+  sender_id uuid NOT NULL,
+  content text NOT NULL CHECK (char_length(content) > 0 AND char_length(content) <= 1000),
+  message_type text NOT NULL DEFAULT 'text'::text CHECK (message_type = ANY (ARRAY['text'::text, 'system'::text, 'ticket_reference'::text])),
+  read_by_recipient boolean DEFAULT false,
+  read_at timestamp with time zone,
+  edited_at timestamp with time zone,
+  CONSTRAINT messages_pkey PRIMARY KEY (id),
+  CONSTRAINT messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id),
+  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  message text NOT NULL,
+  type text NOT NULL DEFAULT 'system'::text CHECK (type = ANY (ARRAY['purchase'::text, 'sale'::text, 'listing'::text, 'system'::text, 'message'::text])),
+  read boolean DEFAULT false,
+  related_ticket_id uuid,
+  related_order_id uuid,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT notifications_related_ticket_id_fkey FOREIGN KEY (related_ticket_id) REFERENCES public.tickets(id),
+  CONSTRAINT notifications_related_order_id_fkey FOREIGN KEY (related_order_id) REFERENCES public.orders(id)
+);
+CREATE TABLE public.orders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  ticket_id uuid NOT NULL,
+  buyer_id uuid NOT NULL,
+  seller_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'cancelled'::text, 'refunded'::text])),
+  payment_method text,
+  transaction_id text UNIQUE,
+  notes text,
+  completed_at timestamp with time zone,
+  CONSTRAINT orders_pkey PRIMARY KEY (id),
+  CONSTRAINT orders_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id),
+  CONSTRAINT orders_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
+  CONSTRAINT orders_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  username text NOT NULL UNIQUE CHECK (char_length(username) >= 3),
+  full_name text NOT NULL,
+  avatar_url text,
+  email text NOT NULL UNIQUE,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.system_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  operation text NOT NULL,
+  details jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT system_logs_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.tickets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  title text NOT NULL CHECK (char_length(title) >= 3 AND char_length(title) <= 100),
+  description text NOT NULL,
+  price numeric NOT NULL CHECK (price >= 0::numeric),
+  seller_id uuid NOT NULL,
+  buyer_id uuid,
+  status text NOT NULL DEFAULT 'available'::text CHECK (status = ANY (ARRAY['available'::text, 'sold'::text, 'cancelled'::text])),
+  event_date timestamp with time zone NOT NULL CHECK (event_date > now()),
+  location text NOT NULL,
+  image_url text,
+  section text,
+  row_number text,
+  seat_number text,
+  sport text,
+  event_id uuid,
+  CONSTRAINT tickets_pkey PRIMARY KEY (id),
+  CONSTRAINT tickets_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES public.profiles(id),
+  CONSTRAINT tickets_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
+  CONSTRAINT tickets_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(id)
+);
+
+archive-expired-conversations
+Active
+
+History
+
+Schedule
+At 02:00 AM
+Last run
+12 Jul 2025 21:00:00 (-0500)succeeded
+Next run
+13 Jul 2025 21:00:00 (-0500)
+Command
+delete-expired-tickets-job
+Active
+
+History
+
+Schedule
+At 02:00 AM
+Last run
+12 Jul 2025 21:00:00 (-0500)succeeded
+Next run
+13 Jul 2025 21:00:00 (-0500)
+Command
+SELECT
+ public.delete_expired_tickets();
+
+delete-old-notifications-job
+Active
+
+History
+
+Schedule
+At 03:00 AM
+Last run
+12 Jul 2025 22:00:00 (-0500)succeeded
+Next run
+13 Jul 2025 22:00:00 (-0500)
+Command

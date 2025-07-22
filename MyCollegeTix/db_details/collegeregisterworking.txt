@@ -1,0 +1,787 @@
+SQL SCHEMA:
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.colleges (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  name text NOT NULL UNIQUE CHECK (char_length(name) >= 3),
+  short_name text NOT NULL UNIQUE CHECK (char_length(short_name) >= 2),
+  email_domain text NOT NULL UNIQUE,
+  logo_url text,
+  primary_color text DEFAULT '#18453b'::text,
+  secondary_color text DEFAULT '#ffd700'::text,
+  is_active boolean NOT NULL DEFAULT false,
+  CONSTRAINT colleges_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.conversations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  participant_1_id uuid NOT NULL,
+  participant_2_id uuid NOT NULL,
+  last_message_id uuid,
+  last_message_at timestamp with time zone,
+  ticket_id uuid,
+  archived boolean DEFAULT false,
+  CONSTRAINT conversations_pkey PRIMARY KEY (id),
+  CONSTRAINT conversations_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id),
+  CONSTRAINT conversations_participant_1_fkey FOREIGN KEY (participant_1_id) REFERENCES public.profiles(id),
+  CONSTRAINT conversations_participant_2_fkey FOREIGN KEY (participant_2_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  title text NOT NULL CHECK (char_length(title) >= 3 AND char_length(title) <= 200),
+  description text,
+  event_date timestamp with time zone NOT NULL CHECK (event_date > now()),
+  location text NOT NULL,
+  venue text,
+  sport text,
+  category text,
+  opponent text,
+  status text NOT NULL DEFAULT 'scraped'::text CHECK (status = ANY (ARRAY['scraped'::text, 'available'::text, 'completed'::text, 'cancelled'::text])),
+  source text NOT NULL DEFAULT 'parsed'::text CHECK (source = ANY (ARRAY['manual'::text, 'parsed'::text])),
+  external_id text UNIQUE,
+  source_file text,
+  home_team text DEFAULT 'Michigan State'::text,
+  away_team text,
+  game_time text,
+  is_home_game boolean DEFAULT true,
+  college_id uuid,
+  CONSTRAINT events_pkey PRIMARY KEY (id),
+  CONSTRAINT events_college_id_fkey FOREIGN KEY (college_id) REFERENCES public.colleges(id)
+);
+CREATE TABLE public.messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  conversation_id uuid NOT NULL,
+  sender_id uuid NOT NULL,
+  content text NOT NULL CHECK (char_length(content) > 0 AND char_length(content) <= 1000),
+  message_type text NOT NULL DEFAULT 'text'::text CHECK (message_type = ANY (ARRAY['text'::text, 'system'::text, 'ticket_reference'::text])),
+  read_by_recipient boolean DEFAULT false,
+  read_at timestamp with time zone,
+  edited_at timestamp with time zone,
+  CONSTRAINT messages_pkey PRIMARY KEY (id),
+  CONSTRAINT messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id),
+  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  message text NOT NULL,
+  type text NOT NULL DEFAULT 'system'::text CHECK (type = ANY (ARRAY['purchase'::text, 'sale'::text, 'listing'::text, 'system'::text, 'message'::text])),
+  read boolean DEFAULT false,
+  related_ticket_id uuid,
+  related_order_id uuid,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_related_order_id_fkey FOREIGN KEY (related_order_id) REFERENCES public.orders(id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT notifications_related_ticket_id_fkey FOREIGN KEY (related_ticket_id) REFERENCES public.tickets(id)
+);
+CREATE TABLE public.orders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  ticket_id uuid NOT NULL,
+  buyer_id uuid NOT NULL,
+  seller_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'cancelled'::text, 'refunded'::text])),
+  payment_method text,
+  transaction_id text UNIQUE,
+  notes text,
+  completed_at timestamp with time zone,
+  CONSTRAINT orders_pkey PRIMARY KEY (id),
+  CONSTRAINT orders_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
+  CONSTRAINT orders_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES public.profiles(id),
+  CONSTRAINT orders_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  username text NOT NULL UNIQUE CHECK (char_length(username) >= 3),
+  full_name text NOT NULL,
+  avatar_url text,
+  email text NOT NULL UNIQUE,
+  is_admin boolean NOT NULL DEFAULT false,
+  college_id uuid,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT profiles_college_id_fkey FOREIGN KEY (college_id) REFERENCES public.colleges(id)
+);
+CREATE TABLE public.system_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  operation text NOT NULL,
+  details jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT system_logs_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.tickets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  title text NOT NULL CHECK (char_length(title) >= 3 AND char_length(title) <= 100),
+  description text NOT NULL,
+  price numeric NOT NULL CHECK (price >= 0::numeric),
+  seller_id uuid NOT NULL,
+  buyer_id uuid,
+  status text NOT NULL DEFAULT 'available'::text CHECK (status = ANY (ARRAY['available'::text, 'sold'::text, 'cancelled'::text])),
+  event_date timestamp with time zone NOT NULL CHECK (event_date > now()),
+  location text NOT NULL,
+  image_url text,
+  section text,
+  row_number text,
+  seat_number text,
+  sport text,
+  event_id uuid,
+  CONSTRAINT tickets_pkey PRIMARY KEY (id),
+  CONSTRAINT tickets_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(id),
+  CONSTRAINT tickets_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
+  CONSTRAINT tickets_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES public.profiles(id)
+);
+
+Policies:
+colleges
+
+Disable RLS
+
+Create policy
+
+SELECT
+
+
+allow_select_colleges
+Applied to: public role
+
+SELECT
+
+
+Anonymous users can view active colleges
+Applied to: anon role
+
+SELECT
+
+
+Authenticated users can view colleges
+Applied to: authenticated role
+
+INSERT
+
+
+Only admins can insert colleges
+Applied to: authenticated role
+
+UPDATE
+
+
+Only admins can update colleges
+Applied to: authenticated role
+
+ALL
+
+
+Service role can manage colleges
+Applied to: service_role role
+
+conversations
+
+Disable RLS
+
+Create policy
+
+INSERT
+
+
+conversations_insert
+Applied to: authenticated role
+
+SELECT
+
+
+conversations_select
+Applied to: authenticated role
+
+ALL
+
+
+conversations_service
+Applied to: service_role role
+
+UPDATE
+
+
+conversations_update
+Applied to: authenticated role
+
+INSERT
+
+
+Users can create conversations
+Applied to: public role
+
+SELECT
+
+
+Users can view their conversations
+Applied to: public role
+
+events
+
+Disable RLS
+
+Create policy
+
+INSERT
+
+
+events_insert
+Applied to: public role
+
+SELECT
+
+
+events_select
+Applied to: authenticated role
+
+ALL
+
+
+events_service
+Applied to: service_role role
+
+UPDATE
+
+
+events_update
+Applied to: public role
+
+messages
+
+Disable RLS
+
+Create policy
+
+INSERT
+
+
+messages_insert
+Applied to: authenticated role
+
+SELECT
+
+
+messages_select
+Applied to: authenticated role
+
+ALL
+
+
+messages_service
+Applied to: service_role role
+
+UPDATE
+
+
+messages_update
+Applied to: authenticated role
+
+INSERT
+
+
+Users can send messages
+Applied to: public role
+
+SELECT
+
+
+Users can view their messages
+Applied to: public role
+
+notifications
+
+Disable RLS
+
+Create policy
+
+INSERT
+
+
+allow_authenticated_insert
+Applied to: public role
+
+DELETE
+
+
+delete_own_notifications
+Applied to: authenticated role
+
+SELECT
+
+
+select_own_notifications
+Applied to: authenticated role
+
+INSERT
+
+
+System can create notifications
+Applied to: public role
+
+UPDATE
+
+
+update_own_notifications
+Applied to: authenticated role
+
+SELECT
+
+
+Users can view their notifications
+Applied to: public role
+
+orders
+
+Disable RLS
+
+Create policy
+
+INSERT
+
+
+orders_insert
+Applied to: authenticated role
+
+SELECT
+
+
+orders_select
+Applied to: authenticated role
+
+ALL
+
+
+orders_service
+Applied to: service_role role
+
+INSERT
+
+
+Users can insert orders
+Applied to: public role
+
+UPDATE
+
+
+Users can update their own orders
+Applied to: public role
+
+SELECT
+
+
+Users can view their own orders
+Applied to: public role
+
+profiles
+
+Disable RLS
+
+Create policy
+
+INSERT
+
+
+Enable profile creation
+Applied to: public role
+
+INSERT
+
+
+profiles_insert
+Applied to: authenticated role
+
+SELECT
+
+
+profiles_select
+Applied to: authenticated role
+
+ALL
+
+
+profiles_service
+Applied to: service_role role
+
+UPDATE
+
+
+profiles_update
+Applied to: authenticated role
+
+ALL
+
+
+Service role can manage profiles
+Applied to: service_role role
+
+INSERT
+
+
+Users can insert their own profile
+Applied to: public role
+
+UPDATE
+
+
+Users can update own profile
+Applied to: public role
+
+UPDATE
+
+
+Users can update their own profile
+Applied to: public role
+
+SELECT
+
+
+Users can view own profile
+Applied to: public role
+
+SELECT
+
+
+Users can view their own profile
+Applied to: public role
+
+system_logs
+
+Disable RLS
+
+Create policy
+
+DELETE
+
+
+Prevent user deletes from system logs
+Applied to: authenticated role
+
+INSERT
+
+
+Prevent user inserts to system logs
+Applied to: authenticated role
+
+UPDATE
+
+
+Prevent user updates to system logs
+Applied to: authenticated role
+
+ALL
+
+
+Service role can manage system logs
+Applied to: service_role role
+
+SELECT
+
+
+Users can read own system logs
+Applied to: authenticated role
+
+tickets
+
+Disable RLS
+
+Create policy
+
+INSERT
+
+
+tickets_insert
+Applied to: authenticated role
+
+SELECT
+
+
+tickets_select
+Applied to: authenticated role
+
+ALL
+
+
+tickets_service
+Applied to: service_role role
+
+UPDATE
+
+
+tickets_update
+Applied to: authenticated role
+
+UPDATE
+
+
+Users can update their own tickets
+Applied to: public role
+
+Functions:
+add_new_college
+p_name text, p_short_name text, p_email_domain text, p_website_url text DEFAULT NULL::text, p_support_email text DEFAULT NULL::text, p_primary_color text DEFAULT '#18453b'::text, p_secondary_color text DEFAULT '#ffd700'::text
+
+uuid
+
+Definer	
+
+
+current_user_id
+-
+
+uuid
+
+Definer	
+
+
+delete_expired_tickets
+-
+
+void
+
+Definer	
+
+
+delete_old_notifications
+-
+
+void
+
+Definer	
+
+
+delete_user
+-
+
+void
+
+Definer	
+
+
+get_college_by_email
+email_address text
+
+uuid
+
+Definer	
+
+
+get_user_college
+-
+
+uuid
+
+Definer	
+
+
+handle_new_user_registration
+-
+
+trigger
+
+Definer	
+
+
+is_valid_college_email
+email_address text
+
+boolean
+
+Definer	
+
+
+purchase_ticket
+p_ticket_id uuid, p_buyer_id uuid DEFAULT auth.uid()
+
+json
+
+Definer	
+
+Index: 
+Schema	Table	Name	
+public
+
+colleges
+
+colleges_email_domain_key
+
+
+View definition
+
+public
+
+colleges
+
+colleges_name_key
+
+
+View definition
+
+public
+
+colleges
+
+colleges_pkey
+
+
+View definition
+
+public
+
+colleges
+
+colleges_short_name_key
+
+
+View definition
+
+public
+
+conversations
+
+conversations_pkey
+
+
+View definition
+
+public
+
+events
+
+events_external_id_key
+
+
+View definition
+
+public
+
+events
+
+events_pkey
+
+
+View definition
+
+public
+
+colleges
+
+idx_colleges_active
+
+
+View definition
+
+public
+
+colleges
+
+idx_colleges_email_domain
+
+
+View definition
+
+public
+
+events
+
+idx_events_college_id
+
+
+View definition
+
+public
+
+profiles
+
+idx_profiles_college_id
+
+
+View definition
+
+public
+
+messages
+
+messages_pkey
+
+
+View definition
+
+public
+
+notifications
+
+notifications_pkey
+
+
+View definition
+
+public
+
+orders
+
+orders_pkey
+
+
+View definition
+
+public
+
+orders
+
+orders_transaction_id_key
+
+
+View definition
+
+public
+
+profiles
+
+profiles_email_key
+
+
+View definition
+
+public
+
+profiles
+
+profiles_pkey
+
+
+View definition
+
+public
+
+profiles
+
+profiles_username_key
+
+
+View definition
+
+public
+
+system_logs
+
+system_logs_pkey
+
+
+View definition
+
+public
+
+tickets
+
+tickets_pkey

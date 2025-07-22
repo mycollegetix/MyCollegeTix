@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contact - MyCollegeTix</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        line-height: 1.6;
+        color: #1a202c;
+      }
+
+      .nav {
+        position: fixed;
+        top: 0;
+        width: 100%;
+        padding: 1rem 2rem;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        z-index: 1000;
+        transition: all 0.3s ease;
+      }
+
+      .nav-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .logo {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: white;
+        text-decoration: none;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 2rem;
+      }
+
+      .nav-links a {
+        color: white;
+        text-decoration: none;
+        transition: opacity 0.3s ease;
+      }
+
+      .nav-links a:hover,
+      .nav-links a.active {
+        opacity: 0.8;
+        border-bottom: 2px solid white;
+        padding-bottom: 4px;
+      }
+
+      .hero-section {
+        padding: 8rem 2rem 4rem;
+        background: linear-gradient(135deg, #18453b 0%, #006233 100%);
+        color: white;
+        text-align: center;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .hero-title {
+        font-size: 3rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+      }
+
+      .hero-subtitle {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      .contact-content {
+        padding: 5rem 2rem;
+      }
+
+      .contact-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4rem;
+        margin-bottom: 4rem;
+      }
+
+      .contact-form {
+        background: white;
+        padding: 2rem;
+        border-radius: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(24, 69, 59, 0.1);
+      }
+
+      .section-title {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 2rem;
+        color: #18453b;
+      }
+
+      .form-group {
+        margin-bottom: 1.5rem;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #1a202c;
+      }
+
+      .form-group input,
+      .form-group textarea,
+      .form-group select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+      }
+
+      .form-group input:focus,
+      .form-group textarea:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: #18453b;
+      }
+
+      .form-group textarea {
+        height: 120px;
+        resize: vertical;
+      }
+
+      .btn {
+        background: #18453b;
+        color: white;
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        width: 100%;
+      }
+
+      .btn:hover {
+        background: #006233;
+        transform: translateY(-2px);
+      }
+
+      .contact-info {
+        background: #f8fafc;
+        padding: 2rem;
+        border-radius: 20px;
+      }
+
+      .contact-methods {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+      }
+
+      .contact-method {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      }
+
+      .contact-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #18453b, #006233);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+      }
+
+      .contact-details h4 {
+        color: #18453b;
+        margin-bottom: 0.5rem;
+      }
+
+      .contact-details p {
+        color: #666;
+      }
+
+      .faq-section {
+        background: #f8fafc;
+        padding: 4rem 2rem;
+      }
+
+      .faq-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+      }
+
+      .faq-item {
+        background: white;
+        padding: 2rem;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      }
+
+      .faq-question {
+        font-weight: bold;
+        color: #18453b;
+        margin-bottom: 1rem;
+        font-size: 1.1rem;
+      }
+
+      .faq-answer {
+        color: #666;
+        line-height: 1.6;
+      }
+
+      .footer {
+        padding: 2rem;
+        background: #0f172a;
+        color: white;
+        text-align: center;
+      }
+
+      @media (max-width: 768px) {
+        .hero-title {
+          font-size: 2rem;
+        }
+
+        .contact-grid,
+        .faq-grid,
+        .contact-methods {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+
+        .nav-links {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav">
+      <div class="nav-content">
+        <a href="#" class="logo">MyCollegeTix</a>
+        <div class="nav-links">
+          <a href="landing.html">Home</a>
+          <a href="about.html">About</a>
+          <a href="contact.html" class="active">Contact</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="container">
+        <h1 class="hero-title">Get In Touch</h1>
+        <p class="hero-subtitle">
+          Questions, feedback, or want to add your college? We'd love to hear
+          from you!
+        </p>
+      </div>
+    </section>
+
+    <!-- Contact Content -->
+    <section class="contact-content">
+      <div class="container">
+        <!-- Contact Information -->
+        <div class="contact-info" style="max-width: 800px; margin: 0 auto;">
+            <h2 class="section-title" style="text-align: center">Contact Information</h2>
+
+            <div class="contact-methods">
+              <div class="contact-method">
+                <div class="contact-icon">📧</div>
+                <div class="contact-details">
+                  <h4>Contact Us</h4>
+                  <p>contact@mycollegetix.com</p>
+                  <p><small>We typically respond within 24 hours</small></p>
+                </div>
+              </div>
+
+              <div class="contact-method">
+                <div class="contact-icon">🏫</div>
+                <div class="contact-details">
+                  <h4>Add Your College</h4>
+                  <p>college-requests@mycollegetix.com</p>
+                  <p>
+                    <small>Want us to support your school? Let us know!</small>
+                  </p>
+                </div>
+              </div>
+
+              <div class="contact-method">
+                <div class="contact-icon">🛠️</div>
+                <div class="contact-details">
+                  <h4>Technical Support</h4>
+                  <p>support@mycollegetix.com</p>
+                  <p><small>Having issues? We're here to help</small></p>
+                </div>
+              </div>
+
+              <div class="contact-method">
+                <div class="contact-icon">🤝</div>
+                <div class="contact-details">
+                  <h4>Partnerships</h4>
+                  <p>partnerships@mycollegetix.com</p>
+                  <p><small>Interested in working together?</small></p>
+                </div>
+              </div>
+            </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq-section">
+      <div class="container">
+        <h2 class="section-title" style="text-align: center">
+          Frequently Asked Questions
+        </h2>
+        <div class="faq-grid">
+          <div class="faq-item">
+            <div class="faq-question">How do I get my college added?</div>
+            <div class="faq-answer">
+              Email us at college-requests@mycollegetix.com with your school
+              name and student email domain. We'll review and typically add new
+              schools within a week!
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <div class="faq-question">Is MyCollegeTix really free?</div>
+            <div class="faq-answer">
+              Yes! We don't charge any fees. Students handle transactions
+              directly with each other. We just provide the platform for
+              verified students to connect.
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <div class="faq-question">
+              What if I have an issue with another user?
+            </div>
+            <div class="faq-answer">
+              Contact our support team immediately. While we don't handle
+              transactions, we take safety seriously and can investigate user
+              behavior and remove bad actors.
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <div class="faq-question">How do you verify students?</div>
+            <div class="faq-answer">
+              We verify through official .edu email addresses and additional
+              verification steps. Only current students at supported schools can
+              join.
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <div class="faq-question">Can I suggest new features?</div>
+            <div class="faq-answer">
+              Absolutely! We're always looking to improve. Send your suggestions
+              to hello@mycollegetix.com - we read every message.
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <div class="faq-question">
+              Do you plan to expand beyond college sports?
+            </div>
+            <div class="faq-answer">
+              We're focused on sports tickets for now, but we're always
+              evaluating what would be most helpful for the student community.
+              Let us know what you think!
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-links" style="display: flex; justify-content: center; gap: 2rem; margin-bottom: 1rem;">
+          <a href="terms-and-conditions.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Terms & Conditions</a>
+          <a href="privacy-policy.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Privacy Policy</a>
+          <a href="contact.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Contact</a>
+        </div>
+        <p>
+          &copy; 2025 MyCollegeTix. A connection platform by students, for
+          students.<br />
+          <small
+            >We facilitate connections only—all transactions are between
+            users.</small
+          >
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      // Form submission handling
+      document
+        .getElementById("contactForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          // Get form data
+          const formData = new FormData(this);
+          const data = Object.fromEntries(formData);
+
+          // Simple validation
+          if (!data.name || !data.email || !data.subject || !data.message) {
+            alert("Please fill in all required fields.");
+            return;
+          }
+
+          // Simulate form submission (replace with actual form handler)
+          const submitButton = this.querySelector(".btn");
+          const originalText = submitButton.textContent;
+
+          submitButton.textContent = "Sending...";
+          submitButton.disabled = true;
+
+          // Simulate API call
+          setTimeout(() => {
+            alert(
+              "Thank you for your message! We'll get back to you within 24-48 hours."
+            );
+            this.reset();
+            submitButton.textContent = originalText;
+            submitButton.disabled = false;
+          }, 2000);
+
+          // In a real implementation, you'd send this data to your backend:
+          // console.log('Form data:', data);
+        });
+
+      // Add scroll effect to navbar
+      window.addEventListener("scroll", function () {
+        const nav = document.querySelector(".nav");
+        if (window.scrollY > 100) {
+          nav.style.background = "rgba(26, 32, 44, 0.9)";
+        } else {
+          nav.style.background = "rgba(255, 255, 255, 0.1)";
+        }
+      });
+
+      // Smooth scrolling for any anchor links
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener("click", function (e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute("href"));
+          if (target) {
+            target.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
