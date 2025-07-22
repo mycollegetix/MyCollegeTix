@@ -296,7 +296,7 @@ export default function EnhancedRegisterScreen() {
     if (selectedCollege) {
       return `${selectedCollege.short_name} Tickets`;
     }
-    return "University Tickets";
+    return "MyCollegeTix";
   };
 
   const getDynamicSubtitle = () => {
@@ -719,7 +719,9 @@ export default function EnhancedRegisterScreen() {
                     onPress={() => router.push("/legal/terms")}
                     style={styles.legalLinkButton}
                   >
-                    <Text style={[styles.linkText, { color: themeColors.primary }]}>
+                    <Text
+                      style={[styles.linkText, { color: themeColors.primary }]}
+                    >
                       Terms of Service
                     </Text>
                   </TouchableOpacity>
@@ -728,7 +730,9 @@ export default function EnhancedRegisterScreen() {
                     onPress={() => router.push("/legal/privacy")}
                     style={styles.legalLinkButton}
                   >
-                    <Text style={[styles.linkText, { color: themeColors.primary }]}>
+                    <Text
+                      style={[styles.linkText, { color: themeColors.primary }]}
+                    >
                       Privacy Policy
                     </Text>
                   </TouchableOpacity>

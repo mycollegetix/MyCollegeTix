@@ -179,18 +179,10 @@ export default function LoginScreen() {
               </LinearGradient>
             </View>
 
-            <Text style={styles.welcomeTitle}>Welcome Back</Text>
+            <Text style={styles.welcomeTitle}>Welcome</Text>
             <Text style={styles.welcomeSubtitle}>
               Sign in to access your tickets and discover amazing Spartan events
             </Text>
-
-            {/* Stats Grid */}
-            <View style={styles.statsGrid}>
-              <StatCard number="50K+" label="Students" />
-              <StatCard number="500+" label="Events" />
-              <StatCard number="99.9%" label="Uptime" />
-              <StatCard number="24/7" label="Support" />
-            </View>
           </View>
 
           {/* Login Form Section */}
