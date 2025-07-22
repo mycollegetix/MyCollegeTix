@@ -55,66 +55,87 @@ export default function TermsOfServiceScreen() {
           {/* Last Updated */}
           <View style={styles.lastUpdatedContainer}>
             <Text style={styles.lastUpdatedText}>
-              Last Updated: [DATE TO BE ADDED]
-            </Text>
-          </View>
-
-          {/* Introduction */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>1. Introduction</Text>
-            <Text style={styles.sectionText}>
-              Welcome to MSU Tickets. These Terms of Service govern your use of our ticket marketplace platform. By accessing or using our service, you agree to be bound by these terms.
-            </Text>
-            <Text style={styles.placeholderText}>
-              [DETAILED TERMS TO BE ADDED]
+              Effective Date: January 1, 2025
             </Text>
           </View>
 
           {/* Acceptance of Terms */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>2. Acceptance of Terms</Text>
-            <Text style={styles.placeholderText}>
-              [CONTENT TO BE ADDED - User agreement, eligibility requirements, etc.]
+            <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
+            <Text style={styles.sectionText}>
+              By accessing and using MyCollegeTix ("Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.
             </Text>
           </View>
 
-          {/* User Accounts */}
+          {/* Description of Service */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>3. User Accounts</Text>
-            <Text style={styles.placeholderText}>
-              [CONTENT TO BE ADDED - Account creation, responsibilities, security, etc.]
+            <Text style={styles.sectionTitle}>2. Description of Service</Text>
+            <Text style={styles.sectionText}>
+              MyCollegeTix is a platform that connects verified college students for the purpose of buying and selling event tickets. We provide the platform only; all transactions are conducted directly between users.
             </Text>
           </View>
 
-          {/* Ticket Sales and Purchases */}
+          {/* User Eligibility */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>4. Ticket Sales and Purchases</Text>
-            <Text style={styles.placeholderText}>
-              [CONTENT TO BE ADDED - Listing rules, payment terms, transfer policies, etc.]
+            <Text style={styles.sectionTitle}>3. User Eligibility</Text>
+            <Text style={styles.sectionText}>
+              To use MyCollegeTix, you must:
+            </Text>
+            <Text style={styles.sectionText}>
+              • Be a current student at a supported college or university{"\n"}
+              • Provide a valid .edu email address for verification{"\n"}
+              • Be at least 18 years old or have parental consent{"\n"}
+              • Agree to these terms and conditions
             </Text>
           </View>
 
-          {/* Prohibited Activities */}
+          {/* User Responsibilities */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>5. Prohibited Activities</Text>
-            <Text style={styles.placeholderText}>
-              [CONTENT TO BE ADDED - Scalping policies, fraud prevention, prohibited conduct, etc.]
+            <Text style={styles.sectionTitle}>4. User Responsibilities</Text>
+            <Text style={styles.sectionText}>
+              <Text style={{fontWeight: 'bold'}}>4.1 Account Security{"\n"}</Text>
+              You are responsible for maintaining the confidentiality of your account and password and for restricting access to your account.
+            </Text>
+            <Text style={styles.sectionText}>
+              <Text style={{fontWeight: 'bold'}}>4.2 Prohibited Activities{"\n"}</Text>
+              Users may not:
+            </Text>
+            <Text style={styles.sectionText}>
+              • Post false, misleading, or fraudulent listings{"\n"}
+              • Sell tickets at prices significantly above face value (price gouging){"\n"}
+              • Create multiple accounts{"\n"}
+              • Harass or abuse other users{"\n"}
+              • Use the platform for any illegal activities
             </Text>
           </View>
 
-          {/* Platform Fees */}
+          {/* Transactions */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>6. Platform Fees</Text>
-            <Text style={styles.placeholderText}>
-              [CONTENT TO BE ADDED - Fee structure, payment processing, refunds, etc.]
+            <Text style={styles.sectionTitle}>5. Transactions</Text>
+            <Text style={styles.sectionText}>
+              MyCollegeTix facilitates connections between users but does not process payments or handle transactions. All financial transactions are conducted directly between buyers and sellers. We recommend using secure payment methods and meeting in safe, public locations.
             </Text>
           </View>
 
-          {/* Liability and Disclaimers */}
+          {/* Limitation of Liability */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>7. Liability and Disclaimers</Text>
-            <Text style={styles.placeholderText}>
-              [CONTENT TO BE ADDED - Limitation of liability, disclaimers, etc.]
+            <Text style={styles.sectionTitle}>6. Limitation of Liability</Text>
+            <Text style={styles.sectionText}>
+              MyCollegeTix is not responsible for:
+            </Text>
+            <Text style={styles.sectionText}>
+              • The validity or authenticity of tickets{"\n"}
+              • Failed transactions between users{"\n"}
+              • User conduct or safety during meetings{"\n"}
+              • Any damages arising from use of the platform
+            </Text>
+          </View>
+
+          {/* Termination */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>7. Termination</Text>
+            <Text style={styles.sectionText}>
+              We reserve the right to terminate or suspend accounts that violate these terms or engage in fraudulent or harmful behavior.
             </Text>
           </View>
 
@@ -122,7 +143,7 @@ export default function TermsOfServiceScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>8. Privacy</Text>
             <Text style={styles.sectionText}>
-              Your privacy is important to us. Please review our Privacy Policy to understand how we collect, use, and protect your information.
+              Your privacy is important to us. Please review our Privacy Policy, which also governs your use of the Service, to understand our practices.
             </Text>
             <TouchableOpacity
               style={styles.linkButton}
@@ -137,8 +158,8 @@ export default function TermsOfServiceScreen() {
           {/* Changes to Terms */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>9. Changes to Terms</Text>
-            <Text style={styles.placeholderText}>
-              [CONTENT TO BE ADDED - How terms may be updated, notification process, etc.]
+            <Text style={styles.sectionText}>
+              We reserve the right to modify these terms at any time. Users will be notified of significant changes, and continued use of the service constitutes acceptance of modified terms.
             </Text>
           </View>
 
@@ -146,19 +167,10 @@ export default function TermsOfServiceScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>10. Contact Information</Text>
             <Text style={styles.sectionText}>
-              If you have any questions about these Terms of Service, please contact us:
-            </Text>
-            <Text style={styles.placeholderText}>
-              [CONTACT INFORMATION TO BE ADDED]
+              If you have any questions about these Terms and Conditions, please contact us at legal@mycollegetix.com.
             </Text>
           </View>
 
-          {/* Template Notice */}
-          <View style={styles.templateNotice}>
-            <Text style={styles.templateNoticeText}>
-              📝 This is a template. Actual terms will be added by legal team.
-            </Text>
-          </View>
 
         </ScrollView>
       </View>
