@@ -7,16 +7,28 @@ echo "🔧 Installing CocoaPods dependencies..."
 echo "Current directory: $(pwd)"
 echo "Workspace: $CI_WORKSPACE"
 
-# Navigate to the iOS directory (try both possible paths)
-if [ -d "$CI_WORKSPACE/ios" ]; then
+# Based on the xcodebuild path, the ios directory is at $CI_WORKSPACE/MyCollegeTix/ios
+# Try multiple possible paths
+if [ -d "$CI_WORKSPACE/MyCollegeTix/ios" ]; then
+    echo "Using CI_WORKSPACE/MyCollegeTix/ios path"
+    cd "$CI_WORKSPACE/MyCollegeTix/ios"
+elif [ -d "$CI_WORKSPACE/ios" ]; then
     echo "Using CI_WORKSPACE/ios path"
     cd "$CI_WORKSPACE/ios"
+elif [ -d "./MyCollegeTix/ios" ]; then
+    echo "Using relative MyCollegeTix/ios path"
+    cd "./MyCollegeTix/ios"
 elif [ -d "./ios" ]; then
     echo "Using relative ios path"
     cd "./ios"
 else
     echo "❌ Error: Cannot find ios directory"
+    echo "Available directories:"
     ls -la
+    if [ -d "./MyCollegeTix" ]; then
+        echo "MyCollegeTix contents:"
+        ls -la ./MyCollegeTix/
+    fi
     exit 1
 fi
 
