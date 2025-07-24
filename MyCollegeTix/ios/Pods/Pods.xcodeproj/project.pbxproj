@@ -14369,7 +14369,7 @@
 				46EB2E00013100 /* Support Files */,
 			);
 			name = ExpoHead;
-			path = "../../node_modules/expo-router 2/ios";
+			path = "../../node_modules/expo-router/ios";
 			sourceTree = "<group>";
 		};
 		46EB2E00000140 /* ExpoImagePicker */ = {
@@ -14393,7 +14393,7 @@
 				46EB2E00013300 /* Support Files */,
 			);
 			name = ExpoImagePicker;
-			path = "../../node_modules/expo-image-picker 2/ios";
+			path = "../../node_modules/expo-image-picker/ios";
 			sourceTree = "<group>";
 		};
 		46EB2E00000150 /* ExpoKeepAwake */ = {

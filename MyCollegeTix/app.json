@@ -18,13 +18,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mycollegetix.app",
-      "buildNumber": "1.2",
+      "buildNumber": "1.4",
       "requireFullScreen": false,
       "infoPlist": {
         "NSCameraUsageDescription": "This app uses camera to upload ticket photos for verification",
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload ticket images",
-        "NSLocationWhenInUseUsageDescription": "This app uses location to show nearby events and verify ticket authenticity",
-        "NSUserTrackingUsageDescription": "This app uses tracking to provide personalized ticket recommendations and analytics"
+        "NSLocationWhenInUseUsageDescription": "This app uses location to show nearby events and verify ticket authenticity"
       },
       "config": {
         "usesNonExemptEncryption": false
