@@ -259,11 +259,40 @@ export default function ChatConversationScreen() {
     index: number;
   }) => {
     const isMyMessage = item.sender_id === user?.id;
+    const isSystemMessage = item.message_type === "system";
     const showTime =
       index === 0 ||
       new Date(item.created_at).getTime() -
         new Date(localMessages[index - 1].created_at).getTime() >
         300000; // 5 minutes
+
+    // Special rendering for system messages
+    if (isSystemMessage) {
+      return (
+        <View style={styles.systemMessageContainer}>
+          {showTime && (
+            <Text style={styles.messageTime}>
+              {formatMessageTime(item.created_at)}
+            </Text>
+          )}
+          <View style={styles.systemMessageBubble}>
+            <View style={styles.systemMessageHeader}>
+              <Ionicons
+                name="information-circle"
+                size={16}
+                color={theme.primary}
+              />
+              <Text style={[styles.systemMessageTitle, { color: theme.primary }]}>
+                MyCollegeTix Info
+              </Text>
+            </View>
+            <Text style={styles.systemMessageText}>
+              {item.content}
+            </Text>
+          </View>
+        </View>
+      );
+    }
 
     return (
       <View style={styles.messageContainer}>
@@ -295,16 +324,6 @@ export default function ChatConversationScreen() {
           >
             {item.content}
           </Text>
-
-          {item.message_type === "system" && (
-            <View style={styles.systemMessageIndicator}>
-              <Ionicons
-                name="information-circle-outline"
-                size={12}
-                color="#6b7280"
-              />
-            </View>
-          )}
         </View>
 
         {isMyMessage && (
@@ -451,6 +470,33 @@ export default function ChatConversationScreen() {
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.messagesList}
+              ListHeaderComponent={
+                currentConversation?.ticket && localMessages.length === 0 ? (
+                  <View style={styles.sellingProcessContainer}>
+                    <View style={styles.sellingProcessBubble}>
+                      <View style={styles.sellingProcessHeader}>
+                        <Ionicons
+                          name="information-circle"
+                          size={16}
+                          color={theme.primary}
+                        />
+                        <Text style={[styles.sellingProcessTitle, { color: theme.primary }]}>
+                          How MyCollegeTix Works
+                        </Text>
+                      </View>
+                      <Text style={styles.sellingProcessText}>
+                        Welcome to MyCollegeTix! 🎫{"\n\n"}
+                        Here's how ticket selling works:{"\n"}
+                        • Chat about ticket details and price{"\n"}
+                        • Negotiate terms privately{"\n"}
+                        • When you agree on a sale, the seller marks it as sold in their Orders tab{"\n"}
+                        • Tickets stay available until the seller manually marks them as sold{"\n\n"}
+                        Happy ticket trading! 🏈
+                      </Text>
+                    </View>
+                  </View>
+                ) : null
+              }
               onContentSizeChange={() => {
                 if (hasLoadedMessages) {
                   flatListRef.current?.scrollToEnd({ animated: false });
@@ -459,6 +505,33 @@ export default function ChatConversationScreen() {
             />
           ) : hasLoadedMessages ? (
             <View style={styles.emptyMessages}>
+              {/* Show selling process info for new ticket conversations */}
+              {currentConversation?.ticket && (
+                <View style={styles.sellingProcessContainer}>
+                  <View style={styles.sellingProcessBubble}>
+                    <View style={styles.sellingProcessHeader}>
+                      <Ionicons
+                        name="information-circle"
+                        size={16}
+                        color={theme.primary}
+                      />
+                      <Text style={[styles.sellingProcessTitle, { color: theme.primary }]}>
+                        How MyCollegeTix Works
+                      </Text>
+                    </View>
+                    <Text style={styles.sellingProcessText}>
+                      Welcome to MyCollegeTix! 🎫{"\n\n"}
+                      Here's how ticket selling works:{"\n"}
+                      • Chat about ticket details and price{"\n"}
+                      • Negotiate terms privately{"\n"}
+                      • When you agree on a sale, the seller marks it as sold in their Orders tab{"\n"}
+                      • Tickets stay available until the seller manually marks them as sold{"\n\n"}
+                      Happy ticket trading! 🏈
+                    </Text>
+                  </View>
+                </View>
+              )}
+              
               <View style={styles.emptyMessagesIcon}>
                 <Ionicons
                   name="chatbubbles-outline"
@@ -689,9 +762,63 @@ const styles = StyleSheet.create({
   otherMessageText: {
     color: "#1e293b",
   },
-  systemMessageIndicator: {
-    marginTop: 4,
-    alignSelf: "flex-end",
+  systemMessageContainer: {
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  systemMessageBubble: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    maxWidth: "90%",
+  },
+  systemMessageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 6,
+  },
+  systemMessageTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  systemMessageText: {
+    fontSize: 14,
+    color: "#4b5563",
+    lineHeight: 20,
+    textAlign: "left",
+  },
+  sellingProcessContainer: {
+    marginBottom: 20,
+    alignItems: "center",
+  },
+  sellingProcessBubble: {
+    backgroundColor: "#f0f9ff",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "#bae6fd",
+    maxWidth: "90%",
+  },
+  sellingProcessHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 6,
+  },
+  sellingProcessTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  sellingProcessText: {
+    fontSize: 14,
+    color: "#0369a1",
+    lineHeight: 20,
+    textAlign: "left",
   },
   messageStatus: {
     alignSelf: "flex-end",

@@ -278,6 +278,8 @@ export class ChatService {
         "✅ Successfully created new conversation:",
         newConversation?.id
       );
+
+
       return { data: newConversation, error: null };
     } catch (error) {
       console.error("💥 Error in getOrCreateConversation:", error);

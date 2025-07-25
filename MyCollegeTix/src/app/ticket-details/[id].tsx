@@ -32,7 +32,6 @@ export default function TicketDetailsScreen() {
 
   const [ticket, setTicket] = useState<TicketWithSeller | null>(null);
   const [loading, setLoading] = useState(true);
-  const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -67,67 +66,6 @@ export default function TicketDetailsScreen() {
     }
   };
 
-  const handlePurchase = async () => {
-    if (!ticket || !user) return;
-
-    if (ticket.seller.id === user.id) {
-      Alert.alert("Error", "You cannot purchase your own ticket.");
-      return;
-    }
-
-    Alert.alert(
-      "Confirm Purchase",
-      `Are you sure you want to purchase this ticket for $${ticket.price.toFixed(
-        2
-      )}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Purchase",
-          onPress: async () => {
-            setPurchasing(true);
-            try {
-              const { data, error } = await TicketService.purchaseTicket(
-                ticket.id
-              );
-
-              if (error) {
-                throw error;
-              }
-
-              Alert.alert(
-                "Purchase Successful!",
-                "Congratulations! You have successfully purchased this ticket. You can find it in your orders.",
-                [
-                  {
-                    text: "View My Orders",
-                    onPress: () => (router.push as any)("/(tabs)/orders"),
-                  },
-                  {
-                    text: "OK",
-                    onPress: () => router.back(),
-                  },
-                ]
-              );
-            } catch (error: any) {
-              console.error("Error purchasing ticket:", error);
-
-              let errorMessage = "Failed to purchase ticket. Please try again.";
-              if (error.message?.includes("not available")) {
-                errorMessage = "Sorry, this ticket is no longer available.";
-              } else if (error.message?.includes("not found")) {
-                errorMessage = "This ticket listing could not be found.";
-              }
-
-              Alert.alert("Purchase Failed", errorMessage);
-            } finally {
-              setPurchasing(false);
-            }
-          },
-        },
-      ]
-    );
-  };
 
   const handleContactSeller = async () => {
     if (!ticket || !user) {
@@ -458,35 +396,25 @@ export default function TicketDetailsScreen() {
       {!isOwnTicket && isAvailable && (
         <BlurView intensity={90} style={styles.bottomBar}>
           <View style={styles.actionButtonsContainer}>
-            {/* Purchase Button */}
+            {/* Message Seller Button */}
             <TouchableOpacity
-              style={[
-                styles.purchaseButton,
-                purchasing && styles.purchaseButtonDisabled,
-              ]}
-              onPress={handlePurchase}
-              disabled={purchasing}
+              style={styles.messageButton}
+              onPress={handleContactSeller}
             >
               <View
                 style={[
-                  styles.purchaseButtonGradient,
+                  styles.messageButtonGradient,
                   {
-                    backgroundColor: purchasing ? "#6b7280" : theme.primary,
+                    backgroundColor: theme.primary,
                   },
                 ]}
               >
-                {purchasing ? (
-                  <View style={styles.purchaseButtonContent}>
-                    <Text style={styles.purchaseButtonText}>Processing...</Text>
-                  </View>
-                ) : (
-                  <View style={styles.purchaseButtonContent}>
-                    <Ionicons name="card-outline" size={20} color="white" />
-                    <Text style={styles.purchaseButtonText}>
-                      Purchase for ${ticket.price.toFixed(2)}
-                    </Text>
-                  </View>
-                )}
+                <View style={styles.messageButtonContent}>
+                  <Ionicons name="chatbubble-outline" size={20} color="white" />
+                  <Text style={styles.messageButtonText}>
+                    Message About Ticket
+                  </Text>
+                </View>
               </View>
             </TouchableOpacity>
           </View>
@@ -776,29 +704,25 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
   },
-  purchaseButton: {
+  messageButton: {
     flex: 1,
     borderRadius: 16,
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 6,
   },
-  purchaseButtonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  purchaseButtonGradient: {
+  messageButtonGradient: {
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
-  purchaseButtonContent: {
+  messageButtonContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  purchaseButtonText: {
+  messageButtonText: {
     color: "white",
     fontSize: 18,
     fontWeight: "700",

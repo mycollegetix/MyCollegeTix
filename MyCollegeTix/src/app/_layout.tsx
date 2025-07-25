@@ -6,6 +6,8 @@ import { ChatProvider } from "@/src/providers/ChatProvider";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useColorScheme } from "react-native";
 import { useEffect } from "react";
+import * as Font from 'expo-font';
+import { Ionicons } from '@expo/vector-icons';
 
 function RootLayoutNav() {
   const { session, isLoading, profile } = useAuth();
@@ -52,6 +54,12 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    Font.loadAsync({
+      ...Ionicons.font,
+    });
+  }, []);
 
   return (
     <AuthProvider>
