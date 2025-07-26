@@ -15,7 +15,6 @@ import {
   Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { CollegeService } from "@/src/services/collegeService";
 import { College } from "@/src/types/database.types";
