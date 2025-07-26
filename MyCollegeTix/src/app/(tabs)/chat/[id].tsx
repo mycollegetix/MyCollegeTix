@@ -21,6 +21,8 @@ import { useChat } from "@/src/providers/ChatProvider";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { MessageWithSender } from "@/src/types/database.types";
+import { ReportModal } from "@/src/components/ReportModal";
+import { reportingService } from "@/src/services/reportingService";
 
 const { width, height } = Dimensions.get("window");
 
@@ -44,6 +46,8 @@ export default function ChatConversationScreen() {
   const [sending, setSending] = useState(false);
   const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
   const [localMessages, setMessages] = useState<MessageWithSender[]>([]); // ✅ LOCAL STATE
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [isUserBlocked, setIsUserBlocked] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   // Memoized conversation loading
@@ -83,6 +87,21 @@ export default function ChatConversationScreen() {
   useEffect(() => {
     setMessages(messages);
   }, [messages]);
+
+  // Check if user is blocked
+  useEffect(() => {
+    const checkBlockStatus = async () => {
+      if (currentConversation) {
+        const otherParticipant = getOtherParticipant();
+        if (otherParticipant) {
+          const blocked = await reportingService.isUserBlocked(otherParticipant.id);
+          setIsUserBlocked(blocked);
+        }
+      }
+    };
+
+    checkBlockStatus();
+  }, [currentConversation]);
 
   // Effect for loading conversation data
   useEffect(() => {
@@ -401,13 +420,51 @@ export default function ChatConversationScreen() {
           onPress={() => {
             Alert.alert("Chat Options", "Choose an action", [
               {
+                text: "Report User",
+                onPress: () => setShowReportModal(true),
+              },
+              {
+                text: isUserBlocked ? "Unblock User" : "Block User",
+                onPress: async () => {
+                  if (isUserBlocked) {
+                    const result = await reportingService.unblockUser(otherParticipant.id);
+                    if (result.success) {
+                      setIsUserBlocked(false);
+                      Alert.alert("Success", "User has been unblocked");
+                    } else {
+                      Alert.alert("Error", result.error || "Failed to unblock user");
+                    }
+                  } else {
+                    Alert.alert(
+                      "Block User",
+                      `Are you sure you want to block ${otherParticipant.full_name}? They won't be able to message you.`,
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Block",
+                          style: "destructive",
+                          onPress: async () => {
+                            const result = await reportingService.blockUser(otherParticipant.id, "Blocked from chat");
+                            if (result.success) {
+                              setIsUserBlocked(true);
+                              Alert.alert("Success", "User has been blocked");
+                            } else {
+                              Alert.alert("Error", result.error || "Failed to block user");
+                            }
+                          }
+                        }
+                      ]
+                    );
+                  }
+                },
+              },
+              {
                 text: "View Profile",
                 onPress: () => {
                   // TODO: Navigate to user profile
                   Alert.alert("Profile", "User profile feature coming soon!");
                 },
               },
-
               {
                 text: "Chat List",
                 onPress: () => {
@@ -590,6 +647,22 @@ export default function ChatConversationScreen() {
           </BlurView>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Report Modal */}
+      {otherParticipant && (
+        <ReportModal
+          visible={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          reportedUserId={otherParticipant.id}
+          reportedUserName={otherParticipant.full_name}
+          contentId={id || ''}
+          contentType="message"
+          onReportSubmitted={() => {
+            // Optionally refresh block status or show success message
+            Alert.alert("Thank you", "Your report has been submitted and will be reviewed within 24 hours.");
+          }}
+        />
+      )}
     </View>
   );
 }

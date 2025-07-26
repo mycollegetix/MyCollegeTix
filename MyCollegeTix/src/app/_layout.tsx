@@ -24,19 +24,19 @@ function RootLayoutNav() {
 
     // If user is in admin group but not an admin, redirect them out
     if (inAdminGroup && session && profile && !profile.is_admin) {
-      router.replace("/(tabs)");
+      router.replace("/(tabs)" as any);
       return;
     }
 
     // Handle normal authentication flow
     if (session && inAuthGroup) {
-      router.replace("/(tabs)");
+      router.replace("/(tabs)" as any);
       return;
     }
 
     // Allow access to legal pages without authentication
     if (!session && !inAuthGroup && !inLegalGroup) {
-      router.replace("/(auth)/login");
+      router.replace("/(auth)/login" as any);
       return;
     }
   }, [session, segments, isLoading, router, profile]);

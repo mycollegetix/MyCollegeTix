@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { CollegeService } from "@/src/services/collegeService";
+import { legalService } from "@/src/services/legalService";
 import { College } from "@/src/types/database.types";
 
 const { width, height } = Dimensions.get("window");
@@ -39,6 +40,10 @@ export default function EnhancedRegisterScreen() {
   const [colleges, setColleges] = useState<College[]>([]);
   const [loadingColleges, setLoadingColleges] = useState(true);
   const [emailValidationMessage, setEmailValidationMessage] = useState("");
+  
+  // Legal agreement state
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   const { signUp } = useAuth();
   const router = useRouter();
@@ -194,6 +199,15 @@ export default function EnhancedRegisterScreen() {
       return;
     }
 
+    // Legal agreements validation
+    if (!termsAccepted || !privacyAccepted) {
+      Alert.alert(
+        "Legal Agreements Required",
+        "You must accept both the Terms of Service and Privacy Policy to create an account."
+      );
+      return;
+    }
+
     // Set loading state IMMEDIATELY to prevent double-clicks
     setIsLoading(true);
     console.log("🔄 Starting registration process...");
@@ -203,7 +217,7 @@ export default function EnhancedRegisterScreen() {
       console.log("🏫 Selected college:", selectedCollege.name);
 
       // Use the AuthProvider signUp method which handles college assignment
-      const { error } = await signUp(email, password, name, selectedCollege.id);
+      const { error } = await signUp(email, password, name, selectedCollege.id, true);
 
       if (error) {
         console.error("❌ Registration error:", error);
@@ -661,15 +675,96 @@ export default function EnhancedRegisterScreen() {
                 </View>
               </View>
 
+              {/* Legal Agreements Section */}
+              <View style={styles.legalSection}>
+                <View style={styles.legalHeader}>
+                  <Ionicons name="shield-checkmark" size={20} color={themeColors.primary} />
+                  <Text style={[styles.legalHeaderText, { color: themeColors.primary }]}>
+                    Legal Agreements
+                  </Text>
+                </View>
+                
+                <Text style={styles.legalDescription}>
+                  By creating an account, you agree to our terms and policies:
+                </Text>
+
+                {/* Terms of Service Checkbox */}
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  onPress={() => setTermsAccepted(!termsAccepted)}
+                >
+                  <View style={[
+                    styles.checkbox,
+                    termsAccepted && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }
+                  ]}>
+                    {termsAccepted && (
+                      <Ionicons name="checkmark" size={14} color="white" />
+                    )}
+                  </View>
+                  <View style={styles.checkboxText}>
+                    <Text style={styles.checkboxLabel}>
+                      I accept the{' '}
+                      <Text 
+                        style={[styles.linkText, { color: themeColors.primary }]}
+                        onPress={() => router.push('/legal/terms')}
+                      >
+                        Terms of Service
+                      </Text>
+                    </Text>
+                    <Text style={styles.checkboxSubtext}>
+                      Including our zero-tolerance policy for inappropriate content
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Privacy Policy Checkbox */}
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  onPress={() => setPrivacyAccepted(!privacyAccepted)}
+                >
+                  <View style={[
+                    styles.checkbox,
+                    privacyAccepted && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }
+                  ]}>
+                    {privacyAccepted && (
+                      <Ionicons name="checkmark" size={14} color="white" />
+                    )}
+                  </View>
+                  <View style={styles.checkboxText}>
+                    <Text style={styles.checkboxLabel}>
+                      I accept the{' '}
+                      <Text 
+                        style={[styles.linkText, { color: themeColors.primary }]}
+                        onPress={() => router.push('/legal/privacy')}
+                      >
+                        Privacy Policy
+                      </Text>
+                    </Text>
+                    <Text style={styles.checkboxSubtext}>
+                      How we collect, use, and protect your information
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {(!termsAccepted || !privacyAccepted) && (
+                  <View style={styles.legalWarning}>
+                    <Ionicons name="warning" size={16} color="#f59e0b" />
+                    <Text style={styles.legalWarningText}>
+                      You must accept both agreements to create an account
+                    </Text>
+                  </View>
+                )}
+              </View>
+
               {/* Register Button */}
               <TouchableOpacity
                 style={[
                   dynamicStyles.registerButton,
-                  (isLoading || !selectedCollege || !isEmailValid()) &&
+                  (isLoading || !selectedCollege || !isEmailValid() || !termsAccepted || !privacyAccepted) &&
                     styles.disabledButton,
                 ]}
                 onPress={handleRegister}
-                disabled={isLoading || !selectedCollege || !isEmailValid()}
+                disabled={isLoading || !selectedCollege || !isEmailValid() || !termsAccepted || !privacyAccepted}
                 activeOpacity={isLoading ? 1 : 0.8} // Prevent visual feedback when disabled
               >
                 <LinearGradient
@@ -1040,7 +1135,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   legalSection: {
-    alignItems: "center",
     marginTop: 20,
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -1048,6 +1142,69 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#e2e8f0",
+  },
+  legalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  legalHeaderText: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  legalDescription: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+    gap: 12,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: "#d1d5db",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  checkboxText: {
+    flex: 1,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: "#374151",
+    lineHeight: 20,
+    marginBottom: 2,
+  },
+  checkboxSubtext: {
+    fontSize: 12,
+    color: "#6b7280",
+    lineHeight: 16,
+  },
+  legalWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#fef3c7",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#f59e0b",
+  },
+  legalWarningText: {
+    fontSize: 12,
+    color: "#92400e",
+    flex: 1,
   },
   legalTextContainer: {
     flexDirection: "row",

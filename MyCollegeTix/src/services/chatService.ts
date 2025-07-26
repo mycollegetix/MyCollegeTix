@@ -1,6 +1,7 @@
-// services/chatService.ts - UPDATED with notifications
+// services/chatService.ts - UPDATED with notifications and moderation
 import { supabase } from "../lib/supabase";
 import { NotificationService } from "./notificationService"; // ✅ ADDED
+import { freeModerationService } from "./freeModerationService"; // ✅ ADDED
 import {
   Database,
   MessageWithSender,
@@ -28,6 +29,22 @@ export class ChatService {
 
       if (!user) {
         throw new Error("User not authenticated");
+      }
+
+      // ✅ STEP 0: Moderate content before sending (only for user messages, not system)
+      if (messageType === "text") {
+        const moderationResult = await freeModerationService.moderateMessage(
+          user.id,
+          conversationId,
+          content
+        );
+
+        if (!moderationResult.success) {
+          return {
+            data: null,
+            error: { message: moderationResult.error || "Message violates community guidelines" }
+          };
+        }
       }
 
       // ✅ STEP 1: Get conversation details to identify the recipient

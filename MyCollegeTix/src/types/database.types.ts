@@ -10,6 +10,133 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      blocked_users: {
+        Row: {
+          id: string;
+          created_at: string;
+          blocker_id: string;
+          blocked_id: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          blocker_id: string;
+          blocked_id: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          blocker_id?: string;
+          blocked_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "blocked_users_blocker_id_fkey";
+            columns: ["blocker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "blocked_users_blocked_id_fkey";
+            columns: ["blocked_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      content_reports: {
+        Row: {
+          id: string;
+          created_at: string;
+          content_type: 'ticket' | 'message' | 'profile';
+          content_id: string;
+          reported_by: string;
+          reason: string;
+          description: string | null;
+          additional_context: Json | null;
+          status: 'pending' | 'approved' | 'rejected';
+          admin_notes: string | null;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          content_type: 'ticket' | 'message' | 'profile';
+          content_id: string;
+          reported_by: string;
+          reason: string;
+          description?: string | null;
+          additional_context?: Json | null;
+          status?: 'pending' | 'approved' | 'rejected';
+          admin_notes?: string | null;
+          resolved_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          content_type?: 'ticket' | 'message' | 'profile';
+          content_id?: string;
+          reported_by?: string;
+          reason?: string;
+          description?: string | null;
+          additional_context?: Json | null;
+          status?: 'pending' | 'approved' | 'rejected';
+          admin_notes?: string | null;
+          resolved_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "content_reports_reported_by_fkey";
+            columns: ["reported_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      legal_agreements: {
+        Row: {
+          id: string;
+          user_id: string;
+          agreement_type: 'terms_of_service' | 'privacy_policy';
+          version: string;
+          accepted_at: string;
+          ip_address: string | null;
+          user_agent: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          agreement_type: 'terms_of_service' | 'privacy_policy';
+          version?: string;
+          accepted_at?: string;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          agreement_type?: 'terms_of_service' | 'privacy_policy';
+          version?: string;
+          accepted_at?: string;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "legal_agreements_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       watchlists: {
         Row: {
           id: string;
@@ -453,6 +580,9 @@ export type Database = {
           username: string;
           is_admin: boolean;
           college_id: string | null;
+          legal_agreements_accepted: boolean;
+          legal_agreements_version: string | null;
+          legal_agreements_accepted_at: string | null;
         };
         Insert: {
           avatar_url?: string | null;
@@ -463,6 +593,9 @@ export type Database = {
           username: string;
           is_admin?: boolean;
           college_id?: string | null;
+          legal_agreements_accepted?: boolean;
+          legal_agreements_version?: string | null;
+          legal_agreements_accepted_at?: string | null;
         };
         Update: {
           avatar_url?: string | null;
@@ -473,6 +606,9 @@ export type Database = {
           username?: string;
           is_admin?: boolean;
           college_id?: string | null;
+          legal_agreements_accepted?: boolean;
+          legal_agreements_version?: string | null;
+          legal_agreements_accepted_at?: string | null;
         };
         Relationships: [
           {

@@ -20,6 +20,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useRouter } from "expo-router";
 import { supabase } from "@/src/lib/supabase";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
+import { LegalAgreementStatus } from "@/src/components/LegalAgreementStatus";
 
 const { width, height } = Dimensions.get("window");
 
@@ -520,6 +521,9 @@ export default function ProfileScreen() {
                     )}
                   </View>
                 </View>
+
+                {/* Legal Agreement Status */}
+                <LegalAgreementStatus />
               </View>
             ) : (
               <View style={styles.settingsContent}>
