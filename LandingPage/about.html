@@ -38,10 +38,28 @@
       }
 
       .logo {
+        display: flex;
+        align-items: center;
+        color: white;
+        text-decoration: none;
+      }
+      
+      .logo img {
+        height: 90px;
+        width: auto;
+        margin-right: 15px;
+      }
+      
+      @media (max-width: 768px) {
+        .logo img {
+          height: 70px;
+        }
+      }
+      
+      .logo-text {
         font-size: 1.5rem;
         font-weight: bold;
         color: white;
-        text-decoration: none;
       }
 
       .nav-links {
@@ -166,13 +184,16 @@
         width: 150px;
         height: 150px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #18453b, #006233);
         margin: 0 auto 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 4rem;
-        color: white;
+        overflow: hidden;
+        border: 4px solid #18453b;
+      }
+      
+      .team-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
       }
 
       .team-name {
@@ -315,7 +336,10 @@
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-content">
-        <a href="#" class="logo">MyCollegeTix</a>
+        <a href="#" class="logo">
+          <img src="icon2.png" alt="MyCollegeTix Logo" />
+          <span class="logo-text">MyCollegeTix</span>
+        </a>
         <div class="nav-links">
           <a href="landing.html">Home</a>
           <a href="about.html" class="active">About</a>
@@ -369,6 +393,54 @@
           </div>
         </div>
 
+        <!-- Team Section - Now first -->
+        <div class="team-section">
+          <h2 class="section-title">Our Team</h2>
+          <div class="team-grid">
+            <!-- Founder -->
+            <div class="team-card">
+              <div class="team-photo">
+                <img src="nikhil.jpeg" alt="Nikhil Mamtani" />
+              </div>
+              <h3 class="team-name">Nikhil Mamtani</h3>
+              <p class="team-title">Founder & Developer</p>
+              <div class="team-bio">
+                <p><strong>School:</strong> Michigan State University</p>
+                <p><strong>Major:</strong> Computer Science</p>
+              </div>
+              <div class="social-links">
+                <a
+                  href="https://www.linkedin.com/in/nikhil-mamtani/"
+                  target="_blank"
+                  class="linkedin-link"
+                  >LinkedIn</a
+                >
+              </div>
+            </div>
+
+            <!-- Advisor -->
+            <div class="team-card">
+              <div class="team-photo">
+                <img src="vijay.jpeg" alt="Vijay Agarwal" />
+              </div>
+              <h3 class="team-name">Vijay Agarwal</h3>
+              <p class="team-title">Advisor</p>
+              <div class="team-bio">
+                <p><strong>Role:</strong> Strategic Advisor</p>
+                <p><strong>Expertise:</strong> Business Development</p>
+              </div>
+              <div class="social-links">
+                <a
+                  href="https://www.linkedin.com/in/vijaykagarwal/"
+                  target="_blank"
+                  class="linkedin-link"
+                  >LinkedIn</a
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Mission Section -->
         <div class="mission-section">
           <h2 class="section-title">Our Mission</h2>
@@ -396,50 +468,6 @@
                 No hidden fees, no complex processes. Just simple connections
                 between fellow students.
               </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Team Section - Now at bottom -->
-        <div class="team-section">
-          <h2 class="section-title">Our Team</h2>
-          <div class="team-grid">
-            <!-- Founder -->
-            <div class="team-card">
-              <div class="team-photo">👨‍💼</div>
-              <h3 class="team-name">Nikhil Mamtani</h3>
-              <p class="team-title">Founder & Developer</p>
-              <div class="team-bio">
-                <p><strong>School:</strong> Michigan State University</p>
-                <p><strong>Major:</strong> Computer Science</p>
-              </div>
-              <div class="social-links">
-                <a
-                  href="https://www.linkedin.com/in/nikhil-mamtani/"
-                  target="_blank"
-                  class="linkedin-link"
-                  >LinkedIn</a
-                >
-              </div>
-            </div>
-
-            <!-- Advisor -->
-            <div class="team-card">
-              <div class="team-photo">👨‍🏫</div>
-              <h3 class="team-name">Vijay Agarwal</h3>
-              <p class="team-title">Advisor</p>
-              <div class="team-bio">
-                <p><strong>Role:</strong> Strategic Advisor</p>
-                <p><strong>Expertise:</strong> Business Development</p>
-              </div>
-              <div class="social-links">
-                <a
-                  href="https://www.linkedin.com/in/vijaykagarwal/"
-                  target="_blank"
-                  class="linkedin-link"
-                  >LinkedIn</a
-                >
-              </div>
             </div>
           </div>
         </div>

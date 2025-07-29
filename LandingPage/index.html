@@ -111,6 +111,25 @@
       }
 
       .logo {
+        display: flex;
+        align-items: center;
+        color: white;
+        text-decoration: none;
+      }
+
+      .logo img {
+        height: 90px;
+        width: auto;
+        margin-right: 15px;
+      }
+
+      @media (max-width: 768px) {
+        .logo img {
+          height: 70px;
+        }
+      }
+
+      .logo-text {
         font-size: 1.5rem;
         font-weight: bold;
         color: white;
@@ -401,7 +420,10 @@
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-content">
-        <div class="logo">MyCollegeTix</div>
+        <div class="logo">
+          <img src="icon2.png" alt="MyCollegeTix Logo" />
+          <span class="logo-text">MyCollegeTix</span>
+        </div>
         <div class="nav-links">
           <a href="landing.html">Home</a>
           <a href="about.html">About</a>
@@ -432,7 +454,12 @@
           We verify students, you handle the rest.
         </p>
         <div class="cta-buttons">
-          <a href="#" class="btn btn-primary">Download the App</a>
+          <a
+            href="https://apps.apple.com/us/app/mycollegetix/id6748928832"
+            class="btn btn-primary"
+            target="_blank"
+            >Download the App</a
+          >
         </div>
       </div>
     </section>
@@ -541,7 +568,7 @@
           students, you handle everything else.
         </p>
         <div class="cta-buttons">
-          <a href="#" class="btn btn-primary">Check Your School</a>
+          <a href="https://apps.apple.com/us/app/mycollegetix/id6748928832" class="btn btn-primary" target="_blank">Download the App</a>
         </div>
       </div>
     </section>
@@ -549,10 +576,42 @@
     <!-- Footer -->
     <footer class="footer">
       <div class="container">
-        <div class="footer-links" style="display: flex; justify-content: center; gap: 2rem; margin-bottom: 1rem;">
-          <a href="terms-and-conditions.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Terms & Conditions</a>
-          <a href="privacy-policy.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Privacy Policy</a>
-          <a href="contact.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Contact</a>
+        <div
+          class="footer-links"
+          style="
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+          "
+        >
+          <a
+            href="terms-and-conditions.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Terms & Conditions</a
+          >
+          <a
+            href="privacy-policy.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Privacy Policy</a
+          >
+          <a
+            href="contact.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Contact</a
+          >
         </div>
         <p>
           &copy; 2025 MyCollegeTix. A connection platform by students, for
@@ -592,16 +651,19 @@
 
       // Mobile menu toggle
       function toggleMobileMenu() {
-        const mobileMenu = document.getElementById('mobileMenu');
-        mobileMenu.classList.toggle('show');
+        const mobileMenu = document.getElementById("mobileMenu");
+        mobileMenu.classList.toggle("show");
       }
 
       // Close mobile menu when clicking outside
-      document.addEventListener('click', function(event) {
-        const mobileMenu = document.getElementById('mobileMenu');
-        const menuBtn = document.querySelector('.mobile-menu-btn');
-        if (!mobileMenu.contains(event.target) && !menuBtn.contains(event.target)) {
-          mobileMenu.classList.remove('show');
+      document.addEventListener("click", function (event) {
+        const mobileMenu = document.getElementById("mobileMenu");
+        const menuBtn = document.querySelector(".mobile-menu-btn");
+        if (
+          !mobileMenu.contains(event.target) &&
+          !menuBtn.contains(event.target)
+        ) {
+          mobileMenu.classList.remove("show");
         }
       });
 

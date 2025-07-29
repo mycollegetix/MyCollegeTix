@@ -111,6 +111,25 @@
       }
 
       .logo {
+        display: flex;
+        align-items: center;
+        color: white;
+        text-decoration: none;
+      }
+      
+      .logo img {
+        height: 90px;
+        width: auto;
+        margin-right: 15px;
+      }
+      
+      @media (max-width: 768px) {
+        .logo img {
+          height: 70px;
+        }
+      }
+      
+      .logo-text {
         font-size: 1.5rem;
         font-weight: bold;
         color: white;
@@ -253,6 +272,7 @@
       .features {
         padding: 5rem 2rem;
         background: #f8fafc;
+        scroll-margin-top: 100px; /* Account for fixed header */
       }
 
       .container {
@@ -306,6 +326,7 @@
         padding: 5rem 2rem;
         background: linear-gradient(135deg, #18453b 0%, #006233 100%);
         color: white;
+        scroll-margin-top: 100px; /* Account for fixed header */
       }
 
       .steps-grid {
@@ -401,7 +422,10 @@
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-content">
-        <div class="logo">MyCollegeTix</div>
+        <div class="logo">
+          <img src="icon2.png" alt="MyCollegeTix Logo" />
+          <span class="logo-text">MyCollegeTix</span>
+        </div>
         <div class="nav-links">
           <a href="#features">Features</a>
           <a href="#how-it-works">How It Works</a>
@@ -434,7 +458,7 @@
           We verify students, you handle the rest.
         </p>
         <div class="cta-buttons">
-          <a href="#" class="btn btn-primary">Download the App</a>
+          <a href="https://apps.apple.com/us/app/mycollegetix/id6748928832" class="btn btn-primary" target="_blank">Download the App</a>
         </div>
       </div>
     </section>
@@ -543,7 +567,7 @@
           students, you handle everything else.
         </p>
         <div class="cta-buttons">
-          <a href="#" class="btn btn-primary">Check Your School</a>
+          <a href="https://apps.apple.com/us/app/mycollegetix/id6748928832" class="btn btn-primary" target="_blank">Download the App</a>
         </div>
       </div>
     </section>

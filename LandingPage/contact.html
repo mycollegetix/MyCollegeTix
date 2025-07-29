@@ -38,10 +38,28 @@
       }
 
       .logo {
+        display: flex;
+        align-items: center;
+        color: white;
+        text-decoration: none;
+      }
+      
+      .logo img {
+        height: 90px;
+        width: auto;
+        margin-right: 15px;
+      }
+      
+      @media (max-width: 768px) {
+        .logo img {
+          height: 70px;
+        }
+      }
+      
+      .logo-text {
         font-size: 1.5rem;
         font-weight: bold;
         color: white;
-        text-decoration: none;
       }
 
       .nav-links {
@@ -269,7 +287,10 @@
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-content">
-        <a href="#" class="logo">MyCollegeTix</a>
+        <a href="#" class="logo">
+          <img src="icon2.png" alt="MyCollegeTix Logo" />
+          <span class="logo-text">MyCollegeTix</span>
+        </a>
         <div class="nav-links">
           <a href="landing.html">Home</a>
           <a href="about.html">About</a>
