@@ -131,6 +131,48 @@
         opacity: 0.8;
       }
 
+      .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+
+      .mobile-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: rgba(26, 32, 44, 0.95);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 1rem 2rem;
+      }
+
+      .mobile-menu.show {
+        display: block;
+      }
+
+      .mobile-menu a {
+        display: block;
+        color: white;
+        text-decoration: none;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        transition: opacity 0.3s ease;
+      }
+
+      .mobile-menu a:last-child {
+        border-bottom: none;
+      }
+
+      .mobile-menu a:hover {
+        opacity: 0.8;
+      }
+
       .hero-content {
         text-align: center;
         color: white;
@@ -339,6 +381,10 @@
           display: none;
         }
 
+        .mobile-menu-btn {
+          display: block;
+        }
+
         .cta-buttons {
           flex-direction: column;
           align-items: center;
@@ -357,6 +403,13 @@
       <div class="nav-content">
         <div class="logo">MyCollegeTix</div>
         <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="#how-it-works">How It Works</a>
+          <a href="about.html">About</a>
+          <a href="contact.html">Contact</a>
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+        <div class="mobile-menu" id="mobileMenu">
           <a href="#features">Features</a>
           <a href="#how-it-works">How It Works</a>
           <a href="about.html">About</a>
@@ -536,6 +589,21 @@
           nav.style.background = "rgba(26, 32, 44, 0.9)";
         } else {
           nav.style.background = "rgba(255, 255, 255, 0.1)";
+        }
+      });
+
+      // Mobile menu toggle
+      function toggleMobileMenu() {
+        const mobileMenu = document.getElementById('mobileMenu');
+        mobileMenu.classList.toggle('show');
+      }
+
+      // Close mobile menu when clicking outside
+      document.addEventListener('click', function(event) {
+        const mobileMenu = document.getElementById('mobileMenu');
+        const menuBtn = document.querySelector('.mobile-menu-btn');
+        if (!mobileMenu.contains(event.target) && !menuBtn.contains(event.target)) {
+          mobileMenu.classList.remove('show');
         }
       });
 
