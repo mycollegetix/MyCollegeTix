@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import Colors from "@/src/constants/Colors";
 import { useColorScheme } from "@/src/components/useColorScheme";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { TicketService } from "@/src/services/ticketService";
@@ -36,9 +36,12 @@ const sports = [
   { name: "Basketball", icon: "basketball-outline" },
   { name: "Soccer", icon: "football-outline" },
   { name: "Volleyball", icon: "tennisball-outline" },
-  { name: "Hockey", icon: "golf-outline" },
+  { name: "Hockey", icon: "hockey-puck", iconSet: "MaterialCommunityIcons" },
   { name: "Baseball", icon: "baseball-outline" },
-  { name: "Field Hockey", icon: "leaf-outline" },
+  { name: "Tennis", icon: "tennisball-outline" },
+  { name: "Track and Field", icon: "run-fast", iconSet: "MaterialCommunityIcons" },
+  { name: "Cross Country", icon: "run", iconSet: "MaterialCommunityIcons" },
+  { name: "Golf", icon: "golf-outline" },
 ];
 
 interface FormData {
@@ -238,9 +241,11 @@ export default function SellScreen() {
   const SportFilterCard = ({
     sport,
     icon,
+    iconSet,
   }: {
     sport: string;
     icon: string;
+    iconSet?: string;
   }) => (
     <TouchableOpacity
       style={[
@@ -252,11 +257,19 @@ export default function SellScreen() {
       ]}
       onPress={() => setSelectedSport(sport)}
     >
-      <Ionicons
-        name={icon as any}
-        size={20}
-        color={selectedSport === sport ? theme.secondary : theme.primary}
-      />
+      {iconSet === "MaterialCommunityIcons" ? (
+        <MaterialCommunityIcons
+          name={icon as any}
+          size={20}
+          color={selectedSport === sport ? theme.secondary : theme.primary}
+        />
+      ) : (
+        <Ionicons
+          name={icon as any}
+          size={20}
+          color={selectedSport === sport ? theme.secondary : theme.primary}
+        />
+      )}
       <Text
         style={[
           styles.sportText,
@@ -744,6 +757,7 @@ export default function SellScreen() {
                   key={sport.name}
                   sport={sport.name}
                   icon={sport.icon}
+                  iconSet={(sport as any).iconSet}
                 />
               ))}
             </ScrollView>

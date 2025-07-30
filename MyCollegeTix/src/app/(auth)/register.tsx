@@ -40,7 +40,7 @@ export default function EnhancedRegisterScreen() {
   const [colleges, setColleges] = useState<College[]>([]);
   const [loadingColleges, setLoadingColleges] = useState(true);
   const [emailValidationMessage, setEmailValidationMessage] = useState("");
-  
+
   // Legal agreement state
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
@@ -217,7 +217,13 @@ export default function EnhancedRegisterScreen() {
       console.log("🏫 Selected college:", selectedCollege.name);
 
       // Use the AuthProvider signUp method which handles college assignment
-      const { error } = await signUp(email, password, name, selectedCollege.id, true);
+      const { error } = await signUp(
+        email,
+        password,
+        name,
+        selectedCollege.id,
+        true
+      );
 
       if (error) {
         console.error("❌ Registration error:", error);
@@ -450,7 +456,7 @@ export default function EnhancedRegisterScreen() {
               <FeatureCard
                 icon="shield-checkmark-outline"
                 title="Secure"
-                subtitle="Bank-level security"
+                subtitle="Safe and private"
               />
               <FeatureCard
                 icon="flash-outline"
@@ -678,12 +684,21 @@ export default function EnhancedRegisterScreen() {
               {/* Legal Agreements Section */}
               <View style={styles.legalSection}>
                 <View style={styles.legalHeader}>
-                  <Ionicons name="shield-checkmark" size={20} color={themeColors.primary} />
-                  <Text style={[styles.legalHeaderText, { color: themeColors.primary }]}>
+                  <Ionicons
+                    name="shield-checkmark"
+                    size={20}
+                    color={themeColors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.legalHeaderText,
+                      { color: themeColors.primary },
+                    ]}
+                  >
                     Legal Agreements
                   </Text>
                 </View>
-                
+
                 <Text style={styles.legalDescription}>
                   By creating an account, you agree to our terms and policies:
                 </Text>
@@ -693,26 +708,35 @@ export default function EnhancedRegisterScreen() {
                   style={styles.checkboxRow}
                   onPress={() => setTermsAccepted(!termsAccepted)}
                 >
-                  <View style={[
-                    styles.checkbox,
-                    termsAccepted && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }
-                  ]}>
+                  <View
+                    style={[
+                      styles.checkbox,
+                      termsAccepted && {
+                        backgroundColor: themeColors.primary,
+                        borderColor: themeColors.primary,
+                      },
+                    ]}
+                  >
                     {termsAccepted && (
                       <Ionicons name="checkmark" size={14} color="white" />
                     )}
                   </View>
                   <View style={styles.checkboxText}>
                     <Text style={styles.checkboxLabel}>
-                      I accept the{' '}
-                      <Text 
-                        style={[styles.linkText, { color: themeColors.primary }]}
-                        onPress={() => router.push('/legal/terms')}
+                      I accept the{" "}
+                      <Text
+                        style={[
+                          styles.linkText,
+                          { color: themeColors.primary },
+                        ]}
+                        onPress={() => router.push("/legal/terms")}
                       >
                         Terms of Service
                       </Text>
                     </Text>
                     <Text style={styles.checkboxSubtext}>
-                      Including our zero-tolerance policy for inappropriate content
+                      Including our zero-tolerance policy for inappropriate
+                      content
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -722,20 +746,28 @@ export default function EnhancedRegisterScreen() {
                   style={styles.checkboxRow}
                   onPress={() => setPrivacyAccepted(!privacyAccepted)}
                 >
-                  <View style={[
-                    styles.checkbox,
-                    privacyAccepted && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }
-                  ]}>
+                  <View
+                    style={[
+                      styles.checkbox,
+                      privacyAccepted && {
+                        backgroundColor: themeColors.primary,
+                        borderColor: themeColors.primary,
+                      },
+                    ]}
+                  >
                     {privacyAccepted && (
                       <Ionicons name="checkmark" size={14} color="white" />
                     )}
                   </View>
                   <View style={styles.checkboxText}>
                     <Text style={styles.checkboxLabel}>
-                      I accept the{' '}
-                      <Text 
-                        style={[styles.linkText, { color: themeColors.primary }]}
-                        onPress={() => router.push('/legal/privacy')}
+                      I accept the{" "}
+                      <Text
+                        style={[
+                          styles.linkText,
+                          { color: themeColors.primary },
+                        ]}
+                        onPress={() => router.push("/legal/privacy")}
                       >
                         Privacy Policy
                       </Text>
@@ -760,11 +792,21 @@ export default function EnhancedRegisterScreen() {
               <TouchableOpacity
                 style={[
                   dynamicStyles.registerButton,
-                  (isLoading || !selectedCollege || !isEmailValid() || !termsAccepted || !privacyAccepted) &&
+                  (isLoading ||
+                    !selectedCollege ||
+                    !isEmailValid() ||
+                    !termsAccepted ||
+                    !privacyAccepted) &&
                     styles.disabledButton,
                 ]}
                 onPress={handleRegister}
-                disabled={isLoading || !selectedCollege || !isEmailValid() || !termsAccepted || !privacyAccepted}
+                disabled={
+                  isLoading ||
+                  !selectedCollege ||
+                  !isEmailValid() ||
+                  !termsAccepted ||
+                  !privacyAccepted
+                }
                 activeOpacity={isLoading ? 1 : 0.8} // Prevent visual feedback when disabled
               >
                 <LinearGradient
