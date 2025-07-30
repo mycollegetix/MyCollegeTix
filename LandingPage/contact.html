@@ -80,6 +80,48 @@
         padding-bottom: 4px;
       }
 
+      .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+
+      .mobile-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: rgba(26, 32, 44, 0.95);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 1rem 2rem;
+      }
+
+      .mobile-menu.show {
+        display: block;
+      }
+
+      .mobile-menu a {
+        display: block;
+        color: white;
+        text-decoration: none;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        transition: opacity 0.3s ease;
+      }
+
+      .mobile-menu a:last-child {
+        border-bottom: none;
+      }
+
+      .mobile-menu a:hover {
+        opacity: 0.8;
+      }
+
       .hero-section {
         padding: 8rem 2rem 4rem;
         background: linear-gradient(135deg, #18453b 0%, #006233 100%);
@@ -292,7 +334,15 @@
           <span class="logo-text">MyCollegeTix</span>
         </a>
         <div class="nav-links">
-          <a href="landing.html">Home</a>
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
+          <a href="about.html">About</a>
+          <a href="contact.html" class="active">Contact</a>
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+        <div class="mobile-menu" id="mobileMenu">
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
           <a href="about.html">About</a>
           <a href="contact.html" class="active">Contact</a>
         </div>
@@ -507,6 +557,24 @@
             });
           }
         });
+      });
+
+      // Mobile menu toggle
+      function toggleMobileMenu() {
+        const mobileMenu = document.getElementById("mobileMenu");
+        mobileMenu.classList.toggle("show");
+      }
+
+      // Close mobile menu when clicking outside
+      document.addEventListener("click", function (event) {
+        const mobileMenu = document.getElementById("mobileMenu");
+        const menuBtn = document.querySelector(".mobile-menu-btn");
+        if (
+          !mobileMenu.contains(event.target) &&
+          !menuBtn.contains(event.target)
+        ) {
+          mobileMenu.classList.remove("show");
+        }
       });
     </script>
   </body>

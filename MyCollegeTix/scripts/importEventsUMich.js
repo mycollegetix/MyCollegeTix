@@ -1,10 +1,10 @@
-// scripts/importEventsMSU.js - MSU Athletics Event Import Script (FIXED VERSION)
+// scripts/importEventsUMich.js - University of Michigan Athletics Event Import Script
 const fs = require("fs");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config(); // Load environment variables
 
-//KEEP THIS IN HOW TO RUN THIS : node scripts/importEventsMSU.js ./calendar-data
+//KEEP THIS IN HOW TO RUN THIS : node scripts/importEventsUMich.js ./calendar-data/umich
 
 // Use your existing environment variables - SERVICE ROLE KEY for admin access
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -22,8 +22,8 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// MSU College ID
-const MSU_COLLEGE_ID = "2f6908a3-dddd-420e-a891-be2c2f9545a9";
+// UMich College ID
+const UMICH_COLLEGE_ID = "8950d1ea-4155-40a3-92ea-fcdb24838ece";
 
 // Sports mapping for consistency
 const SPORT_MAPPING = {
@@ -33,18 +33,18 @@ const SPORT_MAPPING = {
   "field hockey": "Field Hockey",
   volleyball: "Volleyball",
   football: "Football",
-  "men's football": "Football", // Add this line
+  "men's football": "Football",
   basketball: "Basketball",
   "men's basketball": "Basketball",
   "women's basketball": "Basketball",
   "ice hockey": "Hockey",
-  "men's ice hockey": "Hockey", 
-  "women's ice hockey": "Hockey",
   hockey: "Hockey",
   baseball: "Baseball",
   softball: "Softball",
   tennis: "Tennis",
   golf: "Golf",
+  "men's golf": "Golf",
+  "women's golf": "Golf",
   track: "Track & Field",
   "cross country": "Cross Country",
   wrestling: "Wrestling",
@@ -53,18 +53,16 @@ const SPORT_MAPPING = {
   diving: "Swimming & Diving",
 };
 
-// Venue mapping for location consistency
+// Venue mapping for location consistency - UMich specific
 const VENUE_MAPPING = {
-  "demartin stadium": "DeMartin Stadium",
-  "spartan stadium": "Spartan Stadium",
-  "breslin center": "Breslin Center",
-  "breslin student events center": "Breslin Center",
-  "ralph young field": "Ralph Young Field",
-  "munn ice arena": "Munn Ice Arena",
-  "jenison field house": "Jenison Field House",
-  "east lansing, mich.": "East Lansing, MI",
-  "east lansing, michigan": "East Lansing, MI",
-  "east lansing, mi": "East Lansing, MI",
+  "crisler center": "Crisler Center",
+  "cliff keen arena": "Cliff Keen Arena",
+  "michigan stadium": "Michigan Stadium",
+  "yost ice arena": "Yost Ice Arena",
+  "oosterbaan fieldhouse": "Oosterbaan Fieldhouse",
+  "ann arbor, mich.": "Ann Arbor, MI",
+  "ann arbor, michigan": "Ann Arbor, MI",
+  "ann arbor, mi": "Ann Arbor, MI",
 };
 
 function parseEventFile(filePath) {
@@ -122,7 +120,7 @@ function parseEventFile(filePath) {
         // Stop if we hit another event (contains sport name)
         if (
           nextLine.match(
-            /^(Women's |Men's )?(Soccer|Football|Volleyball|Field Hockey|Basketball|Ice Hockey|Hockey|Baseball|Softball|Tennis|Golf|Track|Cross Country|Wrestling|Gymnastics|Swimming|Diving)/i
+            /^(Women's |Men's )?(Soccer|Football|Volleyball|Field Hockey|Basketball|Ice Hockey|Hockey|Baseball|Softball|Tennis|Golf)/i
           )
         ) {
           break;
@@ -212,7 +210,7 @@ function parseEventLines(eventLines, date, sourceFile) {
 
     // Parse different event formats
     let opponent = null;
-    let location = "East Lansing, MI";
+    let location = "Ann Arbor, MI";
     let venue = null;
     let gameTime = null;
     let isHomeGame = true;
@@ -220,7 +218,7 @@ function parseEventLines(eventLines, date, sourceFile) {
 
     // Extract time from the event line first
     const timeMatch = cleanLine.match(
-      /(\d+(?::\d+)?\s*(?:AM|PM|P\.M\.|A\.M\.))/i
+      /(\d+(?::\d+)?\s*(?:AM|PM|P\.M\.|A\.M\.)|TBA|Noon)/i
     );
     if (timeMatch) {
       gameTime = parseTime(timeMatch[1]);
@@ -241,7 +239,7 @@ function parseEventLines(eventLines, date, sourceFile) {
       // Remove any time info that might be at the end
       if (gameTime) {
         opponent = opponent
-          .replace(/\s*(TBA|\d+(?::\d+)?\s*(?:AM|PM|P\.M\.|A\.M\.))/gi, "")
+          .replace(/\s*(TBA|Noon|\d+(?::\d+)?\s*(?:AM|PM|P\.M\.|A\.M\.))/gi, "")
           .trim();
       }
 
@@ -271,7 +269,7 @@ function parseEventLines(eventLines, date, sourceFile) {
             locationLine.includes("Arena")
           ) {
             venue = locationLine;
-            location = "East Lansing, MI"; // Default for home games
+            location = "Ann Arbor, MI"; // Default for home games
           } else {
             location = locationLine;
           }
@@ -285,7 +283,7 @@ function parseEventLines(eventLines, date, sourceFile) {
       // Remove any time info that might be at the end
       if (gameTime) {
         opponent = opponent
-          .replace(/\s*(TBA|\d+(?::\d+)?\s*(?:AM|PM|P\.M\.|A\.M\.))/gi, "")
+          .replace(/\s*(TBA|Noon|\d+(?::\d+)?\s*(?:AM|PM|P\.M\.|A\.M\.))/gi, "")
           .trim();
       }
 
@@ -305,7 +303,7 @@ function parseEventLines(eventLines, date, sourceFile) {
         location = opponent; // Fallback to opponent name
       }
     }
-    // Handle special case: "Volleyball Appalachian State 2 PM" (missing vs/at)
+    // Handle special case: "Volleyball Michigan 2 PM" (missing vs/at)
     else {
       // Try to extract opponent name from what's left
       let remainingText = cleanLine.trim();
@@ -313,7 +311,7 @@ function parseEventLines(eventLines, date, sourceFile) {
       // Remove time if present
       if (gameTime) {
         remainingText = remainingText
-          .replace(/\s*(TBA|\d+(?::\d+)?\s*(?:AM|PM|P\.M\.|A\.M\.))/gi, "")
+          .replace(/\s*(TBA|Noon|\d+(?::\d+)?\s*(?:AM|PM|P\.M\.|A\.M\.))/gi, "")
           .trim();
       }
 
@@ -337,7 +335,7 @@ function parseEventLines(eventLines, date, sourceFile) {
               firstLocation.includes("Arena")
             ) {
               venue = firstLocation;
-              location = "East Lansing, MI";
+              location = "Ann Arbor, MI";
             } else {
               location = firstLocation;
               if (locationLines.length > 1) {
@@ -373,9 +371,9 @@ function parseEventLines(eventLines, date, sourceFile) {
     let awayCollegeId = null;
 
     if (isHomeGame) {
-      homeCollegeId = MSU_COLLEGE_ID; // MSU is home
+      homeCollegeId = UMICH_COLLEGE_ID; // UMich is home
     } else {
-      awayCollegeId = MSU_COLLEGE_ID; // MSU is away
+      awayCollegeId = UMICH_COLLEGE_ID; // UMich is away
     }
 
     // Create the event object
@@ -383,15 +381,15 @@ function parseEventLines(eventLines, date, sourceFile) {
       title: title,
       description: `${sport} game on ${date}${opponent ? ` - ${title}` : ""}`,
       event_date: combineDateTime(date, gameTime),
-      location: location || "East Lansing, MI",
+      location: location || "Ann Arbor, MI",
       venue: venue,
       sport: sport,
       opponent: opponent,
       game_time: gameTime,
       is_home_game: isHomeGame,
-      home_team: isHomeGame ? "Michigan State" : opponent,
-      away_team: isHomeGame ? opponent : "Michigan State",
-      college_id: MSU_COLLEGE_ID,
+      home_team: isHomeGame ? "Michigan" : opponent,
+      away_team: isHomeGame ? opponent : "Michigan",
+      college_id: UMICH_COLLEGE_ID,
       home_college_id: homeCollegeId,
       away_college_id: awayCollegeId,
       status: "scraped",
@@ -411,7 +409,7 @@ function generateExternalId(sport, dateStr, opponent, isHomeGame) {
   const cleanDate = dateStr.replace(/[^a-zA-Z0-9]/g, "_");
   const cleanOpponent = opponent.replace(/[^a-zA-Z0-9]/g, "_");
   const gameType = isHomeGame ? "vs" : "at";
-  return `${sport}_${cleanDate}_${gameType}_${cleanOpponent}_MSU`.toLowerCase();
+  return `${sport}_${cleanDate}_${gameType}_${cleanOpponent}_UMICH`.toLowerCase();
 }
 
 function parseDate(dateStr) {
@@ -432,6 +430,10 @@ function parseDate(dateStr) {
 function parseTime(timeStr) {
   if (!timeStr || timeStr.toUpperCase().includes("TBA")) {
     return "TBA";
+  }
+
+  if (timeStr.toLowerCase() === "noon") {
+    return "12:00";
   }
 
   // Handle formats like "7 P.M.", "7:30 PM", "12 PM", etc.
@@ -494,11 +496,11 @@ async function cleanupExistingDuplicates() {
     const { data: allEvents } = await supabase
       .from("events")
       .select("id, title, event_date, external_id, created_at")
-      .eq("college_id", MSU_COLLEGE_ID)
+      .eq("college_id", UMICH_COLLEGE_ID)
       .order("created_at", { ascending: true });
 
     if (!allEvents || allEvents.length === 0) {
-      console.log("📋 No existing events found for MSU.");
+      console.log("📋 No existing events found for UMich.");
       return;
     }
 
@@ -518,7 +520,7 @@ async function cleanupExistingDuplicates() {
     );
 
     if (duplicateGroups.length === 0) {
-      console.log("✅ No duplicates found in existing MSU events.");
+      console.log("✅ No duplicates found in existing UMich events.");
       return;
     }
 
@@ -671,13 +673,13 @@ async function processFolder(folderPath) {
 if (require.main === module) {
   const folderPath = process.argv[2];
 
-  console.log("🏈 MSU Athletics Event Import Script - FIXED VERSION");
+  console.log("🐺 University of Michigan Athletics Event Import Script");
   console.log("====================================================");
 
   if (!folderPath) {
-    console.log("❌ Usage: node scripts/importEventsMSU.js <folder-path>");
+    console.log("❌ Usage: node scripts/importEventsUMich.js <folder-path>");
     console.log(
-      "📝 Example: node scripts/importEventsMSU.js ./calendar-data"
+      "📝 Example: node scripts/importEventsUMich.js ./calendar-data/umich"
     );
     process.exit(1);
   }

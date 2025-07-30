@@ -88,18 +88,26 @@ export default function TicketManagement() {
 
   const updateTicketStatus = async (ticketId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("tickets")
         .update({ status: newStatus })
-        .eq("id", ticketId);
+        .eq("id", ticketId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        Alert.alert("Error", `Failed to update ticket: ${error.message}`);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        Alert.alert("Error", "Unable to update ticket. Permission denied.");
+        return;
+      }
 
       Alert.alert("Success", `Ticket status updated to ${newStatus}`);
       fetchTickets();
     } catch (error) {
-      console.error("Error updating ticket:", error);
-      Alert.alert("Error", "Failed to update ticket status");
+      Alert.alert("Error", `Failed to update ticket status: ${error}`);
     }
   };
 
@@ -166,7 +174,20 @@ export default function TicketManagement() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: "#dc2626" }]}
-          onPress={() => updateTicketStatus(ticket.id, "cancelled")}
+          onPress={() => {
+            Alert.alert(
+              "Cancel Ticket",
+              `Are you sure you want to cancel this ticket: "${ticket.title}"?`,
+              [
+                { text: "No", style: "cancel" },
+                { 
+                  text: "Yes, Cancel", 
+                  style: "destructive",
+                  onPress: () => updateTicketStatus(ticket.id, "cancelled")
+                }
+              ]
+            );
+          }}
         >
           <Text style={styles.actionText}>Cancel</Text>
         </TouchableOpacity>

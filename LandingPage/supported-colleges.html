@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>About - MyCollegeTix</title>
+    <title>Supported Colleges - MyCollegeTix</title>
     <style>
       * {
         margin: 0;
@@ -147,162 +147,153 @@
         margin: 0 auto;
       }
 
-      .about-content {
+      .colleges-content {
         padding: 5rem 2rem;
+        background: #f8fafc;
       }
 
-      .content-grid {
+      .colleges-grid {
         display: grid;
-        grid-template-columns: 1fr 2fr;
-        gap: 4rem;
-        margin-bottom: 4rem;
-        align-items: start;
-      }
-
-      .team-section {
-        padding: 4rem 0;
-        text-align: center;
-      }
-
-      .team-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 2rem;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 3rem;
         margin-top: 3rem;
       }
 
-      .team-card {
+      .college-card {
         background: white;
-        padding: 2rem;
+        padding: 3rem;
         border-radius: 20px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         text-align: center;
         border: 1px solid rgba(24, 69, 59, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
       }
 
-      .team-photo {
-        width: 150px;
-        height: 150px;
+      .college-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+      }
+
+      .college-logo {
+        width: 80px;
+        height: 80px;
         border-radius: 50%;
         margin: 0 auto 1.5rem;
-        overflow: hidden;
-        border: 4px solid #18453b;
-      }
-      
-      .team-photo img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: center;
+        background: linear-gradient(135deg, #18453b, #006233);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: white;
+        font-weight: bold;
       }
 
-      .team-name {
-        font-size: 1.5rem;
+      .college-card .um-logo {
+        background-image: none;
+        background-color: #00274C;
+      }
+
+      .college-name {
+        font-size: 1.8rem;
         font-weight: bold;
         margin-bottom: 0.5rem;
         color: #18453b;
       }
 
-      .team-title {
+      .college-location {
         color: #666;
-        margin-bottom: 1rem;
-      }
-
-      .team-bio {
-        text-align: left;
-        line-height: 1.6;
         margin-bottom: 1.5rem;
+        font-size: 1.1rem;
       }
 
-      .social-links {
-        display: flex;
-        justify-content: center;
-        gap: 1rem;
+      .college-details {
+        text-align: left;
+        margin-bottom: 2rem;
       }
 
-      .linkedin-link {
-        background: #0077b5;
-        color: white;
+      .college-details h4 {
+        color: #18453b;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      .college-details ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      .college-details li {
+        padding: 0.3rem 0;
+        color: #555;
+        position: relative;
+        padding-left: 1.5rem;
+      }
+
+      .college-details li:before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #18453b;
+        font-weight: bold;
+      }
+
+      .status-badge {
+        display: inline-block;
         padding: 0.5rem 1rem;
-        border-radius: 5px;
-        text-decoration: none;
-        font-size: 0.9rem;
-        transition: background 0.3s ease;
-      }
-
-      .linkedin-link:hover {
-        background: #005885;
-      }
-
-      .story-section {
-        background: #f8fafc;
-        padding: 2rem;
         border-radius: 20px;
+        background: #16a34a;
+        color: white;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-top: 1rem;
       }
 
-      .section-title {
+      .coming-soon {
+        background: #f59e0b;
+      }
+
+      .request-section {
+        background: white;
+        padding: 4rem 2rem;
+        text-align: center;
+      }
+
+      .request-card {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 3rem;
+        border-radius: 20px;
+        border: 2px dashed #18453b;
+        background: rgba(24, 69, 59, 0.05);
+      }
+
+      .request-title {
         font-size: 2rem;
         font-weight: bold;
-        margin-bottom: 2rem;
         color: #18453b;
+        margin-bottom: 1rem;
       }
 
-      .story-text {
+      .request-text {
+        color: #666;
+        margin-bottom: 2rem;
         font-size: 1.1rem;
         line-height: 1.8;
-        margin-bottom: 1.5rem;
       }
 
-      .mission-section {
-        padding: 4rem 0;
-        text-align: center;
-      }
-
-      .mission-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 2rem;
-        margin-top: 3rem;
-      }
-
-      .mission-card {
-        background: white;
-        padding: 2rem;
-        border-radius: 20px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        border: 1px solid rgba(24, 69, 59, 0.1);
-      }
-
-      .mission-icon {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-      }
-
-      .mission-title {
-        font-size: 1.3rem;
-        font-weight: bold;
-        margin-bottom: 1rem;
-        color: #18453b;
-      }
-
-      .stats-section {
-        background: linear-gradient(135deg, #2d7d32 0%, #4f9b4f 100%);
-        padding: 4rem 2rem;
+      .request-button {
+        display: inline-block;
+        padding: 1rem 2rem;
+        background: linear-gradient(135deg, #18453b, #006233);
         color: white;
-        text-align: center;
+        text-decoration: none;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: transform 0.3s ease;
       }
 
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 2rem;
-        margin-top: 2rem;
-      }
-
-      .stat-number {
-        font-size: 2.5rem;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
+      .request-button:hover {
+        transform: translateY(-2px);
       }
 
       .footer {
@@ -317,7 +308,7 @@
           font-size: 2rem;
         }
 
-        .team-grid {
+        .colleges-grid {
           grid-template-columns: 1fr;
           gap: 2rem;
         }
@@ -329,6 +320,10 @@
         .mobile-menu-btn {
           display: block;
         }
+
+        .college-card {
+          padding: 2rem;
+        }
       }
     </style>
   </head>
@@ -336,21 +331,21 @@
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-content">
-        <a href="#" class="logo">
+        <a href="index.html" class="logo">
           <img src="icon2.png" alt="MyCollegeTix Logo" />
           <span class="logo-text">MyCollegeTix</span>
         </a>
         <div class="nav-links">
           <a href="index.html">Home</a>
-          <a href="supported-colleges.html">Supported Colleges</a>
-          <a href="about.html" class="active">About</a>
+          <a href="supported-colleges.html" class="active">Supported Colleges</a>
+          <a href="about.html">About</a>
           <a href="contact.html">Contact</a>
         </div>
         <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
         <div class="mobile-menu" id="mobileMenu">
           <a href="index.html">Home</a>
-          <a href="supported-colleges.html">Supported Colleges</a>
-          <a href="about.html" class="active">About</a>
+          <a href="supported-colleges.html" class="active">Supported Colleges</a>
+          <a href="about.html">About</a>
           <a href="contact.html">Contact</a>
         </div>
       </div>
@@ -359,119 +354,76 @@
     <!-- Hero Section -->
     <section class="hero-section">
       <div class="container">
-        <h1 class="hero-title">About MyCollegeTix</h1>
+        <h1 class="hero-title">Supported Colleges</h1>
         <p class="hero-subtitle">
-          Connecting college students through a simple, trusted ticket
-          marketplace
+          Find out if your college is supported and what sports tickets are available
         </p>
       </div>
     </section>
 
-    <!-- Main Content -->
-    <section class="about-content">
+    <!-- Colleges Content -->
+    <section class="colleges-content">
       <div class="container">
-        <!-- Story Section - Now at top -->
-        <div class="story-section" style="margin-bottom: 4rem">
-          <h2 class="section-title">The Story</h2>
-          <div class="story-text">
-            <p>
-              As a college student, I noticed how difficult it was to buy and
-              sell tickets safely within our campus community. Students were
-              using Snapchat, GroupMe, dealing with uncertain sellers, and often
-              getting scammed or overcharged.
-            </p>
-            <p>
-              There must be a better way - a platform that verified students
-              were actually from your school, provided safe communication, but
-              let students handle transactions directly without any middleman
-              fees.
-            </p>
-            <p>
-              MyCollegeTix was born from the idea that students should be able
-              to connect with their peers safely and easily, without corporate
-              interference or excessive fees eating into their already tight
-              budgets.
-            </p>
+        <div class="colleges-grid">
+          <!-- Michigan State University -->
+          <div class="college-card">
+            <div class="college-logo">MSU</div>
+            <h2 class="college-name">Michigan State University</h2>
+            <p class="college-location">East Lansing, Michigan</p>
+            
+            <div class="college-details">
+              <h4>Available Sports:</h4>
+              <ul>
+                <li>Football</li>
+                <li>Men's & Women's Basketball</li>
+                <li>Men's & Women's Soccer</li>
+                <li>Volleyball</li>
+                <li>Field Hockey</li>
+                <li>Ice Hockey</li>
+                <li>Baseball & Softball</li>
+                <li>Cross Country & Track</li>
+              </ul>
+            </div>
+            
+            <div class="status-badge">Active</div>
+          </div>
+
+          <!-- University of Michigan -->
+          <div class="college-card">
+            <div class="college-logo um-logo">UM</div>
+            <h2 class="college-name">University of Michigan</h2>
+            <p class="college-location">Ann Arbor, Michigan</p>
+            
+            <div class="college-details">
+              <h4>Available Sports:</h4>
+              <ul>
+                <li>Football</li>
+                <li>Men's & Women's Basketball</li>
+                <li>Men's & Women's Soccer</li>
+                <li>Volleyball</li>
+                <li>Field Hockey</li>
+                <li>Ice Hockey</li>
+                <li>Baseball & Softball</li>
+                <li>Men's & Women's Golf</li>
+              </ul>
+            </div>
+            
+            <div class="status-badge">Active</div>
           </div>
         </div>
+      </div>
+    </section>
 
-        <!-- Team Section - Now first -->
-        <div class="team-section">
-          <h2 class="section-title">Our Team</h2>
-          <div class="team-grid">
-            <!-- Founder -->
-            <div class="team-card">
-              <div class="team-photo">
-                <img src="nikhil.jpeg" alt="Nikhil Mamtani" />
-              </div>
-              <h3 class="team-name">Nikhil Mamtani</h3>
-              <p class="team-title">Founder & Developer</p>
-              <div class="team-bio">
-                <p><strong>School:</strong> Michigan State University</p>
-                <p><strong>Major:</strong> Computer Science</p>
-              </div>
-              <div class="social-links">
-                <a
-                  href="https://www.linkedin.com/in/nikhil-mamtani/"
-                  target="_blank"
-                  class="linkedin-link"
-                  >LinkedIn</a
-                >
-              </div>
-            </div>
-
-            <!-- Advisor -->
-            <div class="team-card">
-              <div class="team-photo">
-                <img src="vijay.jpeg" alt="Vijay Agarwal" />
-              </div>
-              <h3 class="team-name">Vijay Agarwal</h3>
-              <p class="team-title">Advisor</p>
-              <div class="team-bio">
-                <p><strong>Role:</strong> Strategic Advisor</p>
-                <p><strong>Expertise:</strong> Business Development</p>
-              </div>
-              <div class="social-links">
-                <a
-                  href="https://www.linkedin.com/in/vijaykagarwal/"
-                  target="_blank"
-                  class="linkedin-link"
-                  >LinkedIn</a
-                >
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Mission Section -->
-        <div class="mission-section">
-          <h2 class="section-title">Our Mission</h2>
-          <div class="mission-grid">
-            <div class="mission-card">
-              <div class="mission-icon">🎓</div>
-              <h3 class="mission-title">Student-First</h3>
-              <p>
-                Built by students, for students. We understand the unique
-                challenges of college life and tight budgets.
-              </p>
-            </div>
-            <div class="mission-card">
-              <div class="mission-icon">🤝</div>
-              <h3 class="mission-title">Trust & Safety</h3>
-              <p>
-                Verified student communities create safer transactions and
-                stronger campus connections.
-              </p>
-            </div>
-            <div class="mission-card">
-              <div class="mission-icon">💡</div>
-              <h3 class="mission-title">Simple & Free</h3>
-              <p>
-                No hidden fees, no complex processes. Just simple connections
-                between fellow students.
-              </p>
-            </div>
-          </div>
+    <!-- Request Section -->
+    <section class="request-section">
+      <div class="container">
+        <div class="request-card">
+          <h2 class="request-title">Don't See Your College?</h2>
+          <p class="request-text">
+            We're always expanding to new campuses! If your college isn't listed above, 
+            let us know and we'll prioritize adding support for your school's athletic events.
+          </p>
+          <a href="contact.html" class="request-button">Request Your College</a>
         </div>
       </div>
     </section>
