@@ -55,7 +55,9 @@ export default function ProfileScreen() {
     try {
       console.log("🔐 Sending password reset email to:", user.email);
 
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email);
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: process.env.EXPO_PUBLIC_RESET_PASSWORD_URL!,
+      });
 
       if (error) {
         console.error("❌ Password reset error:", error);

@@ -95,7 +95,7 @@ export default function LoginScreen() {
       console.log("🔐 Sending password reset email to:", resetEmail);
 
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: "your-app://reset-password", // You can customize this
+        redirectTo: process.env.EXPO_PUBLIC_RESET_PASSWORD_URL!,
       });
 
       if (error) {
