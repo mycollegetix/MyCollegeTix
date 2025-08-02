@@ -459,6 +459,9 @@ export type Database = {
           title: string;
           type: "purchase" | "sale" | "listing" | "system" | "message";
           user_id: string;
+          push_sent?: boolean | null;
+          push_sent_at?: string | null;
+          push_metadata?: Json | null;
         };
         Insert: {
           created_at?: string;
@@ -470,6 +473,9 @@ export type Database = {
           title: string;
           type?: "purchase" | "sale" | "listing" | "system" | "message";
           user_id: string;
+          push_sent?: boolean | null;
+          push_sent_at?: string | null;
+          push_metadata?: Json | null;
         };
         Update: {
           created_at?: string;
@@ -481,6 +487,9 @@ export type Database = {
           title?: string;
           type?: "purchase" | "sale" | "listing" | "system" | "message";
           user_id?: string;
+          push_sent?: boolean | null;
+          push_sent_at?: string | null;
+          push_metadata?: Json | null;
         };
         Relationships: [
           {
@@ -583,6 +592,7 @@ export type Database = {
           legal_agreements_accepted: boolean;
           legal_agreements_version: string | null;
           legal_agreements_accepted_at: string | null;
+          expo_push_token?: string | null;
         };
         Insert: {
           avatar_url?: string | null;
@@ -596,6 +606,7 @@ export type Database = {
           legal_agreements_accepted?: boolean;
           legal_agreements_version?: string | null;
           legal_agreements_accepted_at?: string | null;
+          expo_push_token?: string | null;
         };
         Update: {
           avatar_url?: string | null;
@@ -609,6 +620,7 @@ export type Database = {
           legal_agreements_accepted?: boolean;
           legal_agreements_version?: string | null;
           legal_agreements_accepted_at?: string | null;
+          expo_push_token?: string | null;
         };
         Relationships: [
           {
@@ -742,6 +754,92 @@ export type Database = {
             referencedColumns: ["id"];
           }
         ];
+      };
+      push_tokens: {
+        Row: {
+          id: string;
+          user_id: string;
+          token: string;
+          platform: string;
+          active: boolean;
+          device_info: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          token: string;
+          platform?: string;
+          active?: boolean;
+          device_info?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          token?: string;
+          platform?: string;
+          active?: boolean;
+          device_info?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "push_tokens_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      push_notification_queue: {
+        Row: {
+          id: string;
+          user_ids: string[];
+          title: string;
+          body: string;
+          data: Json;
+          status: string;
+          attempts: number;
+          max_attempts: number;
+          scheduled_for: string;
+          sent_at: string | null;
+          error_message: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_ids: string[];
+          title: string;
+          body: string;
+          data?: Json;
+          status?: string;
+          attempts?: number;
+          max_attempts?: number;
+          scheduled_for?: string;
+          sent_at?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_ids?: string[];
+          title?: string;
+          body?: string;
+          data?: Json;
+          status?: string;
+          attempts?: number;
+          max_attempts?: number;
+          scheduled_for?: string;
+          sent_at?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
       };
     };
     Views: {

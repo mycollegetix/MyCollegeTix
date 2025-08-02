@@ -38,9 +38,13 @@ export default function ChatListScreen() {
     markAsRead,
   } = useChat();
 
+  // ✅ OPTIMIZED: Load conversations only once on mount
   useEffect(() => {
     loadConversations();
   }, []);
+
+  // ✅ REMOVED: useFocusEffect that was causing infinite loops
+  // Real-time subscriptions will handle updates automatically
 
   // ✅ ORGANIZE: Separate conversations into sections
   const conversationSections = useMemo((): ConversationSection[] => {

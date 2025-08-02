@@ -11,7 +11,7 @@ interface LegalAgreementGuardProps {
 }
 
 export function LegalAgreementGuard({ children }: LegalAgreementGuardProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const theme = useTheme();
   const router = useRouter();
   const [checkingAgreements, setCheckingAgreements] = useState(true);

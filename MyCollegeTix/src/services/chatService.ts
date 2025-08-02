@@ -1,7 +1,7 @@
 // services/chatService.ts - UPDATED with notifications and moderation
 import { supabase } from "../lib/supabase";
-import { NotificationService } from "./notificationService"; // ✅ ADDED
 import { freeModerationService } from "./freeModerationService"; // ✅ ADDED
+import { NotificationService } from "./notificationService"; // ✅ ADDED
 import {
   Database,
   MessageWithSender,
@@ -114,9 +114,8 @@ export class ChatService {
         );
       }
 
-      // ✅ STEP 5: Create notification for the recipient
+      // ✅ STEP 5: Create notification and send push notification for the recipient
       try {
-        // Create a custom notification entry for the recipient
         const notificationTitle = `New message from ${sender.full_name}`;
         const notificationMessage =
           content.length > 50 ? `${content.substring(0, 50)}...` : content;
@@ -125,28 +124,33 @@ export class ChatService {
           ? ` about "${conversation.ticket.title}"`
           : "";
 
-        const { error: notificationError } = await supabase
-          .from("notifications")
-          .insert({
-            user_id: recipient.id,
+        // Use NotificationService to create notification AND send push
+        const { error: notificationError } = await NotificationService.createAndSendNotification(
+          recipient.id,
+          {
             title: notificationTitle,
             message: `${notificationMessage}${ticketContext}`,
-            type: "message", // ✅ UPDATED: Use specific message type
+            type: "message",
             related_ticket_id: conversation.ticket_id,
-            read: false,
-          });
+          },
+          {
+            conversation_id: conversationId,
+            message_id: data.id,
+            sender_name: sender.full_name,
+          }
+        );
 
         if (notificationError) {
           console.error(
-            "Failed to create message notification:",
+            "Failed to create and send notification:",
             notificationError
           );
         } else {
-          console.log("✅ Created notification for:", recipient.full_name);
+          console.log("✅ Created notification and sent push to:", recipient.full_name);
         }
       } catch (notificationError) {
         console.error(
-          "Error creating message notification:",
+          "Error creating and sending notification:",
           notificationError
         );
         // Don't fail the message send if notification fails

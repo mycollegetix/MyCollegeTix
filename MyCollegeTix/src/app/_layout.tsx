@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "@/src/providers/AuthProvider";
 import { NotificationProvider } from "@/src/providers/NotificationProvider";
 import { ThemeProvider } from "@/src/providers/ThemeProvider";
 import { ChatProvider } from "@/src/providers/ChatProvider";
+import NotificationDeepLinkHandler from "@/src/components/NotificationDeepLinkHandler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useColorScheme } from "react-native";
 import { useEffect } from "react";
@@ -42,13 +43,18 @@ function RootLayoutNav() {
   }, [session, segments, isLoading, router, profile]);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="(admin)" options={{ headerShown: false }} />
-      <Stack.Screen name="legal" options={{ headerShown: false }} />
-      <Stack.Screen name="ticket-details" options={{ headerShown: false }} />
-    </Stack>
+    <>
+      <NotificationDeepLinkHandler />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+        <Stack.Screen name="legal" options={{ headerShown: false }} />
+        <Stack.Screen name="ticket-details" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="support" options={{ headerShown: false }} />
+      </Stack>
+    </>
   );
 }
 

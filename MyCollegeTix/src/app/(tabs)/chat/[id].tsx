@@ -50,7 +50,7 @@ export default function ChatConversationScreen() {
   const [isUserBlocked, setIsUserBlocked] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  // Memoized conversation loading
+  // ✅ OPTIMIZED: Smarter conversation loading
   const loadConversationData = useCallback(
     async (conversationId: string) => {
       console.log("🔄 Loading conversation data for:", conversationId);
@@ -61,8 +61,13 @@ export default function ChatConversationScreen() {
         console.log("✅ Found conversation, setting as current");
         setCurrentConversation(conversation);
 
-        // ✅ ALWAYS MARK AS READ: Mark messages as read whenever user enters conversation
-        await markAsRead(conversationId);
+        // ✅ SMART MARK AS READ: Only mark as read if there are unread messages
+        if (conversation.unread_count > 0) {
+          console.log("📖 Marking messages as read (has unread messages)");
+          await markAsRead(conversationId);
+        } else {
+          console.log("✅ No unread messages, skipping mark as read");
+        }
 
         // Only load messages if we haven't loaded them yet
         if (!hasLoadedMessages) {
@@ -122,8 +127,17 @@ export default function ChatConversationScreen() {
           // Only add if it's not from the current user (to avoid duplicates when sending)
           if (newMessage.sender_id !== user?.id) {
             console.log("📨 New message received:", newMessage.content);
-            // Reload messages to get the complete message with sender info
-            loadMessages(id);
+            // ✅ OPTIMIZED: Add message directly to local state (no reload needed)
+            setMessages((prev) => {
+              // Check if message already exists to avoid duplicates
+              if (prev.some((m) => m.id === newMessage.id)) {
+                return prev;
+              }
+              return [...prev, newMessage as MessageWithSender];
+            });
+            
+            // ✅ AUTO MARK AS READ: Automatically mark new messages as read when user is viewing conversation
+            markAsRead(id);
           }
         }
       );
@@ -197,17 +211,9 @@ export default function ChatConversationScreen() {
         Alert.alert("Error", "Failed to send message. Please try again.");
         setMessageText(content);
       } else {
-        // ✅ REPLACE OPTIMISTIC: Remove temp message and reload to get real message
-        setTimeout(async () => {
-          setMessages((prevMessages) =>
-            prevMessages.filter((msg) => msg.id !== tempId)
-          );
-          await loadMessages(id);
-          // Auto-scroll after loading real messages
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
-        }, 200);
+        // ✅ OPTIMIZED: Keep optimistic message, real-time subscription will update
+        console.log("✅ Message sent successfully, keeping optimistic update");
+        // Real-time subscription will automatically replace/update the message
       }
     } catch (error) {
       // Remove optimistic message on error

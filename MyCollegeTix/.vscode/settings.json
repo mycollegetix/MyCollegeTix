@@ -1,0 +1,12 @@
+{
+  "typescript.preferences.exclude": [
+    "**/supabase/functions/**"
+  ],
+  "files.exclude": {
+    "**/supabase/functions/**/*.ts": false
+  },
+  "typescript.suggest.autoImports": false,
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  }
+}
