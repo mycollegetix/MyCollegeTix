@@ -38,4 +38,8 @@ yarn-error.*
 *.tsbuildinfo
 
 
-.DS_Storeandroid/app/release-key.keystore
+.DS_Store
+
+# Android keystore and build files with passwords
+android/app/release-key.keystore
+android/app/build.gradle
