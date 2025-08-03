@@ -38,4 +38,4 @@ yarn-error.*
 *.tsbuildinfo
 
 
-.DS_Store
+.DS_Storeandroid/app/release-key.keystore
