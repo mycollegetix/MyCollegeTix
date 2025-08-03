@@ -27,7 +27,6 @@
       "buildNumber": "1.5",
       "requireFullScreen": false,
       "infoPlist": {
-        "NSCameraUsageDescription": "This app uses camera to upload ticket photos for verification",
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload ticket images",
         "NSLocationWhenInUseUsageDescription": "This app uses location to show nearby events and verify ticket authenticity"
       },
@@ -44,7 +43,6 @@
       "package": "com.mycollegetix.app",
       "versionCode": 2,
       "permissions": [
-        "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.ACCESS_FINE_LOCATION",
@@ -69,7 +67,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "The app accesses your photos to let you upload ticket images"
+          "photosPermission": "The app accesses your photos to let you upload ticket images",
+          "cameraPermission": false
         }
       ],
       [

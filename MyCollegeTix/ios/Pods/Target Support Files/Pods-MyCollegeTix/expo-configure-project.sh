@@ -48,4 +48,4 @@ with_node \
   --target "/Users/nikhilmamtani/Desktop/MyCollegeTix-Project/MyCollegeTix/ios/Pods/Target Support Files/Pods-MyCollegeTix/ExpoModulesProvider.swift" \
   --entitlement "/Users/nikhilmamtani/Desktop/MyCollegeTix-Project/MyCollegeTix/ios/MyCollegeTix/MyCollegeTix.entitlements" \
   --platform "apple" \
-  --packages "expo" "expo-asset" "expo-blur" "expo-constants" "expo-file-system" "expo-font" "expo-image-picker" "expo-keep-awake" "expo-linear-gradient" "expo-linking" "expo-router" "expo-secure-store" "expo-splash-screen" "expo-system-ui" "expo-web-browser"
+  --packages "expo" "expo-application" "expo-asset" "expo-blur" "expo-constants" "expo-device" "expo-file-system" "expo-font" "expo-image-picker" "expo-keep-awake" "expo-linear-gradient" "expo-linking" "expo-notifications" "expo-router" "expo-secure-store" "expo-splash-screen" "expo-system-ui" "expo-web-browser"

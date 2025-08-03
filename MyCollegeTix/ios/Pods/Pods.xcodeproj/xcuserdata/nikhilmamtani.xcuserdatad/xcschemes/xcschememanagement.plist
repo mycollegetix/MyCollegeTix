@@ -9,6 +9,16 @@
 			<key>isShown</key>
 			<false/>
 		</dict>
+		<key>EXApplication-ExpoApplication_privacy.xcscheme</key>
+		<dict>
+			<key>isShown</key>
+			<false/>
+		</dict>
+		<key>EXApplication.xcscheme</key>
+		<dict>
+			<key>isShown</key>
+			<false/>
+		</dict>
 		<key>EXConstants-EXConstants.xcscheme</key>
 		<dict>
 			<key>isShown</key>
@@ -29,6 +39,16 @@
 			<key>isShown</key>
 			<false/>
 		</dict>
+		<key>EXNotifications-ExpoNotifications_privacy.xcscheme</key>
+		<dict>
+			<key>isShown</key>
+			<false/>
+		</dict>
+		<key>EXNotifications.xcscheme</key>
+		<dict>
+			<key>isShown</key>
+			<false/>
+		</dict>
 		<key>Expo.xcscheme</key>
 		<dict>
 			<key>isShown</key>
@@ -40,6 +60,16 @@
 			<false/>
 		</dict>
 		<key>ExpoBlur.xcscheme</key>
+		<dict>
+			<key>isShown</key>
+			<false/>
+		</dict>
+		<key>ExpoDevice-ExpoDevice_privacy.xcscheme</key>
+		<dict>
+			<key>isShown</key>
+			<false/>
+		</dict>
+		<key>ExpoDevice.xcscheme</key>
 		<dict>
 			<key>isShown</key>
 			<false/>
