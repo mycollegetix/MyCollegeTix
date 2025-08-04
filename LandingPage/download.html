@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Download MyCollegeTix</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        line-height: 1.6;
+        color: #1a202c;
+        background: linear-gradient(135deg, #18453b 0%, #006233 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        padding: 3rem 2rem;
+        text-align: center;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        width: 90%;
+      }
+
+      .logo {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 2rem;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      }
+
+      .logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .title {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #18453b;
+        margin-bottom: 0.5rem;
+      }
+
+      .subtitle {
+        color: #6b7280;
+        margin-bottom: 2rem;
+        font-size: 1rem;
+      }
+
+      .auto-redirect {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+      }
+
+      .auto-redirect h3 {
+        color: #0369a1;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .auto-redirect p {
+        color: #0369a1;
+        font-size: 0.9rem;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #bae6fd;
+        border-top: 2px solid #0369a1;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 8px;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      .manual-download {
+        display: none;
+      }
+
+      .manual-download.show {
+        display: block;
+      }
+
+      .manual-download h3 {
+        color: #18453b;
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .download-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .download-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        gap: 12px;
+      }
+
+      .download-btn.ios {
+        background: #000;
+        color: white;
+      }
+
+      .download-btn.ios:hover {
+        background: #333;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      }
+
+      .download-btn.android {
+        background: #34a853;
+        color: white;
+      }
+
+      .download-btn.android:hover {
+        background: #2d8e47;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(52, 168, 83, 0.3);
+      }
+
+      .store-icon {
+        width: 24px;
+        height: 24px;
+      }
+
+      .fallback-text {
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e5e7eb;
+        color: #6b7280;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 480px) {
+        .container {
+          padding: 2rem 1.5rem;
+        }
+        
+        .title {
+          font-size: 1.5rem;
+        }
+        
+        .download-buttons {
+          gap: 0.8rem;
+        }
+        
+        .download-btn {
+          padding: 0.9rem 1.2rem;
+          font-size: 0.95rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">
+        <img src="icon2.png" alt="MyCollegeTix Logo" />
+      </div>
+      
+      <h1 class="title">MyCollegeTix</h1>
+      <p class="subtitle">Your Campus Ticket Marketplace</p>
+
+      <!-- Auto-redirect section (shown initially) -->
+      <div class="auto-redirect" id="autoRedirect">
+        <h3><span class="spinner"></span>Detecting your device...</h3>
+        <p>You'll be redirected to the appropriate app store automatically.</p>
+      </div>
+
+      <!-- Manual download section (shown if auto-redirect fails) -->
+      <div class="manual-download" id="manualDownload">
+        <h3>Choose your platform:</h3>
+        <div class="download-buttons">
+          <a href="https://apps.apple.com/us/app/mycollegetix/id6748928832" class="download-btn ios" id="iosBtn">
+            <svg class="store-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+            </svg>
+            Download for iPhone
+          </a>
+          
+          <a href="https://play.google.com/store/search?q=tiktok&c=apps&hl=en_US" class="download-btn android" id="androidBtn">
+            <svg class="store-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.61 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.92 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
+            </svg>
+            Download for Android
+          </a>
+        </div>
+      </div>
+
+      <div class="fallback-text">
+        <p>Having trouble? Visit <strong>mycollegetix.com</strong> for more information.</p>
+      </div>
+    </div>
+
+    <script>
+      // Device detection and auto-redirect
+      function detectDevice() {
+        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        
+        // iOS detection
+        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+          return 'ios';
+        }
+        
+        // Android detection
+        if (/android/i.test(userAgent)) {
+          return 'android';
+        }
+        
+        // Additional mobile detection
+        if (/Mobile|mini|Fennec|Android|iP(ad|od|hone)/.test(userAgent)) {
+          // Try to detect based on other indicators
+          if (userAgent.includes('iPhone') || userAgent.includes('iPad')) {
+            return 'ios';
+          }
+          if (userAgent.includes('Android')) {
+            return 'android';
+          }
+        }
+        
+        return 'unknown';
+      }
+
+      function redirect() {
+        const device = detectDevice();
+        const autoRedirectEl = document.getElementById('autoRedirect');
+        const manualDownloadEl = document.getElementById('manualDownload');
+        
+        console.log('Detected device:', device);
+        console.log('User agent:', navigator.userAgent);
+        
+        if (device === 'ios') {
+          // Redirect to App Store
+          setTimeout(() => {
+            window.location.href = 'https://apps.apple.com/us/app/mycollegetix/id6748928832';
+          }, 1500);
+        } else if (device === 'android') {
+          // Redirect to Play Store
+          setTimeout(() => {
+            window.location.href = 'https://play.google.com/store/search?q=tiktok&c=apps&hl=en_US';
+          }, 1500);
+        } else {
+          // Show manual download options
+          setTimeout(() => {
+            autoRedirectEl.style.display = 'none';
+            manualDownloadEl.classList.add('show');
+          }, 2000);
+        }
+      }
+
+      // Analytics/tracking (optional)
+      function trackDownload(platform) {
+        console.log('Download initiated for:', platform);
+        // Add analytics tracking here if needed
+        // gtag('event', 'download_app', { platform: platform });
+      }
+
+      // Add click tracking to manual buttons
+      document.getElementById('iosBtn').addEventListener('click', () => {
+        trackDownload('ios');
+      });
+      
+      document.getElementById('androidBtn').addEventListener('click', () => {
+        trackDownload('android');
+      });
+
+      // Start the redirect process when page loads
+      window.addEventListener('load', redirect);
+    </script>
+  </body>
+</html>

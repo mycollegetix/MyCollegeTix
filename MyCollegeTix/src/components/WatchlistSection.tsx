@@ -18,6 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/providers/ThemeProvider";
+import { useAuth } from "@/src/providers/AuthProvider";
 import {
   WatchlistService,
   WatchlistWithTicket,
@@ -39,6 +40,7 @@ interface EventGroup {
 const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
   const router = useRouter();
   const theme = useTheme();
+  const { user, isLoading: authLoading } = useAuth();
   const [watchlist, setWatchlist] = useState<WatchlistWithTicket[]>([]);
   const [eventGroups, setEventGroups] = useState<EventGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,9 +62,16 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
     notificationEnabled: true,
   });
 
+  // ✅ RACE CONDITION FIX: Wait for auth to be ready before loading data
   useEffect(() => {
+    if (authLoading || !user) {
+      console.log('🔄 Waiting for authentication...', { authLoading, hasUser: !!user });
+      return;
+    }
+    
+    console.log('✅ Auth ready, loading watchlist for user:', user.id);
     loadWatchlist();
-  }, []);
+  }, [user, authLoading]);
 
   const loadWatchlist = async () => {
     try {
@@ -132,10 +141,17 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
   };
 
   const onRefreshData = useCallback(() => {
+    // ✅ RACE CONDITION FIX: Don't refresh if auth isn't ready
+    if (authLoading || !user) {
+      console.log('⚠️ Cannot refresh: authentication not ready');
+      setRefreshing(false);
+      return;
+    }
+    
     setRefreshing(true);
     loadWatchlist();
     onRefresh?.();
-  }, [onRefresh]);
+  }, [onRefresh, authLoading, user]);
 
   const handleRemoveFromWatchlist = async (
     ticketId: string,
@@ -420,9 +436,21 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({ onRefresh }) => {
       </View>
 
       {/* Event Groups */}
-      {loading ? (
+      {(loading || authLoading) ? (
         <BlurView intensity={20} style={styles.loadingState}>
-          <Text style={styles.loadingText}>Loading your watchlist...</Text>
+          <Text style={styles.loadingText}>
+            {authLoading ? 'Authenticating...' : 'Loading your watchlist...'}
+          </Text>
+        </BlurView>
+      ) : !user ? (
+        <BlurView intensity={20} style={styles.emptyState}>
+          <View style={styles.emptyIconContainer}>
+            <Ionicons name="person-outline" size={48} color="#6b7280" />
+          </View>
+          <Text style={styles.emptyStateTitle}>Please log in</Text>
+          <Text style={styles.emptyStateText}>
+            You need to be logged in to view your watchlist
+          </Text>
         </BlurView>
       ) : eventGroups.length > 0 ? (
         <View>

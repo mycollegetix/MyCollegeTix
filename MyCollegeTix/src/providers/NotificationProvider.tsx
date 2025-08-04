@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { router } from 'expo-router';
 import { NotificationService } from "../services/notificationService";
+import { WatchlistService } from "../services/watchlistService";
 import { useAuth } from "./AuthProvider";
 import { Database } from "../types/database.types";
 
@@ -206,11 +207,12 @@ export function NotificationProvider({
     }
   }, [user]);
 
-  // Set up real-time subscription
+  // Set up real-time subscriptions
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribe = NotificationService.subscribeToNotifications(
+    // Subscribe to general notifications
+    const unsubscribeNotifications = NotificationService.subscribeToNotifications(
       user.id,
       (newNotification) => {
         setNotifications((prev) => [newNotification, ...prev]);
@@ -220,8 +222,84 @@ export function NotificationProvider({
       }
     );
 
-    return unsubscribe;
-  }, [user]);
+    // Subscribe to watchlist updates
+    const unsubscribeWatchlist = WatchlistService.subscribeToWatchlistUpdates(
+      user.id,
+      async (update) => {
+        console.log(`🔔 Watchlist update received:`, update);
+
+        // Create notification based on update type
+        let notificationTitle = '';
+        let notificationBody = '';
+        let notificationData: any = { ticket_id: update.ticketId };
+
+        switch (update.type) {
+          case 'price_change':
+            const priceDirection = update.newValue > update.oldValue ? 'increased' : 'decreased';
+            const priceDiff = Math.abs(update.newValue - update.oldValue);
+            notificationTitle = `Price ${priceDirection}!`;
+            notificationBody = `${update.ticketTitle} price ${priceDirection} by $${priceDiff} (now $${update.newValue})`;
+            break;
+          
+          case 'ticket_sold':
+            notificationTitle = 'Ticket Sold';
+            notificationBody = `${update.ticketTitle} from your watchlist has been sold`;
+            break;
+          
+          case 'status_change':
+            notificationTitle = 'Ticket Status Changed';
+            notificationBody = `${update.ticketTitle} status changed to ${update.newValue}`;
+            break;
+          
+          case 'ticket_deleted':
+            notificationTitle = 'Ticket Removed';
+            notificationBody = `${update.ticketTitle} has been removed by the seller`;
+            break;
+        }
+
+        // Send local push notification if app is in background
+        try {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: notificationTitle,
+              body: notificationBody,
+              data: notificationData,
+              badge: unreadCount + 1,
+            },
+            trigger: null, // Show immediately
+          });
+        } catch (error) {
+          console.error('Error sending local notification:', error);
+        }
+
+        // Create in-app notification record
+        try {
+          await NotificationService.createNotification({
+            userId: user.id,
+            title: notificationTitle,
+            body: notificationBody,
+            type: 'watchlist_update',
+            data: {
+              ...notificationData,
+              updateType: update.type,
+              oldValue: update.oldValue,
+              newValue: update.newValue,
+            },
+          });
+          
+          // Refresh notifications to show the new one
+          loadNotifications();
+        } catch (error) {
+          console.error('Error creating watchlist notification:', error);
+        }
+      }
+    );
+
+    return () => {
+      unsubscribeNotifications();
+      unsubscribeWatchlist();
+    };
+  }, [user, unreadCount]);
 
   // Setup push notification listeners
   useEffect(() => {

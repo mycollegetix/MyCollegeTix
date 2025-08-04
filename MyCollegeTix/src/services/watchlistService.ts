@@ -359,4 +359,164 @@ export class WatchlistService {
       return { error };
     }
   }
+
+  // Real-time subscription for watchlist ticket updates
+  static subscribeToWatchlistUpdates(
+    userId: string,
+    onTicketUpdate: (update: {
+      type: 'price_change' | 'status_change' | 'ticket_sold' | 'ticket_deleted';
+      ticketId: string;
+      ticketTitle: string;
+      oldValue?: any;
+      newValue?: any;
+      ticket?: any;
+    }) => void
+  ): () => void {
+    console.log(`🔔 Setting up watchlist real-time subscription for user: ${userId}`);
+
+    // Get user's watchlisted tickets first
+    let watchlistedTicketIds: string[] = [];
+    
+    // Function to refresh watchlisted ticket IDs
+    const refreshWatchlistedTickets = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("watchlists")
+          .select("ticket_id")
+          .eq("user_id", userId);
+        
+        if (!error && data) {
+          watchlistedTicketIds = data.map(item => item.ticket_id);
+          console.log(`📋 Watching ${watchlistedTicketIds.length} tickets for updates`);
+        }
+      } catch (error) {
+        console.error("Error refreshing watchlisted tickets:", error);
+      }
+    };
+
+    // Initial load
+    refreshWatchlistedTickets();
+
+    // Subscribe to ticket updates
+    const ticketUpdateSubscription = supabase
+      .channel(`watchlist-ticket-updates:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "tickets",
+        },
+        async (payload) => {
+          const oldTicket = payload.old as any;
+          const newTicket = payload.new as any;
+          
+          // Only process if this ticket is in user's watchlist
+          if (!watchlistedTicketIds.includes(newTicket.id)) {
+            return;
+          }
+
+          console.log(`🎫 Watchlisted ticket updated:`, {
+            id: newTicket.id,
+            title: newTicket.title,
+            oldPrice: oldTicket.price,
+            newPrice: newTicket.price,
+            oldStatus: oldTicket.status,
+            newStatus: newTicket.status
+          });
+
+          // Price change notification
+          if (oldTicket.price !== newTicket.price) {
+            onTicketUpdate({
+              type: 'price_change',
+              ticketId: newTicket.id,
+              ticketTitle: newTicket.title,
+              oldValue: oldTicket.price,
+              newValue: newTicket.price,
+              ticket: newTicket
+            });
+          }
+
+          // Status change notification (especially if sold)
+          if (oldTicket.status !== newTicket.status) {
+            if (newTicket.status === 'sold') {
+              onTicketUpdate({
+                type: 'ticket_sold',
+                ticketId: newTicket.id,
+                ticketTitle: newTicket.title,
+                oldValue: oldTicket.status,
+                newValue: newTicket.status,
+                ticket: newTicket
+              });
+            } else {
+              onTicketUpdate({
+                type: 'status_change',
+                ticketId: newTicket.id,
+                ticketTitle: newTicket.title,
+                oldValue: oldTicket.status,
+                newValue: newTicket.status,
+                ticket: newTicket
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to ticket deletions
+    const ticketDeleteSubscription = supabase
+      .channel(`watchlist-ticket-deletes:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "tickets",
+        },
+        (payload) => {
+          const deletedTicket = payload.old as any;
+          
+          // Only process if this ticket was in user's watchlist
+          if (!watchlistedTicketIds.includes(deletedTicket.id)) {
+            return;
+          }
+
+          console.log(`🗑️ Watchlisted ticket deleted:`, deletedTicket.id);
+
+          onTicketUpdate({
+            type: 'ticket_deleted',
+            ticketId: deletedTicket.id,
+            ticketTitle: deletedTicket.title,
+            ticket: deletedTicket
+          });
+        }
+      )
+      .subscribe();
+
+    // Subscribe to watchlist changes to refresh our ticket list
+    const watchlistSubscription = supabase
+      .channel(`watchlist-changes:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "watchlists",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          // Refresh watchlisted tickets when watchlist changes
+          refreshWatchlistedTickets();
+        }
+      )
+      .subscribe();
+
+    // Return cleanup function
+    return () => {
+      console.log(`🧹 Cleaning up watchlist subscriptions for user: ${userId}`);
+      supabase.removeChannel(ticketUpdateSubscription);
+      supabase.removeChannel(ticketDeleteSubscription);
+      supabase.removeChannel(watchlistSubscription);
+    };
+  }
 }
