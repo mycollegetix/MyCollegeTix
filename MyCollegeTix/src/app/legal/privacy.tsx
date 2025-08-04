@@ -1,5 +1,5 @@
 // src/app/legal/privacy.tsx - Privacy Policy Page
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   ScrollView,
@@ -7,15 +7,41 @@ import {
   View,
   Text,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/providers/ThemeProvider";
+import { legalService } from "@/src/services/legalService";
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const [content, setContent] = useState<string>('');
+  const [source, setSource] = useState<'website' | 'fallback' | 'error'>('fallback');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadPrivacyContent();
+  }, []);
+
+  const loadPrivacyContent = async () => {
+    try {
+      const result = await legalService.getLegalDocument('privacy_policy');
+      setContent(result.content);
+      setSource(result.source);
+      console.log(`📄 Privacy Policy loaded from: ${result.source}`);
+    } catch (error) {
+      console.error('Error loading privacy policy:', error);
+      // Use fallback content from service
+      const fallback = await legalService.getLegalDocument('privacy_policy');
+      setContent(fallback.content);
+      setSource('fallback');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -47,188 +73,37 @@ export default function PrivacyPolicyScreen() {
 
       {/* Content */}
       <View style={styles.contentContainer}>
-        <ScrollView 
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* Last Updated */}
-          <View style={styles.lastUpdatedContainer}>
-            <Text style={styles.lastUpdatedText}>
-              Effective Date: January 1, 2025
-            </Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={styles.loadingText}>Loading Privacy Policy...</Text>
           </View>
-
-          {/* Information We Collect */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>1. Information We Collect</Text>
-            <Text style={styles.sectionText}>
-              <Text style={{fontWeight: 'bold'}}>1.1 Account Information{"\n"}</Text>
-              When you create an account, we collect:
-            </Text>
-            <Text style={styles.sectionText}>
-              • Name and email address (.edu required for verification){"\n"}
-              • College or university affiliation{"\n"}
-              • Profile information you choose to provide
-            </Text>
-            <Text style={styles.sectionText}>
-              <Text style={{fontWeight: 'bold'}}>1.2 Usage Information{"\n"}</Text>
-              We automatically collect:
-            </Text>
-            <Text style={styles.sectionText}>
-              • Device and browser information{"\n"}
-              • IP address and location data{"\n"}
-              • How you interact with our platform{"\n"}
-              • Pages visited and features used
-            </Text>
-          </View>
-
-          {/* How We Use Your Information */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>2. How We Use Your Information</Text>
-            <Text style={styles.sectionText}>
-              We use your information to:
-            </Text>
-            <Text style={styles.sectionText}>
-              • Verify your student status and college affiliation{"\n"}
-              • Provide and improve our services{"\n"}
-              • Facilitate connections between verified students{"\n"}
-              • Send important service updates and notifications{"\n"}
-              • Prevent fraud and maintain platform safety{"\n"}
-              • Analyze usage patterns to improve user experience
-            </Text>
-          </View>
-
-          {/* Information Sharing */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>3. Information Sharing</Text>
-            <Text style={styles.sectionText}>
-              <Text style={{fontWeight: 'bold'}}>3.1 With Other Users{"\n"}</Text>
-              When you use MyCollegeTix, other verified students can see:
-            </Text>
-            <Text style={styles.sectionText}>
-              • Your name and college affiliation{"\n"}
-              • Ticket listings you post{"\n"}
-              • Basic profile information you choose to share
-            </Text>
-            <Text style={styles.sectionText}>
-              <Text style={{fontWeight: 'bold'}}>3.2 With Third Parties{"\n"}</Text>
-              We do not sell your personal information. We may share data with:
-            </Text>
-            <Text style={styles.sectionText}>
-              • Service providers who help us operate the platform{"\n"}
-              • Law enforcement when required by law{"\n"}
-              • Academic institutions for verification purposes only
-            </Text>
-          </View>
-
-          {/* Data Security */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>4. Data Security</Text>
-            <Text style={styles.sectionText}>
-              We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.
-            </Text>
-            <Text style={styles.sectionText}>
-              However, no method of transmission over the Internet is 100% secure. While we strive to protect your data, we cannot guarantee absolute security.
-            </Text>
-          </View>
-
-          {/* Student Email Verification */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>5. Student Email Verification</Text>
-            <Text style={styles.sectionText}>
-              We require .edu email addresses to verify student status. This information is used solely for verification purposes and to ensure only current students can access the platform.
-            </Text>
-            <Text style={styles.sectionText}>
-              We may periodically re-verify student status to maintain platform integrity.
-            </Text>
-          </View>
-
-          {/* Cookies and Tracking */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>6. Cookies and Tracking</Text>
-            <Text style={styles.sectionText}>
-              We use cookies and similar technologies to:
-            </Text>
-            <Text style={styles.sectionText}>
-              • Remember your login status{"\n"}
-              • Improve site performance{"\n"}
-              • Analyze user behavior{"\n"}
-              • Provide personalized experiences
-            </Text>
-            <Text style={styles.sectionText}>
-              You can control cookie settings through your browser preferences.
-            </Text>
-          </View>
-
-          {/* Your Rights */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>7. Your Rights</Text>
-            <Text style={styles.sectionText}>
-              You have the right to:
-            </Text>
-            <Text style={styles.sectionText}>
-              • Access and update your personal information{"\n"}
-              • Delete your account and associated data{"\n"}
-              • Opt out of non-essential communications{"\n"}
-              • Request a copy of your data{"\n"}
-              • File a complaint with relevant authorities
-            </Text>
-          </View>
-
-          {/* Data Retention */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>8. Data Retention</Text>
-            <Text style={styles.sectionText}>
-              We retain your information for as long as your account is active or as needed to provide services. When you delete your account, we remove your personal information within 30 days, except where required by law.
-            </Text>
-          </View>
-
-          {/* Children's Privacy */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>9. Children's Privacy</Text>
-            <Text style={styles.sectionText}>
-              Our service is intended for college students 18 and older. We do not knowingly collect information from children under 13. If you are under 18, you need parental consent to use our service.
-            </Text>
-          </View>
-
-          {/* Changes to This Policy */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>10. Changes to This Policy</Text>
-            <Text style={styles.sectionText}>
-              We may update this privacy policy from time to time. We will notify users of significant changes via email or platform notifications. Continued use after changes constitutes acceptance.
-            </Text>
-          </View>
-
-          {/* Contact Us */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>11. Contact Us</Text>
-            <Text style={styles.sectionText}>
-              If you have questions about this privacy policy or how we handle your data, please contact us at:
-            </Text>
-            <Text style={styles.sectionText}>
-              • Email: privacy@mycollegetix.com{"\n"}
-              • General inquiries: contact@mycollegetix.com
-            </Text>
-          </View>
-
-
-
-          {/* Related Documents */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>12. Related Documents</Text>
-            <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => router.push("/legal/terms")}
-            >
-              <Text style={[styles.linkText, { color: theme.primary }]}>
-                View Terms of Service →
+        ) : (
+          <ScrollView 
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Dynamic Content */}
+            <View style={styles.section}>
+              <Text style={styles.documentContent}>
+                {content}
               </Text>
-            </TouchableOpacity>
-          </View>
+            </View>
 
-
-        </ScrollView>
+            {/* Terms of Service Link */}
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={() => router.push("/legal/terms")}
+              >
+                <Text style={[styles.linkText, { color: theme.primary }]}>
+                  View Terms of Service →
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        )}
       </View>
     </View>
   );
@@ -347,5 +222,24 @@ const styles = StyleSheet.create({
     color: "#92400e",
     fontWeight: "500",
     textAlign: "center",
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#6b7280",
+    marginTop: 16,
+    textAlign: "center",
+  },
+  documentContent: {
+    fontSize: 15,
+    color: "#374151",
+    lineHeight: 24,
+    textAlign: "left",
+    fontFamily: "monospace", // Better for formatted text
   },
 });

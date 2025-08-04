@@ -16,7 +16,7 @@
     "newArchEnabled": true,
     "primaryColor": "#18583E",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/icon2.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
