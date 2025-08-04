@@ -207,14 +207,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  // ✅ SIMPLIFIED: Set up minimal real-time subscriptions (no infinite loops)
+  // ✅ ENHANCED: Real-time subscriptions with proper message handling
   useEffect(() => {
     if (!user) return;
+
+    console.log("🔄 Setting up real-time subscriptions for user:", user.id);
 
     // Subscribe to conversation updates (last_message changes only)
     const unsubscribeConversations = ChatService.subscribeToConversations(
       user.id,
       (updatedConversation) => {
+        console.log("📝 Conversation updated:", updatedConversation.id);
         setConversations((prev) => {
           const index = prev.findIndex((c) => c.id === updatedConversation.id);
           if (index >= 0) {
@@ -227,64 +230,83 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // ✅ ONLY subscribe to NEW messages (not updates) to avoid infinite loops
+    // ✅ ENHANCED: Subscribe to NEW messages globally for unread count updates
     const newMessageChannel = supabase
       .channel(`new-messages:${user.id}`)
       .on(
         "postgres_changes",
         {
-          event: "INSERT", // ✅ ONLY INSERT, not UPDATE
+          event: "INSERT",
           schema: "public",
           table: "messages",
         },
-        (payload) => {
+        async (payload) => {
           const newMessage = payload.new as any;
           
-          // Only update if message is not from current user
+          console.log("📨 New message received:", {
+            id: newMessage.id,
+            conversation_id: newMessage.conversation_id,
+            sender_id: newMessage.sender_id,
+            content: newMessage.content?.substring(0, 50) + "...",
+            is_from_me: newMessage.sender_id === user.id
+          });
+
+          // Only process messages not from current user
           if (newMessage.sender_id !== user.id) {
-            console.log("📨 New message received, updating unread count");
-            
-            // ✅ SMART UPDATE: Only increment unread count for the specific conversation
+            // Get sender information for the message
+            const { data: sender } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", newMessage.sender_id)
+              .single();
+
+            const messageWithSender = {
+              ...newMessage,
+              sender: sender
+            };
+
+            // ✅ UPDATE CURRENT CONVERSATION MESSAGES: If this message is for the currently viewed conversation
+            if (currentConversation && newMessage.conversation_id === currentConversation.id) {
+              console.log("📨 Adding message to current conversation");
+              setMessages((prev) => {
+                // Check if message already exists to avoid duplicates
+                if (prev.some((m) => m.id === newMessage.id)) {
+                  return prev;
+                }
+                return [...prev, messageWithSender as MessageWithSender];
+              });
+            }
+
+            // ✅ UPDATE CONVERSATIONS LIST: Increment unread count for the specific conversation
             setConversations((prev) =>
-              prev.map((conv) =>
-                conv.id === newMessage.conversation_id
-                  ? { ...conv, unread_count: conv.unread_count + 1 }
-                  : conv
-              )
+              prev.map((conv) => {
+                if (conv.id === newMessage.conversation_id) {
+                  // Only increment unread count if user is not currently viewing this conversation
+                  const shouldIncrementUnread = !currentConversation || currentConversation.id !== newMessage.conversation_id;
+                  return {
+                    ...conv,
+                    unread_count: shouldIncrementUnread ? conv.unread_count + 1 : conv.unread_count,
+                    last_message_at: newMessage.created_at,
+                    updated_at: newMessage.created_at
+                  };
+                }
+                return conv;
+              })
             );
-            
-            // Update total unread count
-            setUnreadCount((prev) => prev + 1);
+
+            // ✅ UPDATE GLOBAL UNREAD COUNT: Only if not viewing the conversation
+            if (!currentConversation || currentConversation.id !== newMessage.conversation_id) {
+              setUnreadCount((prev) => prev + 1);
+            }
           }
         }
       )
       .subscribe();
 
-    // Subscribe to messages in current conversation for real-time chat
-    let unsubscribeMessages: (() => void) | null = null;
-
-    if (currentConversation) {
-      unsubscribeMessages = ChatService.subscribeToConversationMessages(
-        currentConversation.id,
-        (newMessage) => {
-          // Add message with sender info (only for real-time updates)
-          setMessages((prev) => {
-            // Check if message already exists to avoid duplicates
-            if (prev.some((m) => m.id === newMessage.id)) {
-              return prev;
-            }
-            return [...prev, newMessage as MessageWithSender];
-          });
-        }
-      );
-    }
-
     return () => {
+      console.log("🧹 Cleaning up real-time subscriptions");
       unsubscribeConversations();
       supabase.removeChannel(newMessageChannel);
-      if (unsubscribeMessages) {
-        unsubscribeMessages();
-      }
     };
   }, [user, currentConversation]);
 

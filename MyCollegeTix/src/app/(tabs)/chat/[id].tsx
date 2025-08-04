@@ -114,45 +114,21 @@ export default function ChatConversationScreen() {
       loadConversationData(id);
     }
 
-    // ✅ REAL-TIME: Set up message subscription for immediate updates
-    let messageSubscription: (() => void) | null = null;
-
-    if (id) {
-      // Import ChatService for direct subscription
-      const { ChatService } = require("@/src/services/chatService");
-
-      messageSubscription = ChatService.subscribeToConversationMessages(
-        id,
-        (newMessage: any) => {
-          // Only add if it's not from the current user (to avoid duplicates when sending)
-          if (newMessage.sender_id !== user?.id) {
-            console.log("📨 New message received:", newMessage.content);
-            // ✅ OPTIMIZED: Add message directly to local state (no reload needed)
-            setMessages((prev) => {
-              // Check if message already exists to avoid duplicates
-              if (prev.some((m) => m.id === newMessage.id)) {
-                return prev;
-              }
-              return [...prev, newMessage as MessageWithSender];
-            });
-            
-            // ✅ AUTO MARK AS READ: Automatically mark new messages as read when user is viewing conversation
-            markAsRead(id);
-          }
-        }
-      );
-    }
-
     // Cleanup function
     return () => {
       console.log("🧹 Cleaning up conversation screen");
       setCurrentConversation(null);
       setHasLoadedMessages(false);
-      if (messageSubscription) {
-        messageSubscription();
-      }
     };
-  }, [id, conversations.length, user?.id]);
+  }, [id, conversations.length]);
+
+  // ✅ AUTO MARK AS READ: When viewing a conversation with new messages
+  useEffect(() => {
+    if (currentConversation && currentConversation.unread_count > 0) {
+      console.log("📖 Auto-marking messages as read (viewing conversation)");
+      markAsRead(currentConversation.id);
+    }
+  }, [currentConversation, messages.length]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -176,7 +152,7 @@ export default function ChatConversationScreen() {
       sender_id: user?.id || "",
       conversation_id: id,
       created_at: new Date().toISOString(),
-      message_type: "text",
+      message_type: "text" as const,
       read_by_recipient: false,
       read_at: null,
       edited_at: null,
@@ -211,9 +187,18 @@ export default function ChatConversationScreen() {
         Alert.alert("Error", "Failed to send message. Please try again.");
         setMessageText(content);
       } else {
-        // ✅ OPTIMIZED: Keep optimistic message, real-time subscription will update
-        console.log("✅ Message sent successfully, keeping optimistic update");
-        // Real-time subscription will automatically replace/update the message
+        // ✅ ENHANCED: Replace optimistic message with real message ID when available
+        console.log("✅ Message sent successfully");
+        
+        // The real-time subscription will add the actual message with the real ID
+        // We'll remove the optimistic message after a short delay to let the real one arrive
+        setTimeout(() => {
+          setMessages((prevMessages) => {
+            // Remove the temporary message - the real one should have arrived by now
+            const filtered = prevMessages.filter((msg) => msg.id !== tempId);
+            return filtered;
+          });
+        }, 1000);
       }
     } catch (error) {
       // Remove optimistic message on error

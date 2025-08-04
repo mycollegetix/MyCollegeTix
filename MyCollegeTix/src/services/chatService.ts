@@ -568,7 +568,7 @@ export class ChatService {
 
   static subscribeToConversationMessages(
     conversationId: string,
-    onMessage: (message: Message) => void
+    onMessage: (message: MessageWithSender) => void
   ) {
     const channel = supabase
       .channel(`messages:${conversationId}`)
@@ -580,8 +580,23 @@ export class ChatService {
           table: "messages",
           filter: `conversation_id=eq.${conversationId}`,
         },
-        (payload) => {
-          onMessage(payload.new as Message);
+        async (payload) => {
+          const newMessage = payload.new as Message;
+          
+          // Get sender information for the message
+          const { data: sender } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", newMessage.sender_id)
+            .single();
+
+          const messageWithSender = {
+            ...newMessage,
+            sender: sender
+          };
+
+          console.log("📨 ChatService: New message in conversation", conversationId, messageWithSender.content?.substring(0, 50));
+          onMessage(messageWithSender as MessageWithSender);
         }
       )
       .subscribe();
