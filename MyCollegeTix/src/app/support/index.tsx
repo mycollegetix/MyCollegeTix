@@ -111,7 +111,7 @@ export default function HelpAndSupportScreen() {
       return;
     }
 
-    const email = "support@tickets.college.edu";
+    const email = "support@mycollegetix.com";
     const subject = contactForm.subject;
     const body = contactForm.message;
     const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(
