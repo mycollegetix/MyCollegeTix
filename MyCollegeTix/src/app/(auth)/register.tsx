@@ -931,7 +931,11 @@ export default function EnhancedRegisterScreen() {
                       {
                         text: "Contact Support",
                         onPress: () => {
-                          // You can add navigation to support or email functionality here
+                          Alert.alert(
+                            "Request New College",
+                            "To add your college to MyCollegeTix, please email us at:\n\nrequests@mycollegetix.com\n\nInclude your college name and email domain.",
+                            [{ text: "OK", style: "default" }]
+                          );
                         },
                       },
                     ]
