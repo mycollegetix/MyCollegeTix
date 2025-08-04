@@ -82,8 +82,14 @@ Deno.serve(async (req: Request) => {
       throw new Error('title and body are required')
     }
 
-    // Initialize Supabase client with service role for database operations
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    // Initialize Supabase client with anon key and user auth
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    })
 
     // Get push tokens from profiles table
     const { data: profiles, error: profileError } = await supabase

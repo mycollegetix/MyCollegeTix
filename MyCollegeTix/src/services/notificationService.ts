@@ -397,22 +397,40 @@ export class NotificationService {
     notification: {
       title: string;
       message: string;
-      type?: "purchase" | "sale" | "listing" | "system";
+      type?: "purchase" | "sale" | "listing" | "system" | "message";
       related_ticket_id?: string;
       related_order_id?: string | null;
     },
-    pushData?: any
+    pushData?: any,
+    existingSession?: any  // Accept existing session to avoid duplicate checks
   ): Promise<{ data: Notification | null; error: any }> {
     try {
-      // First create the in-app notification
-      const { data, error } = await supabase
-        .from("notifications")
-        .insert({
-          user_id: userId,
-          ...notification,
-        })
-        .select()
-        .single();
+      // Use existing session if provided, otherwise get session
+      let session = existingSession;
+      if (!session) {
+        const { data: { session: freshSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("Session error:", sessionError);
+          throw sessionError;
+        }
+
+        if (!freshSession) {
+          console.error("No active session found");
+          throw new Error("No active session - user must be authenticated");
+        }
+        session = freshSession;
+      }
+
+      // Use existing database function to bypass RLS issues
+      const { data, error } = await supabase.rpc('create_notification', {
+        p_user_id: userId,
+        p_title: notification.title,
+        p_message: notification.message,
+        p_type: notification.type || 'message',
+        p_related_ticket_id: notification.related_ticket_id || null,
+        p_related_order_id: notification.related_order_id || null
+      });
 
       if (error) throw error;
 

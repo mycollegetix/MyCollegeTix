@@ -107,6 +107,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (error || !data) {
         throw error;
       }
+      
+      // Refresh messages to show the sent message immediately
+      // This ensures the message appears even if real-time subscription has issues
+      await loadMessages(conversationId);
+      
       return true;
     } catch (error) {
       console.error("Error sending message:", error);

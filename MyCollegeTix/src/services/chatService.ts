@@ -24,12 +24,14 @@ export class ChatService {
   ): Promise<{ data: Message | null; error: any }> {
     try {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (!user) {
+      if (!session || !session.user) {
         throw new Error("User not authenticated");
       }
+
+      const user = session.user;
 
       // ✅ STEP 0: Moderate content before sending (only for user messages, not system)
       if (messageType === "text") {
@@ -124,6 +126,12 @@ export class ChatService {
           ? ` about "${conversation.ticket.title}"`
           : "";
 
+        // Check if recipient exists before creating notification
+        if (!recipient || !recipient.id) {
+          console.error("❌ Cannot create notification: recipient is null or missing ID");
+          return { data, error: null }; // Return success for message, skip notification
+        }
+
         // Use NotificationService to create notification AND send push
         const { error: notificationError } = await NotificationService.createAndSendNotification(
           recipient.id,
@@ -137,7 +145,8 @@ export class ChatService {
             conversation_id: conversationId,
             message_id: data.id,
             sender_name: sender.full_name,
-          }
+          },
+          session  // Pass the session to avoid duplicate auth checks
         );
 
         if (notificationError) {
