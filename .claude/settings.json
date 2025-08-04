@@ -1,0 +1,6 @@
+{
+  "agents": {
+    "auto_select": true,
+    "prefer_project_agents": true
+  }
+}
