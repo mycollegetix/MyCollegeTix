@@ -1,5 +1,5 @@
 // src/providers/ChatProvider.tsx - SIMPLIFIED VERSION (No Infinite Loops)
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { ChatService } from "../services/chatService";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "./AuthProvider";
@@ -56,6 +56,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  
+  // Use ref to avoid stale closures in subscriptions
+  const currentConversationRef = useRef<ConversationWithDetails | null>(null);
+  const processedMessageIds = useRef<Set<string>>(new Set());
+  
+  // Update ref whenever currentConversation changes
+  useEffect(() => {
+    currentConversationRef.current = currentConversation;
+  }, [currentConversation]);
 
   const loadConversations = async () => {
     if (!user) return;
@@ -209,6 +218,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setCurrentConversation(null);
       setMessages([]);
       setUnreadCount(0);
+      // Clear processed message IDs when user changes
+      processedMessageIds.current.clear();
     }
   }, [user]);
 
@@ -246,32 +257,53 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           table: "messages",
         },
         async (payload) => {
-          const newMessage = payload.new as any;
-          
-          console.log("📨 New message received:", {
-            id: newMessage.id,
-            conversation_id: newMessage.conversation_id,
-            sender_id: newMessage.sender_id,
-            content: newMessage.content?.substring(0, 50) + "...",
-            is_from_me: newMessage.sender_id === user.id
-          });
+          try {
+            const newMessage = payload.new as any;
+            
+            // Skip if we've already processed this message
+            if (processedMessageIds.current.has(newMessage.id)) {
+              console.log("🔄 Skipping already processed message:", newMessage.id);
+              return;
+            }
+            
+            // Add to processed set
+            processedMessageIds.current.add(newMessage.id);
+            
+            // Clean up old processed IDs (keep last 100)
+            if (processedMessageIds.current.size > 100) {
+              const ids = Array.from(processedMessageIds.current);
+              processedMessageIds.current = new Set(ids.slice(-100));
+            }
+            
+            console.log("📨 New message received:", {
+              id: newMessage.id,
+              conversation_id: newMessage.conversation_id,
+              sender_id: newMessage.sender_id,
+              content: newMessage.content?.substring(0, 50) + "...",
+              is_from_me: newMessage.sender_id === user.id
+            });
 
-          // Only process messages not from current user
-          if (newMessage.sender_id !== user.id) {
-            // Get sender information for the message
-            const { data: sender } = await supabase
+            // Get sender information for the message with error handling
+            const { data: sender, error: senderError } = await supabase
               .from("profiles")
               .select("*")
               .eq("id", newMessage.sender_id)
               .single();
+
+            if (senderError) {
+              console.error("Error fetching sender profile:", senderError);
+              return; // Skip this message if we can't get sender info
+            }
 
             const messageWithSender = {
               ...newMessage,
               sender: sender
             };
 
-            // ✅ UPDATE CURRENT CONVERSATION MESSAGES: If this message is for the currently viewed conversation
-            if (currentConversation && newMessage.conversation_id === currentConversation.id) {
+            // ✅ UPDATE CURRENT CONVERSATION MESSAGES: Add message to current conversation if viewing it
+            // Use ref to get current value without stale closure
+            const currentConv = currentConversationRef.current;
+            if (currentConv && newMessage.conversation_id === currentConv.id) {
               console.log("📨 Adding message to current conversation");
               setMessages((prev) => {
                 // Check if message already exists to avoid duplicates
@@ -282,27 +314,63 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               });
             }
 
-            // ✅ UPDATE CONVERSATIONS LIST: Increment unread count for the specific conversation
-            setConversations((prev) =>
-              prev.map((conv) => {
+            // ✅ UPDATE CONVERSATIONS LIST AND UNREAD COUNTS
+            setConversations((prev) => {
+              let conversationFound = false;
+              const updated = prev.map((conv) => {
                 if (conv.id === newMessage.conversation_id) {
-                  // Only increment unread count if user is not currently viewing this conversation
-                  const shouldIncrementUnread = !currentConversation || currentConversation.id !== newMessage.conversation_id;
+                  conversationFound = true;
+                  // Only increment unread count if:
+                  // 1. Message is from someone else
+                  // 2. User is not currently viewing this conversation
+                  const isFromOther = newMessage.sender_id !== user.id;
+                  const isNotCurrentlyViewing = !currentConv || currentConv.id !== newMessage.conversation_id;
+                  const shouldIncrementUnread = isFromOther && isNotCurrentlyViewing;
+
                   return {
                     ...conv,
                     unread_count: shouldIncrementUnread ? conv.unread_count + 1 : conv.unread_count,
                     last_message_at: newMessage.created_at,
-                    updated_at: newMessage.created_at
+                    updated_at: newMessage.created_at,
+                    last_message_id: newMessage.id,
+                    last_message: {
+                      id: newMessage.id,
+                      content: newMessage.content,
+                      sender_id: newMessage.sender_id,
+                      created_at: newMessage.created_at,
+                      sender: sender
+                    }
                   };
                 }
                 return conv;
-              })
-            );
+              });
+              
+              // If conversation not found in current list, reload conversations
+              // This handles cases where a new conversation was created
+              if (!conversationFound) {
+                console.log("📝 New conversation detected, reloading conversations");
+                setTimeout(() => loadConversations(), 1000);
+                return prev; // Return unchanged for now
+              }
+              
+              // Sort conversations by most recent message
+              return updated.sort((a, b) => {
+                const aTime = new Date(a.last_message_at || a.updated_at).getTime();
+                const bTime = new Date(b.last_message_at || b.updated_at).getTime();
+                return bTime - aTime;
+              });
+            });
 
-            // ✅ UPDATE GLOBAL UNREAD COUNT: Only if not viewing the conversation
-            if (!currentConversation || currentConversation.id !== newMessage.conversation_id) {
+            // ✅ UPDATE GLOBAL UNREAD COUNT: Only for messages from others when not viewing that conversation
+            const isFromOther = newMessage.sender_id !== user.id;
+            const isNotCurrentlyViewing = !currentConv || currentConv.id !== newMessage.conversation_id;
+            
+            if (isFromOther && isNotCurrentlyViewing) {
               setUnreadCount((prev) => prev + 1);
             }
+
+          } catch (error) {
+            console.error("Error processing real-time message:", error);
           }
         }
       )
@@ -313,7 +381,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       unsubscribeConversations();
       supabase.removeChannel(newMessageChannel);
     };
-  }, [user, currentConversation]);
+  }, [user]); // Remove currentConversation dependency to prevent subscription restarts
 
   const value = {
     conversations,
