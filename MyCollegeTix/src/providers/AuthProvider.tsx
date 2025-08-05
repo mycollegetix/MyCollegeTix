@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/src/lib/supabase";
 import { College } from "@/src/types/database.types";
+import { AccountService } from "@/src/services/accountService";
 
 // Interface definitions
 export interface UserProfile {
@@ -35,6 +36,7 @@ interface AuthContextType {
   ) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  deleteAccount: () => Promise<{ success: boolean; error?: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -236,6 +238,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const deleteAccount = async () => {
+    return await AccountService.deleteUserAccount();
+  };
+
   const value = {
     user,
     session,
@@ -245,6 +251,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     refreshProfile,
+    deleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -21,11 +21,12 @@ import { useRouter } from "expo-router";
 import { supabase } from "@/src/lib/supabase";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 import { LegalAgreementStatus } from "@/src/components/LegalAgreementStatus";
+import { AccountService } from "@/src/services/accountService";
 
 const { width, height } = Dimensions.get("window");
 
 export default function ProfileScreen() {
-  const { signOut, profile, user } = useAuth();
+  const { signOut, profile, user, deleteAccount } = useAuth();
   const router = useRouter();
   const theme = useTheme();
 
@@ -34,6 +35,8 @@ export default function ProfileScreen() {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [dataSummary, setDataSummary] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Check if user is admin
   const isAdmin = profile?.is_admin === true;
@@ -84,59 +87,63 @@ export default function ProfileScreen() {
   };
 
 
-  const handleDeleteAccount = async () => {
+  const loadDataSummary = async () => {
     try {
-      console.log("🗑️ Starting account deletion...");
-
-      if (!user?.id) {
-        throw new Error("No user found");
+      const { data, error } = await AccountService.getAccountDataSummary();
+      if (!error && data) {
+        setDataSummary(data);
       }
+    } catch (error) {
+      console.error("Error loading data summary:", error);
+    }
+  };
 
-      // Call the delete_user function
-      console.log("📝 Calling delete_user function...");
-      const { error: deleteError } = await supabase.rpc("delete_user");
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      console.log("🗑️ Starting comprehensive account deletion...");
 
-      if (deleteError) {
-        console.error("❌ Account deletion error:", deleteError);
-        throw deleteError;
-      }
+      const result = await deleteAccount();
+      
+      if (result.success) {
+        console.log("✅ Account deleted successfully:", result.summary);
 
-      console.log("✅ Account deleted successfully");
-
-      Alert.alert(
-        "Account Deleted",
-        "Your account has been deleted successfully. You will now be signed out.",
-        [
-          {
-            text: "OK",
-            onPress: async () => {
-              await signOut();
+        Alert.alert(
+          "Account Deleted",
+          "Your account and all associated data have been permanently deleted. You will now be signed out.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // User is automatically signed out by deleteAccount function
+                router.replace("/(auth)/login");
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      } else {
+        throw new Error(result.error?.message || "Failed to delete account");
+      }
     } catch (error: any) {
       console.error("❌ Account deletion failed:", error);
 
-      // Provide more specific error messages
-      if (
-        error.message.includes("permission denied") ||
-        error.message.includes("not found")
-      ) {
-        Alert.alert(
-          "Error",
-          "Unable to delete account. Please contact support for assistance."
-        );
-      } else {
-        Alert.alert("Error", error.message || "Failed to delete account");
-      }
+      Alert.alert(
+        "Deletion Failed",
+        error.message || "Unable to delete account. Please contact support for assistance."
+      );
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const confirmDeleteAccount = () => {
+    const dataText = dataSummary ? 
+      `\n\nThis will permanently delete:\n• ${dataSummary.messages || 0} messages\n• ${dataSummary.tickets || 0} tickets\n• ${dataSummary.orders || 0} orders\n• ${dataSummary.conversations || 0} conversations\n• ${dataSummary.watchlist || 0} watchlist items\n• ${dataSummary.notifications || 0} notifications` : 
+      "";
+
     Alert.alert(
       "Final Confirmation",
-      "Are you absolutely sure you want to delete your account? This action cannot be undone and will permanently remove all your data.",
+      `Are you absolutely sure you want to delete your account? This action cannot be undone and will permanently remove all your data.${dataText}`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -608,11 +615,20 @@ export default function ProfileScreen() {
                   </Text>
 
                   <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => setDeleteModalVisible(true)}
+                    style={[
+                      styles.deleteButton,
+                      isDeleting && { opacity: 0.7 }
+                    ]}
+                    onPress={() => {
+                      loadDataSummary();
+                      setDeleteModalVisible(true);
+                    }}
+                    disabled={isDeleting}
                   >
                     <Ionicons name="trash-outline" size={20} color="#fff" />
-                    <Text style={styles.deleteButtonText}>Delete Account</Text>
+                    <Text style={styles.deleteButtonText}>
+                      {isDeleting ? "Deleting..." : "Delete Account"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -654,8 +670,20 @@ export default function ProfileScreen() {
 
               <View style={styles.modalWarning}>
                 <Text style={styles.warningText}>
-                  ⚠️ Deleting your account will permanently remove all your
-                  data, tickets, and order history. This action is irreversible.
+                  ⚠️ Deleting your account will permanently remove all your data, including:
+                </Text>
+                {dataSummary && (
+                  <View style={styles.dataSummary}>
+                    <Text style={styles.dataSummaryItem}>• {dataSummary.messages || 0} messages</Text>
+                    <Text style={styles.dataSummaryItem}>• {dataSummary.tickets || 0} tickets</Text>
+                    <Text style={styles.dataSummaryItem}>• {dataSummary.orders || 0} orders</Text>
+                    <Text style={styles.dataSummaryItem}>• {dataSummary.conversations || 0} conversations</Text>
+                    <Text style={styles.dataSummaryItem}>• {dataSummary.watchlist || 0} watchlist items</Text>
+                    <Text style={styles.dataSummaryItem}>• {dataSummary.notifications || 0} notifications</Text>
+                  </View>
+                )}
+                <Text style={styles.warningText}>
+                  This action is irreversible.
                 </Text>
               </View>
 
@@ -667,13 +695,19 @@ export default function ProfileScreen() {
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.confirmDeleteButton}
+                  style={[
+                    styles.confirmDeleteButton,
+                    isDeleting && { opacity: 0.7 }
+                  ]}
                   onPress={() => {
                     setDeleteModalVisible(false);
                     confirmDeleteAccount();
                   }}
+                  disabled={isDeleting}
                 >
-                  <Text style={styles.confirmDeleteText}>Delete Account</Text>
+                  <Text style={styles.confirmDeleteText}>
+                    {isDeleting ? "Deleting..." : "Delete Account"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1060,6 +1094,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#dc2626",
     textAlign: "center",
+  },
+  dataSummary: {
+    marginVertical: 12,
+    paddingVertical: 8,
+  },
+  dataSummaryItem: {
+    fontSize: 13,
+    color: "#dc2626",
+    textAlign: "center",
+    marginVertical: 2,
   },
   modalActions: {
     flexDirection: "row",
