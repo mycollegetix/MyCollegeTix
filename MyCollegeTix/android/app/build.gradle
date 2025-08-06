@@ -4,6 +4,12 @@ apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
+// Read version info from app.json
+def appJsonFile = new File(projectRoot, "app.json")
+def appJson = new groovy.json.JsonSlurper().parseText(appJsonFile.text)
+def appVersion = appJson.expo.version
+def appVersionCode = appJson.expo.android.versionCode
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -92,8 +98,8 @@ android {
         applicationId 'com.mycollegetix.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.1.0"
+        versionCode appVersionCode
+        versionName appVersion
     }
     signingConfigs {
         debug {
@@ -104,9 +110,9 @@ android {
         }
         release {
             storeFile file('release-key.keystore')
-            storePassword System.getenv('MYAPP_RELEASE_STORE_PASSWORD') ?: 'NIKmam046214!'
+            storePassword 'NIKmam046214!'
             keyAlias 'release-key'
-            keyPassword System.getenv('MYAPP_RELEASE_KEY_PASSWORD') ?: 'NIKmam046214!'
+            keyPassword 'NIKmam046214!'
         }
     }
     buildTypes {
@@ -114,6 +120,7 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
+            // Using release keystore for production builds
             signingConfig signingConfigs.release
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
@@ -154,9 +161,6 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-    
-    // Force newer Play Billing Library to fix Google Play Store requirement
-    implementation("com.android.billingclient:billing:6.0.1")
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";

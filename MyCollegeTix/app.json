@@ -39,9 +39,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.mycollegetix.app",
-      "versionCode": 2,
+      "versionCode": 9,
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -52,8 +51,7 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
-        "android.permission.WAKE_LOCK",
-        "com.android.vending.BILLING"
+        "android.permission.WAKE_LOCK"
       ]
     },
     "web": {
