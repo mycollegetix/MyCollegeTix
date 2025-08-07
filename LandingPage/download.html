@@ -2,15 +2,20 @@
 <html lang="en">
   <head>
     <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-WH85CDL1WR"></script>
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-WH85CDL1WR"
+    ></script>
     <script>
       window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
 
-      gtag('config', 'G-WH85CDL1WR');
+      gtag("config", "G-WH85CDL1WR");
     </script>
-    
+
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Download MyCollegeTix</title>
@@ -101,8 +106,12 @@
       }
 
       @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
       }
 
       .manual-download {
@@ -157,15 +166,15 @@
         .container {
           padding: 2rem 1.5rem;
         }
-        
+
         .title {
           font-size: 1.5rem;
         }
-        
+
         .download-buttons {
           gap: 0.8rem;
         }
-        
+
         .badge-img {
           height: 58px;
           width: 175px;
@@ -178,7 +187,7 @@
       <div class="logo">
         <img src="icon2.png" alt="MyCollegeTix Logo" />
       </div>
-      
+
       <h1 class="title">MyCollegeTix</h1>
       <p class="subtitle">Your Campus Ticket Marketplace</p>
 
@@ -192,95 +201,123 @@
       <div class="manual-download" id="manualDownload">
         <h3>Choose your platform:</h3>
         <div class="download-buttons">
-          <a href="https://apps.apple.com/us/app/mycollegetix/id6748928832" class="download-btn" id="iosBtn">
-            <img src="Download_on_the_App_Store_Badge_US-UK_RGB_blk_092917.png" alt="Download on the App Store" class="badge-img">
+          <a
+            href="https://apps.apple.com/us/app/mycollegetix/id6748928832"
+            class="download-btn"
+            id="iosBtn"
+          >
+            <img
+              src="LandingPage/Download_on_the_App_Store_Badge_US-UK_RGB_blk_0929172.png"
+              alt="Download on the App Store"
+              class="badge-img"
+            />
           </a>
-          
-          <a href="https://play.google.com/store/search?q=tiktok&c=apps&hl=en_US" class="download-btn" id="androidBtn">
-            <img src="GetItOnGooglePlay_Badge_Web_color_English.png" alt="Get it on Google Play" class="badge-img">
+
+          <a
+            href="https://play.google.com/store/search?q=tiktok&c=apps&hl=en_US"
+            class="download-btn"
+            id="androidBtn"
+          >
+            <img
+              src="GetItOnGooglePlay_Badge_Web_color_English.png"
+              alt="Get it on Google Play"
+              class="badge-img"
+            />
           </a>
         </div>
       </div>
 
       <div class="fallback-text">
-        <p>Having trouble? Visit <a href="https://mycollegetix.com" target="_blank" style="color: #18453b; text-decoration: none; font-weight: bold;">mycollegetix.com</a> for more information.</p>
+        <p>
+          Having trouble? Visit
+          <a
+            href="https://mycollegetix.com"
+            target="_blank"
+            style="color: #18453b; text-decoration: none; font-weight: bold"
+            >mycollegetix.com</a
+          >
+          for more information.
+        </p>
       </div>
     </div>
 
     <script>
       // Device detection and auto-redirect
       function detectDevice() {
-        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-        
+        const userAgent =
+          navigator.userAgent || navigator.vendor || window.opera;
+
         // iOS detection
         if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-          return 'ios';
+          return "ios";
         }
-        
+
         // Android detection
         if (/android/i.test(userAgent)) {
-          return 'android';
+          return "android";
         }
-        
+
         // Additional mobile detection
         if (/Mobile|mini|Fennec|Android|iP(ad|od|hone)/.test(userAgent)) {
           // Try to detect based on other indicators
-          if (userAgent.includes('iPhone') || userAgent.includes('iPad')) {
-            return 'ios';
+          if (userAgent.includes("iPhone") || userAgent.includes("iPad")) {
+            return "ios";
           }
-          if (userAgent.includes('Android')) {
-            return 'android';
+          if (userAgent.includes("Android")) {
+            return "android";
           }
         }
-        
-        return 'unknown';
+
+        return "unknown";
       }
 
       function redirect() {
         const device = detectDevice();
-        const autoRedirectEl = document.getElementById('autoRedirect');
-        const manualDownloadEl = document.getElementById('manualDownload');
-        
-        console.log('Detected device:', device);
-        console.log('User agent:', navigator.userAgent);
-        
-        if (device === 'ios') {
+        const autoRedirectEl = document.getElementById("autoRedirect");
+        const manualDownloadEl = document.getElementById("manualDownload");
+
+        console.log("Detected device:", device);
+        console.log("User agent:", navigator.userAgent);
+
+        if (device === "ios") {
           // Redirect to App Store
           setTimeout(() => {
-            window.location.href = 'https://apps.apple.com/us/app/mycollegetix/id6748928832';
+            window.location.href =
+              "https://apps.apple.com/us/app/mycollegetix/id6748928832";
           }, 1500);
-        } else if (device === 'android') {
+        } else if (device === "android") {
           // Redirect to Play Store
           setTimeout(() => {
-            window.location.href = 'https://play.google.com/store/search?q=tiktok&c=apps&hl=en_US';
+            window.location.href =
+              "https://play.google.com/store/search?q=tiktok&c=apps&hl=en_US";
           }, 1500);
         } else {
           // Show manual download options
           setTimeout(() => {
-            autoRedirectEl.style.display = 'none';
-            manualDownloadEl.classList.add('show');
+            autoRedirectEl.style.display = "none";
+            manualDownloadEl.classList.add("show");
           }, 2000);
         }
       }
 
       // Analytics/tracking (optional)
       function trackDownload(platform) {
-        console.log('Download initiated for:', platform);
+        console.log("Download initiated for:", platform);
         // Add analytics tracking here if needed
         // gtag('event', 'download_app', { platform: platform });
       }
 
       // Add click tracking to manual buttons
-      document.getElementById('iosBtn').addEventListener('click', () => {
-        trackDownload('ios');
+      document.getElementById("iosBtn").addEventListener("click", () => {
+        trackDownload("ios");
       });
-      
-      document.getElementById('androidBtn').addEventListener('click', () => {
-        trackDownload('android');
+
+      document.getElementById("androidBtn").addEventListener("click", () => {
+        trackDownload("android");
       });
 
       // Start the redirect process when page loads
-      window.addEventListener('load', redirect);
+      window.addEventListener("load", redirect);
     </script>
   </body>
 </html>
