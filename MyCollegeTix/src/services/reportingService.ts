@@ -18,11 +18,11 @@ interface ContentReport {
   content_id: string;
   reported_by: string;
   reason: string;
-  description?: string;
+  description: string | null;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
-  admin_notes?: string;
-  resolved_at?: string;
+  admin_notes: string | null;
+  resolved_at: string | null;
 }
 
 class ReportingService {

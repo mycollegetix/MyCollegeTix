@@ -62,19 +62,17 @@ export class PushNotificationExamples {
     // Schedule local notification for 1 hour before event
     const reminderTime = new Date(eventDate.getTime() - 60 * 60 * 1000);
     
-    await NotificationService.scheduleLocalNotification(
-      "Event Reminder",
-      `Your event "${eventTitle}" starts in 1 hour!`,
-      {
-        type: 'date',
-        date: reminderTime,
-      },
-      {
-        screen: `/ticket-details/${ticketId}`,
-        ticket_id: ticketId,
-        type: 'reminder'
-      }
-    );
+    // Schedule local notification for 1 hour before event - disabled for now
+    // await NotificationService.scheduleLocalNotification(
+    //   "Event Reminder",
+    //   `Your event "${eventTitle}" starts in 1 hour!`,
+    //   reminderTime,
+    //   {
+    //     screen: `/ticket-details/${ticketId}`,
+    //     ticket_id: ticketId,
+    //     type: 'reminder'
+    //   }
+    // );
   }
 
   // Example 4: Send system notification

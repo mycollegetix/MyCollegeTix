@@ -106,7 +106,7 @@ export default function ProfileScreen() {
       const result = await deleteAccount();
       
       if (result.success) {
-        console.log("✅ Account deleted successfully:", result.summary);
+        console.log("✅ Account deleted successfully");
 
         Alert.alert(
           "Account Deleted",

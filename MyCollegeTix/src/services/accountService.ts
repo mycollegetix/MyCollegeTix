@@ -86,7 +86,7 @@ export class AccountService {
         supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('seller_id', user.id),
         supabase.from('orders').select('*', { count: 'exact', head: true }).or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`),
-        supabase.from('watchlist').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('watchlists').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase.from('conversations').select('*', { count: 'exact', head: true }).or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`)
       ]);
 
@@ -136,7 +136,7 @@ export class AccountService {
         supabase.from('notifications').select('*').eq('user_id', user.id),
         supabase.from('tickets').select('*').eq('seller_id', user.id),
         supabase.from('orders').select('*').or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`),
-        supabase.from('watchlist').select('*').eq('user_id', user.id)
+        supabase.from('watchlists').select('*').eq('user_id', user.id)
       ]);
 
       const exportData = {

@@ -139,7 +139,7 @@ export class ChatService {
             title: notificationTitle,
             message: `${notificationMessage}${ticketContext}`,
             type: "message",
-            related_ticket_id: conversation.ticket_id,
+            related_ticket_id: conversation.ticket_id || undefined,
           },
           {
             conversation_id: conversationId,

@@ -841,6 +841,94 @@ export type Database = {
         };
         Relationships: [];
       };
+      user_violations: {
+        Row: {
+          id: string;
+          user_id: string;
+          conversation_id: string | null;
+          ticket_id: string | null;
+          violation_type: string;
+          content: string | null;
+          reason: string | null;
+          status: string;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          conversation_id?: string | null;
+          ticket_id?: string | null;
+          violation_type: string;
+          content?: string | null;
+          reason?: string | null;
+          status?: string;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          conversation_id?: string | null;
+          ticket_id?: string | null;
+          violation_type?: string;
+          content?: string | null;
+          reason?: string | null;
+          status?: string;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_violations_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_violations_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_violations_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "tickets";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      moderation_logs: {
+        Row: {
+          id: string;
+          content: string | null;
+          reason: string;
+          method: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          content?: string | null;
+          reason: string;
+          method: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          content?: string | null;
+          reason?: string;
+          method?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -857,6 +945,18 @@ export type Database = {
       delete_user: {
         Args: Record<PropertyKey, never>;
         Returns: undefined;
+      };
+      delete_user_completely: {
+        Args: {
+          user_id_to_delete: string;
+        };
+        Returns: {
+          success: boolean;
+          error?: string;
+          user_id?: string;
+          deleted_data?: Json;
+          timestamp?: string;
+        };
       };
       purchase_ticket: {
         Args: {
@@ -940,6 +1040,27 @@ export type Database = {
       admin_check_test: {
         Args: Record<PropertyKey, never>;
         Returns: Json;
+      };
+      create_notification: {
+        Args: {
+          p_user_id: string;
+          p_title: string;
+          p_message: string;
+          p_type: string;
+          p_related_ticket_id?: string;
+          p_related_order_id?: string;
+        };
+        Returns: {
+          id: string;
+          user_id: string;
+          title: string;
+          message: string;
+          type: string;
+          related_ticket_id: string | null;
+          related_order_id: string | null;
+          read: boolean | null;
+          created_at: string;
+        }[];
       };
     };
     Enums: {

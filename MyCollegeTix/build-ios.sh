@@ -2,17 +2,17 @@
 
 echo "🍎 Starting iOS build process..."
 
-# Get current buildNumber and increment it
-CURRENT=$(grep -o '"buildNumber": "[0-9.]*"' app.json | grep -o '[0-9.]*')
+# Get current build number from iOS Info.plist and increment it
+CURRENT=$(grep -A1 '<key>CFBundleVersion</key>' ios/MyCollegeTix/Info.plist | grep '<string>' | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
 # Increment build number (e.g., 1.5 -> 1.6)
 NEW=$(echo "$CURRENT + 0.1" | bc)
 
-echo "📱 Updating buildNumber from $CURRENT to $NEW"
+echo "📱 Updating iOS CFBundleVersion from $CURRENT to $NEW"
 
-# Update the buildNumber in app.json
-sed -i '' "s/\"buildNumber\": \"$CURRENT\"/\"buildNumber\": \"$NEW\"/" app.json
+# Update the CFBundleVersion in iOS Info.plist (more specific pattern)
+sed -i '' "/<key>CFBundleVersion<\/key>/{n;s/<string>$CURRENT<\/string>/<string>$NEW<\/string>/;}" ios/MyCollegeTix/Info.plist
 
-echo "✅ Build number updated successfully"
+echo "✅ iOS build number updated successfully"
 
 # Step 1: Update JS bundle
 echo "📦 Updating JS bundle..."
@@ -38,7 +38,15 @@ pod update --no-repo-update
 
 # Step 4: Archive
 echo "📦 Creating iOS archive..."
-xcodebuild -workspace MyCollegeTix.xcworkspace -scheme MyCollegeTix -configuration Release -destination "generic/platform=iOS" archive -archivePath ./MyCollegeTix.xcarchive
+xcodebuild -workspace MyCollegeTix.xcworkspace -scheme MyCollegeTix -configuration Release -destination "generic/platform=iOS" archive -archivePath ./MyCollegeTix.xcarchive -allowProvisioningUpdates
+
+# Check if archive was created successfully
+if [ -d "./MyCollegeTix.xcarchive" ]; then
+    echo "✅ Archive created successfully!"
+else
+    echo "❌ Archive creation failed!"
+    exit 1
+fi
 
 echo "🎉 iOS build complete!"
 echo ""

@@ -8,5 +8,9 @@
   "typescript.suggest.autoImports": false,
   "[typescript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
-  }
+  },
+  "files.associations": {
+    "tsconfig.json": "jsonc"
+  },
+  "typescript.validate.enable": true
 }

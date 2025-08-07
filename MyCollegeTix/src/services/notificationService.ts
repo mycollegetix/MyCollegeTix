@@ -422,7 +422,7 @@ export class NotificationService {
         session = freshSession;
       }
 
-      // Use existing database function to bypass RLS issues
+      // Use create_notification RPC function to bypass RLS
       const { data, error } = await supabase.rpc('create_notification', {
         p_user_id: userId,
         p_title: notification.title,
@@ -434,18 +434,25 @@ export class NotificationService {
 
       if (error) throw error;
 
+      // RPC function returns array, get first item
+      const notificationData = data?.[0];
+      
+      if (!notificationData) {
+        throw new Error("Failed to create notification");
+      }
+
       // Then send push notification
       await this.sendPushNotification(
         [userId],
         notification.title,
         notification.message,
         {
-          notification_id: data.id,
+          notification_id: notificationData.id,
           ...pushData,
         }
       );
 
-      return { data, error: null };
+      return { data: notificationData, error: null };
     } catch (error) {
       console.error("Error creating and sending notification:", error);
       return { data: null, error };

@@ -338,7 +338,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                       content: newMessage.content,
                       sender_id: newMessage.sender_id,
                       created_at: newMessage.created_at,
-                      sender: sender
+                      conversation_id: newMessage.conversation_id,
+                      edited_at: null,
+                      message_type: 'text',
+                      read_at: null,
+                      read_by_recipient: null
                     }
                   };
                 }

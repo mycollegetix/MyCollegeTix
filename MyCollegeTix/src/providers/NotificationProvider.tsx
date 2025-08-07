@@ -39,6 +39,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -275,16 +277,9 @@ export function NotificationProvider({
         // Create in-app notification record
         try {
           await NotificationService.createNotification({
-            userId: user.id,
             title: notificationTitle,
-            body: notificationBody,
-            type: 'watchlist_update',
-            data: {
-              ...notificationData,
-              updateType: update.type,
-              oldValue: update.oldValue,
-              newValue: update.newValue,
-            },
+            message: notificationBody,
+            type: 'system',
           });
           
           // Refresh notifications to show the new one

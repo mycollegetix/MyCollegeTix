@@ -24,7 +24,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mycollegetix.app",
-      "buildNumber": "1.5",
+      "buildNumber": "2.0",
       "requireFullScreen": false,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload ticket images",

@@ -1,6 +1,0 @@
-module Pods_MyCollegeTix {
-  umbrella header "Pods-MyCollegeTix-umbrella.h"
-
-  export *
-  module * { export * }
-}
