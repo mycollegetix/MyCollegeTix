@@ -317,218 +317,221 @@ export default function ProfileScreen() {
           <View style={styles.contentSection}>
             {activeSection === "profile" ? (
               <View style={styles.profileContent}>
-                <Text style={[styles.sectionTitle, { color: theme.primary }]}>
-                  Account Information
-                </Text>
-                <Text style={styles.sectionSubtitle}>
-                  Your personal account details
-                </Text>
+                {/* Account Information Section */}
+                <View style={styles.premiumSection}>
+                  <View style={styles.sectionHeader}>
+                    <View style={[styles.sectionIconContainer, { backgroundColor: `${theme.primary}12` }]}>
+                      <Ionicons name="person-circle" size={24} color={theme.primary} />
+                    </View>
+                    <View style={styles.sectionHeaderContent}>
+                      <Text style={[styles.premiumSectionTitle, { color: theme.primary }]}>
+                        Account Information
+                      </Text>
+                      <Text style={styles.premiumSectionSubtitle}>
+                        Your personal account details
+                      </Text>
+                    </View>
+                  </View>
 
-                <View style={styles.infoGrid}>
-                  <InfoCard
-                    icon="person-outline"
-                    label="Full Name"
-                    value={profile?.full_name || "Not set"}
-                  />
-                  <InfoCard
-                    icon="mail-outline"
-                    label="Email Address"
-                    value={user?.email || ""}
-                  />
-                  <InfoCard
-                    icon="school-outline"
-                    label="College"
-                    value={profile?.college?.name || "No college assigned"}
-                  />
-                  <InfoCard
-                    icon="calendar-outline"
-                    label="Member Since"
-                    value={
-                      user?.created_at
-                        ? new Date(user.created_at).toLocaleDateString()
-                        : "Unknown"
-                    }
-                  />
-                  {isAdmin && (
-                    <InfoCard
-                      icon="shield-checkmark-outline"
-                      label="Account Type"
-                      value="Administrator"
-                    />
-                  )}
+                  <View style={styles.infoCardsContainer}>
+                    <View style={styles.premiumInfoCard}>
+                      <View style={[styles.infoCardIcon, { backgroundColor: `${theme.primary}08` }]}>
+                        <Ionicons name="person-outline" size={20} color={theme.primary} />
+                      </View>
+                      <View style={styles.infoCardContent}>
+                        <Text style={styles.infoCardLabel}>Full Name</Text>
+                        <Text style={[styles.infoCardValue, { color: theme.primary }]}>
+                          {profile?.full_name || "Not set"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.premiumInfoCard}>
+                      <View style={[styles.infoCardIcon, { backgroundColor: `${theme.primary}08` }]}>
+                        <Ionicons name="mail-outline" size={20} color={theme.primary} />
+                      </View>
+                      <View style={styles.infoCardContent}>
+                        <Text style={styles.infoCardLabel}>Email Address</Text>
+                        <Text style={[styles.infoCardValue, { color: theme.primary }]}>
+                          {user?.email || ""}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.premiumInfoCard}>
+                      <View style={[styles.infoCardIcon, { backgroundColor: `${theme.primary}08` }]}>
+                        <Ionicons name="school-outline" size={20} color={theme.primary} />
+                      </View>
+                      <View style={styles.infoCardContent}>
+                        <Text style={styles.infoCardLabel}>College</Text>
+                        <Text style={[styles.infoCardValue, { color: theme.primary }]}>
+                          {profile?.college?.name || "No college assigned"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.premiumInfoCard}>
+                      <View style={[styles.infoCardIcon, { backgroundColor: `${theme.primary}08` }]}>
+                        <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+                      </View>
+                      <View style={styles.infoCardContent}>
+                        <Text style={styles.infoCardLabel}>Member Since</Text>
+                        <Text style={[styles.infoCardValue, { color: theme.primary }]}>
+                          {user?.created_at ? new Date(user.created_at).toLocaleDateString() : "Unknown"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {isAdmin && (
+                      <View style={styles.premiumInfoCard}>
+                        <View style={[styles.infoCardIcon, { backgroundColor: `${theme.secondary}08` }]}>
+                          <Ionicons name="shield-checkmark-outline" size={20} color={theme.secondary} />
+                        </View>
+                        <View style={styles.infoCardContent}>
+                          <Text style={styles.infoCardLabel}>Account Type</Text>
+                          <Text style={[styles.infoCardValue, { color: theme.secondary }]}>
+                            Administrator
+                          </Text>
+                        </View>
+                        <View style={[styles.infoCardBadge, { backgroundColor: '#10b98112' }]}>
+                          <Text style={[styles.badgeText, { color: '#10b981' }]}>ADMIN</Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
                 </View>
 
-                {/* Quick Actions */}
-                <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: theme.primary }]}>
-                    Quick Actions
-                  </Text>
-                  <Text style={styles.sectionSubtitle}>
-                    Manage your account preferences
-                  </Text>
+                {/* Quick Actions Section */}
+                <View style={styles.premiumSection}>
+                  <View style={styles.sectionHeader}>
+                    <View style={[styles.sectionIconContainer, { backgroundColor: '#06b6d412' }]}>
+                      <Ionicons name="flash" size={24} color="#06b6d4" />
+                    </View>
+                    <View style={styles.sectionHeaderContent}>
+                      <Text style={[styles.premiumSectionTitle, { color: '#06b6d4' }]}>
+                        Quick Actions
+                      </Text>
+                      <Text style={styles.premiumSectionSubtitle}>
+                        Manage your account preferences
+                      </Text>
+                    </View>
+                  </View>
 
-                  <View style={styles.quickActionsGrid}>
+                  <View style={styles.infoCardsContainer}>
                     <TouchableOpacity
-                      style={styles.quickActionCard}
+                      style={styles.premiumQuickActionCard}
                       onPress={() => (router.push as any)("/notifications")}
                     >
-                      <View
-                        style={[
-                          styles.quickActionIcon,
-                          { backgroundColor: `${theme.primary}15` },
-                        ]}
-                      >
+                      <View style={[styles.quickActionIcon, { backgroundColor: `${theme.primary}15` }]}>
                         <NotificationBadge
                           iconName="notifications-outline"
                           iconSize={24}
                           iconColor={theme.primary}
                         />
                       </View>
-                      <Text
-                        style={[
-                          styles.quickActionText,
-                          { color: theme.primary },
-                        ]}
-                      >
-                        Notifications
-                      </Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={16}
-                        color="#6b7280"
-                      />
+                      <View style={styles.quickActionContent}>
+                        <Text style={[styles.premiumQuickActionText, { color: theme.primary }]}>
+                          Notifications
+                        </Text>
+                        <Text style={styles.quickActionDescription}>
+                          Manage your notification preferences
+                        </Text>
+                      </View>
+                      <View style={styles.quickActionArrow}>
+                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                      </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.quickActionCard}
+                      style={styles.premiumQuickActionCard}
                       onPress={() => (router.push as any)("/support/")}
                     >
-                      <View
-                        style={[
-                          styles.quickActionIcon,
-                          { backgroundColor: `${theme.primary}15` },
-                        ]}
-                      >
-                        <Ionicons
-                          name="help-circle-outline"
-                          size={24}
-                          color={theme.primary}
-                        />
+                      <View style={[styles.quickActionIcon, { backgroundColor: `${theme.primary}15` }]}>
+                        <Ionicons name="help-circle-outline" size={24} color={theme.primary} />
                       </View>
-                      <Text
-                        style={[
-                          styles.quickActionText,
-                          { color: theme.primary },
-                        ]}
-                      >
-                        Help & Support
-                      </Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={16}
-                        color="#6b7280"
-                      />
+                      <View style={styles.quickActionContent}>
+                        <Text style={[styles.premiumQuickActionText, { color: theme.primary }]}>
+                          Help & Support
+                        </Text>
+                        <Text style={styles.quickActionDescription}>
+                          Get assistance and contact support
+                        </Text>
+                      </View>
+                      <View style={styles.quickActionArrow}>
+                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                      </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.quickActionCard}
+                      style={styles.premiumQuickActionCard}
                       onPress={() => (router.push as any)("/legal/terms")}
                     >
-                      <View
-                        style={[
-                          styles.quickActionIcon,
-                          { backgroundColor: `${theme.primary}15` },
-                        ]}
-                      >
-                        <Ionicons
-                          name="document-text-outline"
-                          size={24}
-                          color={theme.primary}
-                        />
+                      <View style={[styles.quickActionIcon, { backgroundColor: `${theme.primary}15` }]}>
+                        <Ionicons name="document-text-outline" size={24} color={theme.primary} />
                       </View>
-                      <Text
-                        style={[
-                          styles.quickActionText,
-                          { color: theme.primary },
-                        ]}
-                      >
-                        Terms of Service
-                      </Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={16}
-                        color="#6b7280"
-                      />
+                      <View style={styles.quickActionContent}>
+                        <Text style={[styles.premiumQuickActionText, { color: theme.primary }]}>
+                          Terms of Service
+                        </Text>
+                        <Text style={styles.quickActionDescription}>
+                          Review our terms and conditions
+                        </Text>
+                      </View>
+                      <View style={styles.quickActionArrow}>
+                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                      </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.quickActionCard}
+                      style={styles.premiumQuickActionCard}
                       onPress={() => (router.push as any)("/legal/privacy")}
                     >
-                      <View
-                        style={[
-                          styles.quickActionIcon,
-                          { backgroundColor: `${theme.primary}15` },
-                        ]}
-                      >
-                        <Ionicons
-                          name="shield-checkmark-outline"
-                          size={24}
-                          color={theme.primary}
-                        />
+                      <View style={[styles.quickActionIcon, { backgroundColor: `${theme.primary}15` }]}>
+                        <Ionicons name="shield-checkmark-outline" size={24} color={theme.primary} />
                       </View>
-                      <Text
-                        style={[
-                          styles.quickActionText,
-                          { color: theme.primary },
-                        ]}
-                      >
-                        Privacy Policy
-                      </Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={16}
-                        color="#6b7280"
-                      />
+                      <View style={styles.quickActionContent}>
+                        <Text style={[styles.premiumQuickActionText, { color: theme.primary }]}>
+                          Privacy Policy
+                        </Text>
+                        <Text style={styles.quickActionDescription}>
+                          Learn how we protect your data
+                        </Text>
+                      </View>
+                      <View style={styles.quickActionArrow}>
+                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                      </View>
                     </TouchableOpacity>
 
                     {/* Admin Panel Button - Only show if user is admin */}
                     {isAdmin && (
                       <TouchableOpacity
                         style={[
-                          styles.quickActionCard,
+                          styles.premiumQuickActionCard,
+                          styles.adminQuickActionCard,
                           {
-                            backgroundColor: `${theme.primary}10`,
-                            borderColor: theme.secondary,
+                            backgroundColor: `${theme.secondary}08`,
+                            borderColor: `${theme.secondary}30`,
                           },
                         ]}
                         onPress={() => (router.push as any)("/(admin)/")}
                       >
-                        <View
-                          style={[
-                            styles.quickActionIcon,
-                            { backgroundColor: `${theme.secondary}20` },
-                          ]}
-                        >
-                          <Ionicons
-                            name="settings"
-                            size={24}
-                            color={theme.secondary}
-                          />
+                        <View style={[styles.quickActionIcon, { backgroundColor: `${theme.secondary}20` }]}>
+                          <Ionicons name="settings" size={24} color={theme.secondary} />
                         </View>
-                        <Text
-                          style={[
-                            styles.quickActionText,
-                            { color: theme.secondary },
-                          ]}
-                        >
-                          Admin Panel
-                        </Text>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={16}
-                          color={theme.secondary}
-                        />
+                        <View style={styles.quickActionContent}>
+                          <Text style={[styles.premiumQuickActionText, { color: theme.secondary }]}>
+                            Admin Panel
+                          </Text>
+                          <Text style={[styles.quickActionDescription, { color: `${theme.secondary}CC` }]}>
+                            Access administrative features
+                          </Text>
+                        </View>
+                        <View style={[styles.infoCardBadge, { backgroundColor: `${theme.secondary}15` }]}>
+                          <Text style={[styles.badgeText, { color: theme.secondary }]}>ADMIN</Text>
+                        </View>
+                        <View style={styles.quickActionArrow}>
+                          <Ionicons name="chevron-forward" size={18} color={theme.secondary} />
+                        </View>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -791,7 +794,7 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.modalWarning}>
-                <Text style={styles.warningText}>
+                <Text style={styles.modalWarningText}>
                   ⚠️ Deleting your account will permanently remove all your data, including:
                 </Text>
                 {dataSummary && (
@@ -804,7 +807,7 @@ export default function ProfileScreen() {
                     <Text style={styles.dataSummaryItem}>• {dataSummary.notifications || 0} notifications</Text>
                   </View>
                 )}
-                <Text style={styles.warningText}>
+                <Text style={styles.modalWarningText}>
                   This action is irreversible.
                 </Text>
               </View>
@@ -1418,6 +1421,45 @@ const styles = StyleSheet.create({
     borderTopColor: "white",
   },
 
+  // Premium Quick Action Card Styles
+  premiumQuickActionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    gap: 16,
+  },
+  quickActionContent: {
+    flex: 1,
+  },
+  premiumQuickActionText: {
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    marginBottom: 2,
+  },
+  quickActionDescription: {
+    fontSize: 13,
+    color: "#64748b",
+    lineHeight: 17,
+  },
+  quickActionArrow: {
+    marginLeft: 8,
+  },
+  adminQuickActionCard: {
+    borderWidth: 1.5,
+    shadowColor: "#06b6d4",
+    shadowOpacity: 0.08,
+  },
+
   // Legacy styles (keeping for compatibility)
   formCard: {
     backgroundColor: "#f8fafc",
@@ -1549,55 +1591,77 @@ const styles = StyleSheet.create({
   },
   modal: {
     backgroundColor: "white",
-    borderRadius: 20,
-    padding: 30,
+    borderRadius: 24,
+    padding: 32,
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 420,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.15,
+    shadowRadius: 32,
+    elevation: 12,
   },
   modalHeader: {
     alignItems: "center",
     marginBottom: 24,
   },
   modalIcon: {
-    width: 60,
-    height: 60,
+    width: 70,
+    height: 70,
     backgroundColor: "#fef2f2",
-    borderRadius: 30,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+    marginBottom: 20,
+    shadowColor: "#dc2626",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 22,
+    fontWeight: "800",
     marginBottom: 8,
+    letterSpacing: -0.3,
   },
   modalSubtitle: {
-    fontSize: 14,
-    color: "#6b7280",
+    fontSize: 15,
+    color: "#64748b",
+    fontWeight: "500",
+    lineHeight: 20,
   },
   modalWarning: {
     backgroundColor: "#fef2f2",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#fecaca",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 28,
+    shadowColor: "#dc2626",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  warningText: {
-    fontSize: 14,
+  modalWarningText: {
+    fontSize: 15,
     color: "#dc2626",
     textAlign: "center",
+    fontWeight: "600",
+    lineHeight: 21,
   },
   dataSummary: {
     marginVertical: 12,
     paddingVertical: 8,
   },
   dataSummaryItem: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#dc2626",
     textAlign: "center",
-    marginVertical: 2,
+    marginVertical: 3,
+    fontWeight: "500",
+    letterSpacing: 0.2,
   },
   modalActions: {
     flexDirection: "row",
@@ -1605,26 +1669,38 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 16,
-    backgroundColor: "#f3f4f6",
-    borderRadius: 12,
+    paddingVertical: 18,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 14,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: "700",
+    color: "#475569",
+    letterSpacing: -0.1,
   },
   confirmDeleteButton: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 18,
     backgroundColor: "#dc2626",
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: "center",
+    shadowColor: "#dc2626",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   confirmDeleteText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "white",
+    letterSpacing: -0.1,
   },
 });
