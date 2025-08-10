@@ -86,10 +86,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
 
       if (event === "SIGNED_IN" && session?.user) {
-        // Small delay to ensure the profile exists
-        setTimeout(() => {
-          loadUserProfile(session.user.id);
-        }, 1000);
+        // Load profile immediately without delay to improve performance
+        loadUserProfile(session.user.id);
       } else if (event === "SIGNED_OUT") {
         setProfile(null);
       }
@@ -123,24 +121,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (profileError) {
         console.error("❌ Profile fetch error:", profileError.message);
+        console.error("❌ Full error details:", profileError);
+        // Don't return early, let the auth system continue
+      }
+
+      if (!profileData && !profileError) {
+        console.log("❌ No profile found for user - this may be expected for new users");
         return;
       }
 
-      if (!profileData) {
-        console.log("❌ No profile found for user");
-        return;
+      if (profileData) {
+        console.log("✅ Profile loaded:", profileData.email);
+
+        const fullProfile: ProfileWithCollege = {
+          ...profileData,
+          college: profileData.colleges || null,
+        };
+
+        setProfile(fullProfile);
       }
-
-      console.log("✅ Profile loaded:", profileData.email);
-
-      const fullProfile: ProfileWithCollege = {
-        ...profileData,
-        college: profileData.colleges || null,
-      };
-
-      setProfile(fullProfile);
     } catch (error) {
       console.error("💥 Unexpected error loading profile:", error);
+      // Continue operation rather than breaking auth
     } finally {
       setIsFetchingProfile(false);
     }
@@ -148,12 +150,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("🔐 Attempting sign in for:", email);
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
+      if (error) {
+        console.error("❌ Sign in failed:", error.message);
+        console.error("❌ Full error:", error);
+      } else {
+        console.log("✅ Sign in successful for:", data.user?.email);
+      }
+      
       return { error };
     } catch (error) {
+      console.error("💥 Unexpected sign in error:", error);
       return { error };
     }
   };
@@ -206,7 +218,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           "✅ User signed in immediately - trigger should have created profile"
         );
         const userId = data.user.id;
-        setTimeout(() => loadUserProfile(userId), 1500);
+        // Load profile immediately without delay
+        loadUserProfile(userId);
       } else {
         console.log(
           "📧 User created, needs email confirmation - profile created by trigger"

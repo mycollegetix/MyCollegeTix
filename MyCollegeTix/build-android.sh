@@ -15,10 +15,10 @@ echo "✅ Version updated successfully"
 
 # Clean and build
 echo "🧹 Cleaning previous build..."
-./android/gradlew -p android clean
+cd android && ./gradlew clean && cd ..
 
 echo "📦 Building release bundle..."
-./android/gradlew -p android bundleRelease
+cd android && ./gradlew bundleRelease && cd ..
 
 echo "🎉 Build complete! Your .aab file is at:"
 echo "   android/app/build/outputs/bundle/release/app-release.aab"

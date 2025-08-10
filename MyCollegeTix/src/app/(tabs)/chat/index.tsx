@@ -10,6 +10,7 @@ import {
   RefreshControl,
   StatusBar,
   SectionList,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -386,6 +387,9 @@ export default function ChatListScreen() {
             renderSectionHeader={renderSectionHeader}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            keyboardShouldPersistTaps="handled"
+            removeClippedSubviews={Platform.OS === 'android'}
             refreshControl={
               <RefreshControl
                 refreshing={loading}

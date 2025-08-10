@@ -12,6 +12,7 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Platform,
 } from "react-native";
 import { TicketCard } from "@/src/components/TicketCard";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -375,6 +376,9 @@ export default function BrowseScreen() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        keyboardDismissMode={Platform.OS === 'android' ? 'on-drag' : 'interactive'}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -530,6 +534,9 @@ export default function BrowseScreen() {
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
+              removeClippedSubviews={Platform.OS === 'android'}
+              keyboardShouldPersistTaps="handled"
               onEndReached={loadMore}
               onEndReachedThreshold={0.5}
               ListFooterComponent={renderFooter}

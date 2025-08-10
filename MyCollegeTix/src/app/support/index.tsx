@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/providers/ThemeProvider";
+import Constants from "expo-constants";
 
 const { width, height } = Dimensions.get("window");
 
@@ -40,25 +41,74 @@ interface ContactMethod {
 
 const faqData: FAQItem[] = [
   {
+    id: "1",
+    question: "What is MyCollegeTix?",
+    answer:
+      "MyCollegeTix is an exclusive college ticket marketplace that connects students within their college communities. We provide a platform for students to buy and sell tickets for sporting events like football, basketball, and hockey with a simple, clean interface built specifically for students.",
+    category: "general",
+  },
+  {
+    id: "2",
+    question: "How do I verify my college email?",
+    answer:
+      "You must sign up with a valid .edu email address from your college. Only supported college emails are permitted. We verify your student status through this email to ensure our platform remains exclusively for college students.",
+    category: "account",
+  },
+  {
     id: "3",
+    question: "How does the platform work?",
+    answer:
+      "After verifying your college email, you can list tickets for sporting events or browse available tickets from fellow students. Use our built-in messaging system to communicate with other students and coordinate meetups. All payment and transfer details are handled directly between students.",
+    category: "general",
+  },
+  {
+    id: "4",
     question: "How do I sell my tickets?",
     answer:
-      "Go to the 'Sell' tab, fill out the ticket details including event, date, seat information, and your asking price. Once listed, your ticket will be visible to other students. You'll receive payment once the ticket is sold and the transaction is completed.",
+      "Go to the 'Sell' tab and list your tickets with event details, date, seat information, and price. Your listing will be visible to other verified students from your college. You can even post last-minute ticket listings. Use the messaging system to coordinate with interested buyers.",
     category: "selling",
   },
   {
     id: "5",
-    question: "How do I verify my student status?",
+    question: "Are there any fees?",
     answer:
-      "During registration, you'll need to use your official college email address. We'll send a verification link to confirm your student status. Only verified students can buy and sell on the platform.",
-    category: "account",
+      "MyCollegeTix acts as a connection service - we facilitate the platform for students to find each other, but we're not involved in the actual transactions. Students handle all payment and transfer details independently between themselves.",
+    category: "general",
+  },
+  {
+    id: "6",
+    question: "How do I communicate with other students?",
+    answer:
+      "We provide an instant messaging system within the app for coordination between buyers and sellers. This allows you to discuss details, arrange meetup locations, and coordinate payment directly with fellow students from your college.",
+    category: "buying",
+  },
+  {
+    id: "7",
+    question: "What types of events can I find tickets for?",
+    answer:
+      "MyCollegeTix supports tickets for various college sports events including football, basketball, hockey, and other sporting events. You can find both advance listings and last-minute ticket postings from fellow students.",
+    category: "general",
   },
   {
     id: "8",
-    question: "What if I can't attend after buying?",
+    question: "How do I arrange payment and ticket transfer?",
     answer:
-      "You can resell your ticket on the platform. Just go to your Orders tab, find the ticket, and select 'Resell'. We'll help you list it at a fair market price. Remember that ticket resale must comply with your college's policies.",
-    category: "selling",
+      "Payment and ticket transfer are arranged directly between students. Use our messaging system to coordinate meetup details, payment method, and ticket exchange. MyCollegeTix provides the platform for connection but doesn't handle the transaction itself.",
+    category: "buying",
+  },
+  {
+    id: "9",
+    question: "Is MyCollegeTix available on mobile and web?",
+    answer:
+      "Yes! MyCollegeTix is available as both a mobile app and web platform. Download our mobile app for the best experience, or access the platform through our website at mycollegetix.com.",
+    category: "general",
+  },
+  {
+    id: "10",
+    question: "Can I browse real-time ticket listings?",
+    answer:
+      "Absolutely! Our platform provides real-time ticket listings from students in your college community. You can see the latest available tickets and even last-minute postings as they become available.",
+    category: "buying",
   },
 ];
 
@@ -112,8 +162,16 @@ export default function HelpAndSupportScreen() {
     }
 
     const email = "support@mycollegetix.com";
-    const subject = contactForm.subject;
-    const body = contactForm.message;
+    const subject = `${contactForm.subject} - MyCollegeTix App`;
+    
+    // Automatically include version information
+    const appVersion = Constants.expoConfig?.version || "1.1.0";
+    const buildNumber = Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode?.toString() || "10";
+    const platform = Platform.OS === "ios" ? "iOS" : "Android";
+    
+    const systemInfo = `\n\n--- System Information ---\nApp Version: ${appVersion}\nBuild Number: ${buildNumber}\nPlatform: ${platform}\nPriority: ${contactForm.priority}\n---`;
+    
+    const body = contactForm.message + systemInfo;
     const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(
       subject
     )}&body=${encodeURIComponent(body)}`;
@@ -331,42 +389,25 @@ export default function HelpAndSupportScreen() {
               Additional Resources
             </Text>
 
-            <View style={styles.resourcesGrid}>
-              <TouchableOpacity
-                style={styles.resourceCard}
-                onPress={() => Linking.openURL("https://college.edu")}
-              >
+            <TouchableOpacity
+              style={styles.websiteCard}
+              onPress={() => Linking.openURL("https://mycollegetix.com")}
+            >
+              <View style={[styles.websiteIconContainer, { backgroundColor: `${theme.primary}15` }]}>
                 <Ionicons
-                  name="school-outline"
-                  size={24}
+                  name="globe-outline"
+                  size={32}
                   color={theme.primary}
                 />
-                <Text style={styles.resourceTitle}>College Policies</Text>
-                <Text style={styles.resourceDescription}>
-                  Official university ticket policies
+              </View>
+              <View style={styles.websiteInfo}>
+                <Text style={[styles.websiteTitle, { color: theme.primary }]}>Visit MyCollegeTix.com</Text>
+                <Text style={styles.websiteDescription}>
+                  Access the full website for additional resources, detailed policies, and more information about our platform.
                 </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.resourceCard}
-                onPress={() =>
-                  Alert.alert(
-                    "Safety Tips",
-                    "Always meet in public campus locations and verify student IDs when exchanging tickets."
-                  )
-                }
-              >
-                <Ionicons
-                  name="shield-checkmark-outline"
-                  size={24}
-                  color={theme.primary}
-                />
-                <Text style={styles.resourceTitle}>Safety Tips</Text>
-                <Text style={styles.resourceDescription}>
-                  Best practices for safe transactions
-                </Text>
-              </TouchableOpacity>
-            </View>
+              </View>
+              <Ionicons name="open-outline" size={20} color="#6b7280" />
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -717,31 +758,40 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     textAlign: "center",
   },
-  resourcesGrid: {
+  websiteCard: {
     flexDirection: "row",
-    gap: 12,
-  },
-  resourceCard: {
-    flex: 1,
+    alignItems: "center",
     backgroundColor: "white",
     borderRadius: 16,
-    padding: 16,
+    padding: 20,
     borderWidth: 1,
     borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  websiteIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
   },
-  resourceTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1e293b",
-    marginTop: 8,
+  websiteInfo: {
+    flex: 1,
+  },
+  websiteTitle: {
+    fontSize: 18,
+    fontWeight: "700",
     marginBottom: 4,
-    textAlign: "center",
   },
-  resourceDescription: {
-    fontSize: 12,
+  websiteDescription: {
+    fontSize: 14,
     color: "#6b7280",
-    textAlign: "center",
+    lineHeight: 20,
   },
   modalOverlay: {
     position: "absolute",

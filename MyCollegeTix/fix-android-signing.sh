@@ -2,21 +2,31 @@
 
 echo "🔧 Fixing Android build while preserving keystore..."
 
-# Back up the keystore first
-echo "💾 Backing up keystore..."
-cp android/app/release-key.keystore android/app/release-key.keystore.bak
-
-# Clean prebuild to remove billing permission from manifest
+# Clean prebuild to update manifest and apply signing plugin
 echo "🧹 Clean prebuild to update manifest..."
 npx expo prebuild --platform android --clean
 
-# Restore the keystore
-echo "🔄 Restoring keystore..."
-cp android/app/release-key.keystore.bak android/app/release-key.keystore
+# Ensure android/app directory exists and restore keystore from Documents
+echo "📁 Creating android/app directory..."
+mkdir -p android/app
+
+echo "🔄 Restoring keystore from Documents..."
+cp ~/Documents/MyCollegeTix-KEYSTORE-BACKUP.keystore android/app/release-key.keystore
+
+# Verify that the Expo plugin applied the signing configuration correctly
+echo "🔒 Verifying release signing configuration..."
+if grep -A 15 "signingConfigs {" android/app/build.gradle | grep -A 5 "release {" | grep -q "storeFile file('release-key.keystore')"; then
+    echo "✅ Release signing config applied by Expo plugin"
+else
+    echo "❌ Expo plugin failed to apply signing config"
+    echo "Please check plugins/android-signing.js"
+    exit 1
+fi
 
 # Clean gradle cache
 echo "🧹 Cleaning gradle cache..."
-./android/gradlew -p android clean
+cd android && ./gradlew clean && cd ..
 
 echo "✅ Android build fixed! Your keystore is preserved."
+echo "🔒 Release signing configuration verified."
 echo "📦 Now run: ./build-android.sh"

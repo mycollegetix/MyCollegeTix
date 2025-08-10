@@ -22,6 +22,7 @@ import { supabase } from "@/src/lib/supabase";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 import { LegalAgreementStatus } from "@/src/components/LegalAgreementStatus";
 import { AccountService } from "@/src/services/accountService";
+import Constants from "expo-constants";
 
 const { width, height } = Dimensions.get("window");
 
@@ -211,6 +212,8 @@ export default function ProfileScreen() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          keyboardDismissMode={Platform.OS === 'android' ? 'on-drag' : 'interactive'}
           keyboardShouldPersistTaps="handled"
         >
           {/* Header Section */}
@@ -536,100 +539,219 @@ export default function ProfileScreen() {
               </View>
             ) : (
               <View style={styles.settingsContent}>
-                <Text style={[styles.sectionTitle, { color: theme.primary }]}>
-                  Security Settings
-                </Text>
-                <Text style={styles.sectionSubtitle}>
-                  Manage your account security and privacy
-                </Text>
-
-                {/* Password Reset Card */}
-                <View style={styles.formCard}>
-                  <Text style={[styles.formTitle, { color: theme.primary }]}>
-                    Reset Password
-                  </Text>
-                  <Text style={styles.formSubtitle}>
-                    Send a secure password reset link to your email address
-                  </Text>
-
-                  <View
-                    style={[
-                      styles.resetInfoBox,
-                      {
-                        backgroundColor: `${theme.primary}10`,
-                        borderColor: `${theme.primary}40`,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name="mail-outline"
-                      size={24}
-                      color={theme.primary}
-                    />
-                    <View style={styles.resetInfoContent}>
-                      <Text
-                        style={[
-                          styles.resetInfoTitle,
-                          { color: theme.primary },
-                        ]}
-                      >
-                        Email Reset
+                {/* Security Settings Section */}
+                <View style={styles.premiumSection}>
+                  <View style={styles.sectionHeader}>
+                    <View style={[styles.sectionIconContainer, { backgroundColor: `${theme.primary}12` }]}>
+                      <Ionicons name="shield-checkmark" size={24} color={theme.primary} />
+                    </View>
+                    <View style={styles.sectionHeaderContent}>
+                      <Text style={[styles.premiumSectionTitle, { color: theme.primary }]}>
+                        Security & Privacy
                       </Text>
-                      <Text style={styles.resetInfoText}>
-                        We'll send a secure link to{" "}
-                        {user?.email || "your email"} to reset your password
-                        safely.
+                      <Text style={styles.premiumSectionSubtitle}>
+                        Manage your account security settings
                       </Text>
                     </View>
                   </View>
 
-                  <TouchableOpacity
-                    style={[
-                      styles.resetButton,
-                      isLoading && styles.loadingButton,
-                    ]}
-                    onPress={handlePasswordReset}
-                    disabled={isLoading}
-                  >
-                    <LinearGradient
-                      colors={[theme.primary, `${theme.primary}CC`]}
-                      style={styles.buttonGradient}
-                    >
-                      <View style={styles.buttonContent}>
-                        <Ionicons name="mail-outline" size={20} color="white" />
-                        <Text style={styles.buttonText}>
-                          {isLoading
-                            ? "Sending Reset Link..."
-                            : "Send Password Reset Email"}
+                  {/* Password Reset Card */}
+                  <View style={styles.premiumCard}>
+                    <View style={styles.premiumCardHeader}>
+                      <View style={[styles.cardIconContainer, { backgroundColor: `${theme.primary}08` }]}>
+                        <Ionicons name="key-outline" size={22} color={theme.primary} />
+                      </View>
+                      <View style={styles.cardHeaderContent}>
+                        <Text style={[styles.cardTitle, { color: theme.primary }]}>
+                          Password Reset
+                        </Text>
+                        <Text style={styles.cardSubtitle}>
+                          Send a secure password reset link via email
                         </Text>
                       </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                      <View style={[styles.statusIndicator, { backgroundColor: `${theme.primary}20` }]}>
+                        <View style={[styles.statusDot, { backgroundColor: theme.primary }]} />
+                      </View>
+                    </View>
+
+                    <View style={styles.cardContent}>
+                      <View style={[styles.infoPanel, { backgroundColor: `${theme.primary}06`, borderColor: `${theme.primary}20` }]}>
+                        <View style={[styles.infoPanelIcon, { backgroundColor: `${theme.primary}15` }]}>
+                          <Ionicons name="mail" size={18} color={theme.primary} />
+                        </View>
+                        <View style={styles.infoPanelContent}>
+                          <Text style={[styles.infoPanelTitle, { color: theme.primary }]}>
+                            Secure Email Reset
+                          </Text>
+                          <Text style={styles.infoPanelDescription}>
+                            We'll send an encrypted reset link to {user?.email || "your email address"} for secure password recovery.
+                          </Text>
+                        </View>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.premiumButton,
+                          isLoading && styles.premiumButtonLoading,
+                          { opacity: isLoading ? 0.7 : 1 }
+                        ]}
+                        onPress={handlePasswordReset}
+                        disabled={isLoading}
+                      >
+                        <LinearGradient
+                          colors={[theme.primary, `${theme.primary}E6`]}
+                          style={styles.premiumButtonGradient}
+                        >
+                          <View style={styles.premiumButtonContent}>
+                            {isLoading ? (
+                              <View style={styles.loadingContainer}>
+                                <View style={styles.loadingSpinner} />
+                                <Text style={styles.premiumButtonText}>Sending Reset Link...</Text>
+                              </View>
+                            ) : (
+                              <>
+                                <Ionicons name="mail-outline" size={18} color="white" />
+                                <Text style={styles.premiumButtonText}>Send Password Reset Email</Text>
+                                <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
+                              </>
+                            )}
+                          </View>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
 
-                {/* Danger Zone */}
-                <View style={styles.dangerZone}>
-                  <Text style={styles.dangerTitle}>Danger Zone</Text>
-                  <Text style={styles.dangerSubtitle}>
-                    These actions cannot be undone
-                  </Text>
+                {/* App Information Section */}
+                <View style={styles.premiumSection}>
+                  <View style={styles.sectionHeader}>
+                    <View style={[styles.sectionIconContainer, { backgroundColor: '#06b6d412' }]}>
+                      <Ionicons name="information-circle" size={24} color="#06b6d4" />
+                    </View>
+                    <View style={styles.sectionHeaderContent}>
+                      <Text style={[styles.premiumSectionTitle, { color: '#06b6d4' }]}>
+                        Application Details
+                      </Text>
+                      <Text style={styles.premiumSectionSubtitle}>
+                        Version and build information
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.infoCardsContainer}>
+                    <View style={styles.premiumInfoCard}>
+                      <View style={[styles.infoCardIcon, { backgroundColor: '#06b6d408' }]}>
+                        <Ionicons name="layers-outline" size={20} color="#06b6d4" />
+                      </View>
+                      <View style={styles.infoCardContent}>
+                        <Text style={styles.infoCardLabel}>App Version</Text>
+                        <Text style={[styles.infoCardValue, { color: '#06b6d4' }]}>
+                          v{Constants.expoConfig?.version || "1.1.0"}
+                        </Text>
+                      </View>
+                      <View style={[styles.infoCardBadge, { backgroundColor: '#10b98112' }]}>
+                        <Text style={[styles.badgeText, { color: '#10b981' }]}>STABLE</Text>
+                      </View>
+                    </View>
 
-                  <TouchableOpacity
-                    style={[
-                      styles.deleteButton,
-                      isDeleting && { opacity: 0.7 }
-                    ]}
-                    onPress={() => {
-                      loadDataSummary();
-                      setDeleteModalVisible(true);
-                    }}
-                    disabled={isDeleting}
-                  >
-                    <Ionicons name="trash-outline" size={20} color="#fff" />
-                    <Text style={styles.deleteButtonText}>
-                      {isDeleting ? "Deleting..." : "Delete Account"}
-                    </Text>
-                  </TouchableOpacity>
+                    <View style={styles.premiumInfoCard}>
+                      <View style={[styles.infoCardIcon, { backgroundColor: '#06b6d408' }]}>
+                        <Ionicons name="hammer-outline" size={20} color="#06b6d4" />
+                      </View>
+                      <View style={styles.infoCardContent}>
+                        <Text style={styles.infoCardLabel}>Build Number</Text>
+                        <Text style={[styles.infoCardValue, { color: '#06b6d4' }]}>
+                          {Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode?.toString() || "10"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.premiumInfoCard}>
+                      <View style={[styles.infoCardIcon, { backgroundColor: '#06b6d408' }]}>
+                        <Ionicons name={Platform.OS === "ios" ? "logo-apple" : "logo-android"} size={20} color="#06b6d4" />
+                      </View>
+                      <View style={styles.infoCardContent}>
+                        <Text style={styles.infoCardLabel}>Platform</Text>
+                        <Text style={[styles.infoCardValue, { color: '#06b6d4' }]}>
+                          {Platform.OS === "ios" ? "iOS" : "Android"}
+                        </Text>
+                      </View>
+                      <View style={[styles.platformBadge, Platform.OS === "ios" ? styles.iosBadge : styles.androidBadge]}>
+                        <Text style={styles.platformBadgeText}>
+                          {Platform.OS === "ios" ? "iOS" : "Android"}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Danger Zone Section */}
+                <View style={styles.dangerSection}>
+                  <View style={styles.sectionHeader}>
+                    <View style={styles.dangerIconContainer}>
+                      <Ionicons name="warning" size={24} color="#dc2626" />
+                    </View>
+                    <View style={styles.sectionHeaderContent}>
+                      <Text style={styles.dangerSectionTitle}>
+                        Danger Zone
+                      </Text>
+                      <Text style={styles.dangerSectionSubtitle}>
+                        Irreversible actions that permanently affect your account
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.dangerCard}>
+                    <View style={styles.dangerCardHeader}>
+                      <View style={styles.dangerCardIcon}>
+                        <Ionicons name="trash-outline" size={22} color="#dc2626" />
+                      </View>
+                      <View style={styles.dangerCardContent}>
+                        <Text style={styles.dangerCardTitle}>Delete Account</Text>
+                        <Text style={styles.dangerCardDescription}>
+                          Permanently remove your account and all associated data. This action cannot be undone.
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.warningPanel}>
+                      <View style={styles.warningIcon}>
+                        <Ionicons name="alert-circle" size={16} color="#f59e0b" />
+                      </View>
+                      <Text style={styles.warningText}>
+                        This will permanently delete all your messages, tickets, orders, and personal data.
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.dangerButton,
+                        isDeleting && styles.dangerButtonLoading
+                      ]}
+                      onPress={() => {
+                        loadDataSummary();
+                        setDeleteModalVisible(true);
+                      }}
+                      disabled={isDeleting}
+                    >
+                      <View style={styles.dangerButtonContent}>
+                        {isDeleting ? (
+                          <>
+                            <View style={styles.deletingSpinner} />
+                            <Text style={styles.dangerButtonText}>Processing Deletion...</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Ionicons name="trash" size={18} color="#fff" />
+                            <Text style={styles.dangerButtonText}>Delete My Account</Text>
+                            <View style={styles.dangerArrow}>
+                              <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
+                            </View>
+                          </>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             )}
@@ -850,7 +972,10 @@ const styles = StyleSheet.create({
     gap: 32,
   },
   settingsContent: {
-    gap: 32,
+    gap: 40,
+  },
+  appInfoSection: {
+    marginBottom: 32,
   },
   section: {
     marginBottom: 32,
@@ -925,6 +1050,375 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+
+  // Premium Section Styles
+  premiumSection: {
+    marginBottom: 36,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  sectionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  sectionHeaderContent: {
+    flex: 1,
+  },
+  premiumSectionTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginBottom: 2,
+    letterSpacing: -0.3,
+  },
+  premiumSectionSubtitle: {
+    fontSize: 15,
+    color: "#64748b",
+    lineHeight: 20,
+  },
+
+  // Premium Card Styles
+  premiumCard: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  premiumCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  cardIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  cardHeaderContent: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 19,
+  },
+  statusIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  cardContent: {
+    gap: 20,
+  },
+
+  // Info Panel Styles
+  infoPanel: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    gap: 14,
+  },
+  infoPanelIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  infoPanelContent: {
+    flex: 1,
+  },
+  infoPanelTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    marginBottom: 4,
+    letterSpacing: -0.1,
+  },
+  infoPanelDescription: {
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 19,
+  },
+
+  // Premium Button Styles
+  premiumButton: {
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  premiumButtonLoading: {
+    shadowOpacity: 0.05,
+    elevation: 2,
+  },
+  premiumButtonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  premiumButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 24,
+  },
+  premiumButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: -0.1,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  loadingSpinner: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+    borderTopColor: "white",
+  },
+
+  // Info Cards Container
+  infoCardsContainer: {
+    gap: 16,
+  },
+  premiumInfoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  infoCardIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  infoCardContent: {
+    flex: 1,
+  },
+  infoCardLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#64748b",
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  infoCardValue: {
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  infoCardBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  platformBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  iosBadge: {
+    backgroundColor: "#0071e312",
+  },
+  androidBadge: {
+    backgroundColor: "#3ddc8412",
+  },
+  platformBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    color: "#64748b",
+  },
+
+  // Danger Section Styles
+  dangerSection: {
+    marginBottom: 20,
+  },
+  dangerIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fef2f2",
+    marginRight: 16,
+  },
+  dangerSectionTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#dc2626",
+    marginBottom: 2,
+    letterSpacing: -0.3,
+  },
+  dangerSectionSubtitle: {
+    fontSize: 15,
+    color: "#991b1b",
+    lineHeight: 20,
+  },
+  dangerCard: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: "#fecaca",
+    shadowColor: "#dc2626",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  dangerCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 18,
+  },
+  dangerCardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fef2f2",
+    marginRight: 16,
+  },
+  dangerCardContent: {
+    flex: 1,
+  },
+  dangerCardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#dc2626",
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  dangerCardDescription: {
+    fontSize: 14,
+    color: "#991b1b",
+    lineHeight: 20,
+  },
+  warningPanel: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#fef3c7",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#fed7aa",
+    gap: 10,
+    width: "100%",
+    flexWrap: "nowrap",
+  },
+  warningIcon: {
+    marginTop: 1,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#92400e",
+    lineHeight: 18,
+    flexWrap: "wrap",
+    flexShrink: 1,
+  },
+  dangerButton: {
+    backgroundColor: "#dc2626",
+    borderRadius: 16,
+    shadowColor: "#dc2626",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  dangerButtonLoading: {
+    opacity: 0.7,
+    shadowOpacity: 0.1,
+  },
+  dangerButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+    minHeight: 24,
+  },
+  dangerButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: -0.1,
+  },
+  dangerArrow: {
+    marginLeft: 4,
+  },
+  deletingSpinner: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+    borderTopColor: "white",
+  },
+
+  // Legacy styles (keeping for compatibility)
   formCard: {
     backgroundColor: "#f8fafc",
     borderRadius: 16,

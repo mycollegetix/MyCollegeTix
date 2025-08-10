@@ -18,6 +18,17 @@ rm -rf ios/*.xcarchive
 rm -rf ios/DerivedData
 rm -rf ~/Library/Developer/Xcode/DerivedData
 
+# Remove Android build artifacts that could corrupt Git
+echo "🤖 Cleaning Android artifacts..."
+rm -rf android/app/build
+rm -rf android/build
+rm -rf android/.gradle
+rm -rf android/app/.cxx
+rm -rf android/app/build/outputs
+rm -rf android/app/build/generated
+rm -rf android/app/build/intermediates
+rm -rf android/app/build/tmp
+
 # Remove node_modules if they exist (will be reinstalled)
 if [ -d "node_modules" ]; then
     echo "📦 Removing node_modules (will need npm install later)..."
@@ -30,10 +41,12 @@ git status
 
 echo ""
 echo "🚨 SAFETY CHECK:"
-echo "Look at the files above. Do you see:"
+echo "Look at the files above. Do you see any of these DANGEROUS files:"
 echo "- ios/Pods/hermes-engine files?"
+echo "- android/app/build/ or android/.gradle/ files?"
+echo "- android/app/.cxx/ native build files?"
 echo "- Hundreds of modified files?"
-echo "- Large binary files?"
+echo "- Large binary files or generated code?"
 echo ""
 read -p "Does everything look safe to commit? (y/n): " -n 1 -r
 echo
@@ -44,7 +57,10 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     git commit -m "$COMMIT_MESSAGE"
     echo "🎉 Commit successful!"
     echo ""
-    echo "📝 Remember to run 'npm install' and 'cd ios && pod install' before building."
+    echo "📝 Remember to run these commands before building:"
+    echo "   • npm install"
+    echo "   • cd ios && pod install"
+    echo "   • cd android && ./gradlew clean"
 else
     echo "❌ Commit cancelled. Clean up the problematic files first."
     exit 1

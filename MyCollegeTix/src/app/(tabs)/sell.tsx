@@ -342,6 +342,9 @@ export default function SellScreen() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        keyboardDismissMode={Platform.OS === 'android' ? 'on-drag' : 'interactive'}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollContent}
       >
         {/* Header Section */}
@@ -374,7 +377,8 @@ export default function SellScreen() {
         <View style={styles.contentContainer}>
           <KeyboardAvoidingView
             style={styles.keyboardView}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
           >
             {/* Event Selection */}
             <View style={styles.section}>
@@ -779,6 +783,9 @@ export default function SellScreen() {
                 renderItem={renderEventItem}
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
+                scrollEventThrottle={16}
+                keyboardShouldPersistTaps="handled"
+                removeClippedSubviews={Platform.OS === 'android'}
                 contentContainerStyle={styles.modalEventsList}
               />
             ) : (

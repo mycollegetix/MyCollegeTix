@@ -12,6 +12,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -565,6 +566,9 @@ export default function OrdersScreen() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        keyboardDismissMode={Platform.OS === 'android' ? 'on-drag' : 'interactive'}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -666,6 +670,9 @@ export default function OrdersScreen() {
                   keyExtractor={(item) => `${item.type}-${item.id}`}
                   scrollEnabled={false}
                   showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                  removeClippedSubviews={Platform.OS === 'android'}
+                  keyboardShouldPersistTaps="handled"
                 />
               ) : (
                 <BlurView intensity={20} style={styles.emptyState}>

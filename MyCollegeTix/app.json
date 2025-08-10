@@ -16,7 +16,7 @@
     "newArchEnabled": true,
     "primaryColor": "#18583E",
     "splash": {
-      "image": "./assets/images/icon2.png",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -40,7 +40,16 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.mycollegetix.app",
-      "versionCode": 9,
+      "versionCode": 11,
+      "softwareKeyboardLayoutMode": "adjustResize",
+      "navigationBar": {
+        "visible": "leanback",
+        "backgroundColor": "#ffffff"
+      },
+      "statusBar": {
+        "barStyle": "dark-content",
+        "backgroundColor": "#ffffff"
+      },
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -76,7 +85,8 @@
           "color": "#18583E",
           "defaultChannel": "default"
         }
-      ]
+      ],
+      "./plugins/android-signing.js"
     ],
     "experiments": {
       "typedRoutes": true

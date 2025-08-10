@@ -517,6 +517,13 @@ export default function ChatConversationScreen() {
               renderItem={renderMessage}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
+              scrollEventThrottle={16}
+              keyboardShouldPersistTaps="handled"
+              removeClippedSubviews={Platform.OS === 'android'}
+              maintainVisibleContentPosition={{
+                minIndexForVisible: 0,
+                autoscrollToTopThreshold: 10,
+              }}
               contentContainerStyle={styles.messagesList}
               ListHeaderComponent={
                 currentConversation?.ticket && localMessages.length === 0 ? (
@@ -608,7 +615,7 @@ export default function ChatConversationScreen() {
                 onChangeText={setMessageText}
                 multiline
                 maxLength={1000}
-                placeholderTextColor="black"
+                placeholderTextColor="#9ca3af"
               />
 
               <TouchableOpacity
@@ -930,15 +937,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     gap: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   messageInput: {
     flex: 1,
     fontSize: 16,
-    color: "#1e293b",
+    color: "#000000",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     maxHeight: 100,
     paddingTop: Platform.OS === "ios" ? 8 : 0,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.1)",
   },
   sendButton: {
     width: 36,
