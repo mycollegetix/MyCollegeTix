@@ -18,7 +18,9 @@
 
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MyCollegeTix - Your Campus Ticket Marketplace</title>
+    <title>mycollegetix - Your Campus Ticket Marketplace</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="shortcut icon" href="favicon.png">
     <style>
       * {
         margin: 0;
@@ -136,11 +138,20 @@
         height: 90px;
         width: auto;
         margin-right: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .logo:hover img {
+        transform: scale(1.05);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
       }
 
       @media (max-width: 768px) {
         .logo img {
           height: 70px;
+          border-radius: 10px;
         }
       }
 
@@ -435,10 +446,10 @@
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-content">
-        <div class="logo">
-          <img src="icon2.png" alt="MyCollegeTix Logo" />
-          <span class="logo-text">MyCollegeTix</span>
-        </div>
+        <a href="index.html" class="logo">
+          <img src="mycollegetixlogo.png" alt="mycollegetix Logo" />
+          <span class="logo-text"><span style="color: #FFD700;">my</span>collegetix</span>
+        </a>
         <div class="nav-links">
           <a href="index.html">Home</a>
           <a href="supported-colleges.html">Supported Colleges</a>
@@ -479,7 +490,7 @@
     <!-- Features Section -->
     <section class="features" id="features">
       <div class="container">
-        <h2 class="section-title">Why Choose MyCollegeTix?</h2>
+        <h2 class="section-title">Why Choose <span style="color: #FFD700;">my</span>collegetix?</h2>
         <div class="features-grid">
           <div class="feature-card">
             <div class="feature-icon">🎓</div>
@@ -625,7 +636,7 @@
           >
         </div>
         <p>
-          &copy; 2025 MyCollegeTix. A connection platform by students, for
+          &copy; 2025 <span style="color: #FFD700;">my</span>collegetix. A connection platform by students, for
           students.<br />
           <small
             >We facilitate connections only—all transactions are between

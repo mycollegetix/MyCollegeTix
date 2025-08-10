@@ -18,7 +18,9 @@
 
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Download MyCollegeTix</title>
+    <title>Download mycollegetix</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="shortcut icon" href="favicon.png">
     <style>
       * {
         margin: 0;
@@ -48,26 +50,25 @@
       }
 
       .logo {
-        width: 100px;
-        height: 100px;
-        margin: 0 auto 2rem;
-        border-radius: 20px;
-        overflow: hidden;
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        display: block;
+        margin: 0 auto 1rem;
+        text-align: center;
       }
 
       .logo img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
+        width: 150px;
+        height: 150px;
+        border-radius: 24px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
       }
 
-      .title {
-        font-size: 1.8rem;
-        font-weight: bold;
-        color: #18453b;
-        margin-bottom: 0.5rem;
+      .logo:hover img {
+        transform: scale(1.05);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
       }
+
+
 
       .subtitle {
         color: #6b7280;
@@ -154,6 +155,42 @@
         object-fit: contain;
       }
 
+      .coming-soon-btn {
+        position: relative;
+        display: inline-block;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .coming-soon-content {
+        position: relative;
+      }
+
+      .badge-img.grayed-out {
+        opacity: 0.4;
+        filter: grayscale(100%);
+      }
+
+      .coming-soon-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(24, 69, 59, 0.9);
+        backdrop-filter: blur(2px);
+      }
+
+      .coming-soon-text {
+        color: white;
+        font-weight: 600;
+        font-size: 1rem;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+      }
+
       .fallback-text {
         margin-top: 2rem;
         padding-top: 2rem;
@@ -179,16 +216,20 @@
           height: 58px;
           width: 175px;
         }
+
+        .logo img {
+          width: 120px;
+          height: 120px;
+          border-radius: 20px;
+        }
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <div class="logo">
-        <img src="icon2.png" alt="MyCollegeTix Logo" />
-      </div>
-
-      <h1 class="title">MyCollegeTix</h1>
+      <a href="index.html" class="logo">
+        <img src="mycollegetixlogo.png" alt="mycollegetix" />
+      </a>
       <p class="subtitle">Your Campus Ticket Marketplace</p>
 
       <!-- Auto-redirect section (shown initially) -->
@@ -207,23 +248,24 @@
             id="iosBtn"
           >
             <img
-              src="LandingPage/Download_on_the_App_Store_Badge_US-UK_RGB_blk_0929172.png"
+              src="Download_on_the_App_Store_Badge_US-UK_RGB_blk_0929172.png"
               alt="Download on the App Store"
               class="badge-img"
             />
           </a>
 
-          <a
-            href="https://play.google.com/store/search?q=tiktok&c=apps&hl=en_US"
-            class="download-btn"
-            id="androidBtn"
-          >
-            <img
-              src="GetItOnGooglePlay_Badge_Web_color_English.png"
-              alt="Get it on Google Play"
-              class="badge-img"
-            />
-          </a>
+          <div class="coming-soon-btn" id="androidBtn">
+            <div class="coming-soon-content">
+              <img
+                src="GetItOnGooglePlay_Badge_Web_color_English.png"
+                alt="Get it on Google Play"
+                class="badge-img grayed-out"
+              />
+              <div class="coming-soon-overlay">
+                <span class="coming-soon-text">Android Coming Soon</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -286,11 +328,11 @@
               "https://apps.apple.com/us/app/mycollegetix/id6748928832";
           }, 1500);
         } else if (device === "android") {
-          // Redirect to Play Store
+          // Show manual download for Android (coming soon)
           setTimeout(() => {
-            window.location.href =
-              "https://play.google.com/store/search?q=tiktok&c=apps&hl=en_US";
-          }, 1500);
+            autoRedirectEl.style.display = "none";
+            manualDownloadEl.classList.add("show");
+          }, 2000);
         } else {
           // Show manual download options
           setTimeout(() => {

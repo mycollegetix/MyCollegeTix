@@ -13,7 +13,9 @@
     
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>About - MyCollegeTix</title>
+    <title>About - mycollegetix</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="shortcut icon" href="favicon.png">
     <style>
       * {
         margin: 0;
@@ -58,11 +60,20 @@
         height: 90px;
         width: auto;
         margin-right: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .logo:hover img {
+        transform: scale(1.05);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
       }
       
       @media (max-width: 768px) {
         .logo img {
           height: 70px;
+          border-radius: 10px;
         }
       }
       
@@ -346,9 +357,9 @@
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-content">
-        <a href="#" class="logo">
-          <img src="icon2.png" alt="MyCollegeTix Logo" />
-          <span class="logo-text">MyCollegeTix</span>
+        <a href="index.html" class="logo">
+          <img src="mycollegetixlogo.png" alt="mycollegetix Logo" />
+          <span class="logo-text"><span style="color: #FFD700;">my</span>collegetix</span>
         </a>
         <div class="nav-links">
           <a href="index.html">Home</a>
@@ -369,7 +380,7 @@
     <!-- Hero Section -->
     <section class="hero-section">
       <div class="container">
-        <h1 class="hero-title">About MyCollegeTix</h1>
+        <h1 class="hero-title">About <span style="color: #FFD700;">my</span>collegetix</h1>
         <p class="hero-subtitle">
           Connecting college students through a simple, trusted ticket
           marketplace
@@ -397,7 +408,7 @@
               fees.
             </p>
             <p>
-              MyCollegeTix was born from the idea that students should be able
+              <span style="color: #FFD700;">my</span>collegetix was born from the idea that students should be able
               to connect with their peers safely and easily, without corporate
               interference or excessive fees eating into their already tight
               budgets.
@@ -527,7 +538,7 @@
           >
         </div>
         <p>
-          &copy; 2025 MyCollegeTix. A connection platform by students, for
+          &copy; 2025 <span style="color: #FFD700;">my</span>collegetix. A connection platform by students, for
           students.<br />
           <small
             >We facilitate connections only—all transactions are between
