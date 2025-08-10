@@ -513,10 +513,15 @@ export default function EventManagement() {
   const EventCard = ({ event }: { event: Event }) => {
     const isSelected = selectedEvents.has(event.id);
     const eventDate = new Date(event.event_date);
+    const isExpired = eventDate < new Date();
 
     return (
       <TouchableOpacity
-        style={[styles.eventCard, isSelected && styles.selectedCard]}
+        style={[
+          styles.eventCard, 
+          isSelected && styles.selectedCard,
+          isExpired && styles.expiredCard
+        ]}
         onPress={() => {
           if (selectMode) {
             toggleEventSelection(event.id);
@@ -678,7 +683,19 @@ export default function EventManagement() {
         .from('events')
         .update({
           title: editForm.title,
-          event_date: editForm.event_date,
+          event_date: (() => {
+            let date = editForm.event_date;
+            // If it's just a date (YYYY-MM-DD), add time and timezone
+            if (date && !date.includes('T')) {
+              date = date + 'T12:00:00.000Z'; // Use noon UTC to avoid timezone issues
+            }
+            // Validate the date
+            const parsedDate = new Date(date);
+            if (isNaN(parsedDate.getTime())) {
+              throw new Error('Invalid date format');
+            }
+            return date;
+          })(),
           game_time: editForm.game_time,
           location: editForm.location,
           venue: editForm.venue,
@@ -703,7 +720,20 @@ export default function EventManagement() {
       setEditModalVisible(false);
       setEditingEvent(null);
       
-      Alert.alert('Success', 'Event updated successfully');
+      // Check if event was auto-expired
+      const updatedEvent = { ...editingEvent, ...editForm };
+      const eventDate = new Date(updatedEvent.event_date);
+      const now = new Date();
+      
+      if (eventDate < now && updatedEvent.status !== 'completed' && updatedEvent.status !== 'cancelled') {
+        Alert.alert(
+          'Event Updated & Auto-Expired', 
+          'The event was successfully updated. Since the event date is in the past, it has been automatically marked as completed.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Success', 'Event updated successfully');
+      }
     } catch (error) {
       console.error('Error updating event:', error);
       Alert.alert('Error', 'Failed to update event');

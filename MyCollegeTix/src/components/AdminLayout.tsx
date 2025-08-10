@@ -72,6 +72,12 @@ export default function AdminLayout({
       icon: "school-outline",
       route: "/(admin)/colleges",
     },
+    {
+      key: "orders",
+      title: "Orders", 
+      icon: "receipt-outline",
+      route: "/(admin)/orders",
+    },
   ];
 
   return (
@@ -84,10 +90,16 @@ export default function AdminLayout({
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => {
-                  if (router.canGoBack()) {
+                  // Handle back navigation properly
+                  if (pathname === "/(admin)" || pathname === "/admin") {
+                    // If on admin dashboard, go back to profile
+                    router.push("/(tabs)/profile");
+                  } else if (router.canGoBack()) {
+                    // If we can go back in history, do so
                     router.back();
                   } else {
-                    router.push("/(tabs)/profile");
+                    // Otherwise go to admin dashboard
+                    router.push("/(admin)");
                   }
                 }}
               >
