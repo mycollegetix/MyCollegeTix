@@ -27,7 +27,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [forgotPasswordVisible, setForgotPasswordVisible] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [isResetLoading, setIsResetLoading] = useState(false);
@@ -273,20 +272,6 @@ export default function LoginScreen() {
 
               {/* Form Options */}
               <View style={styles.formOptions}>
-                <TouchableOpacity
-                  style={styles.rememberMe}
-                  onPress={() => setRememberMe(!rememberMe)}
-                >
-                  <View
-                    style={[styles.checkbox, rememberMe && styles.checkedBox]}
-                  >
-                    {rememberMe && (
-                      <Ionicons name="checkmark" size={14} color="white" />
-                    )}
-                  </View>
-                  <Text style={styles.rememberText}>Remember me</Text>
-                </TouchableOpacity>
-
                 <TouchableOpacity
                   onPress={() => setForgotPasswordVisible(true)}
                 >
@@ -622,31 +607,9 @@ const styles = StyleSheet.create({
   },
   formOptions: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
     marginBottom: 24,
-  },
-  rememberMe: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
-    marginRight: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkedBox: {
-    backgroundColor: "#18453b",
-    borderColor: "#18453b",
-  },
-  rememberText: {
-    fontSize: 14,
-    color: "#6b7280",
   },
   forgotPassword: {
     fontSize: 14,
