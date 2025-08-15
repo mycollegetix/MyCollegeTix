@@ -12,6 +12,7 @@ import {
   Alert,
   Modal,
   FlatList,
+  Image,
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -376,11 +377,9 @@ export default function EnhancedRegisterScreen() {
       bottom: 0,
     },
     logo: {
-      width: 60,
-      height: 60,
+      width: 80,
+      height: 80,
       borderRadius: 20,
-      alignItems: "center",
-      justifyContent: "center",
     },
     heroTitle: {
       fontSize: 24,
@@ -436,16 +435,10 @@ export default function EnhancedRegisterScreen() {
           {/* Hero Section */}
           <View style={styles.heroSection}>
             <View style={styles.logoContainer}>
-              <LinearGradient
-                colors={[themeColors.secondary, `${themeColors.secondary}DD`]}
+              <Image
+                source={require("../../../assets/images/icon.png")}
                 style={dynamicStyles.logo}
-              >
-                <Ionicons
-                  name="ticket-outline"
-                  size={32}
-                  color={themeColors.primary}
-                />
-              </LinearGradient>
+              />
             </View>
 
             <Text style={dynamicStyles.heroTitle}>{getDynamicTitle()}</Text>

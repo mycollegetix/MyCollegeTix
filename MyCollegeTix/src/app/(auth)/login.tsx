@@ -12,6 +12,7 @@ import {
   Dimensions,
   Alert,
   Modal,
+  Image,
 } from "react-native";
 import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -170,12 +171,10 @@ export default function LoginScreen() {
           {/* Welcome Section */}
           <View style={styles.welcomeSection}>
             <View style={styles.logoContainer}>
-              <LinearGradient
-                colors={["#ffd700", "#ffed4a"]}
+              <Image
+                source={require("../../../assets/images/icon.png")}
                 style={styles.logo}
-              >
-                <Ionicons name="ticket-outline" size={36} color="#18453b" />
-              </LinearGradient>
+              />
             </View>
 
             <Text style={styles.welcomeTitle}>Welcome</Text>
@@ -473,13 +472,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#ffd700",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 8,
   },
   welcomeTitle: {
     fontSize: 36,
