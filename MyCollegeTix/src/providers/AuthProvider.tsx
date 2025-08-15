@@ -4,6 +4,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/src/lib/supabase";
 import { College } from "@/src/types/database.types";
 import { AccountService } from "@/src/services/accountService";
+import { ipTrackingService } from "@/src/services/ipTrackingService";
 
 // Interface definitions
 export interface UserProfile {
@@ -138,6 +139,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         setProfile(fullProfile);
+
+        // Track user IP address and device info (async, don't wait)
+        ipTrackingService.trackUserIP(userId).then((result) => {
+          if (result.success) {
+            console.log("🌐 IP tracking successful:", result.ip);
+          } else {
+            console.log("⚠️ IP tracking failed:", result.error);
+          }
+        }).catch((error) => {
+          console.log("❌ IP tracking error:", error);
+        });
       }
     } catch (error) {
       console.error("💥 Unexpected error loading profile:", error);

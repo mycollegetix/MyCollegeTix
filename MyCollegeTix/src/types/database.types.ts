@@ -596,6 +596,12 @@ export type Database = {
           is_admin: boolean;
           college_id: string | null;
           expo_push_token?: string | null;
+          current_ip_address: string | null;
+          last_ip_address: string | null;
+          ip_updated_at: string | null;
+          device_info: Json | null;
+          location_data: Json | null;
+          user_agent: string | null;
         };
         Insert: {
           avatar_url?: string | null;
@@ -607,6 +613,12 @@ export type Database = {
           is_admin?: boolean;
           college_id?: string | null;
           expo_push_token?: string | null;
+          current_ip_address?: string | null;
+          last_ip_address?: string | null;
+          ip_updated_at?: string | null;
+          device_info?: Json | null;
+          location_data?: Json | null;
+          user_agent?: string | null;
         };
         Update: {
           avatar_url?: string | null;
@@ -618,6 +630,12 @@ export type Database = {
           is_admin?: boolean;
           college_id?: string | null;
           expo_push_token?: string | null;
+          current_ip_address?: string | null;
+          last_ip_address?: string | null;
+          ip_updated_at?: string | null;
+          device_info?: Json | null;
+          location_data?: Json | null;
+          user_agent?: string | null;
         };
         Relationships: [
           {
