@@ -13,13 +13,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/providers/ThemeProvider";
-import { legalService } from "@/src/services/legalService";
+import { documentService } from "@/src/services/documentService";
 
 export default function TermsOfServiceScreen() {
   const router = useRouter();
   const theme = useTheme();
   const [content, setContent] = useState<string>('');
-  const [source, setSource] = useState<'website' | 'fallback' | 'error'>('fallback');
+  const [source, setSource] = useState<'database' | 'error'>('database');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,16 +28,16 @@ export default function TermsOfServiceScreen() {
 
   const loadTermsContent = async () => {
     try {
-      const result = await legalService.getLegalDocument('terms_of_service');
+      const result = await documentService.getLegalDocument('terms_of_service');
       setContent(result.content);
       setSource(result.source);
       console.log(`📄 Terms loaded from: ${result.source}`);
     } catch (error) {
       console.error('Error loading terms:', error);
       // Use fallback content from service
-      const fallback = await legalService.getLegalDocument('terms_of_service');
+      const fallback = await documentService.getLegalDocument('terms_of_service');
       setContent(fallback.content);
-      setSource('fallback');
+      setSource('error');
     } finally {
       setLoading(false);
     }

@@ -96,41 +96,47 @@ export type Database = {
           }
         ];
       };
-      legal_agreements: {
+      legal_document_versions: {
         Row: {
           id: string;
-          user_id: string;
-          agreement_type: 'terms_of_service' | 'privacy_policy';
+          document_type: 'terms_of_service' | 'privacy_policy';
           version: string;
-          accepted_at: string;
-          ip_address: string | null;
-          user_agent: string | null;
+          title: string;
+          content: string;
+          effective_date: string;
+          is_active: boolean;
+          created_by: string | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
-          user_id: string;
-          agreement_type: 'terms_of_service' | 'privacy_policy';
-          version?: string;
-          accepted_at?: string;
-          ip_address?: string | null;
-          user_agent?: string | null;
+          document_type: 'terms_of_service' | 'privacy_policy';
+          version: string;
+          title: string;
+          content: string;
+          effective_date: string;
+          is_active?: boolean;
+          created_by?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
-          user_id?: string;
-          agreement_type?: 'terms_of_service' | 'privacy_policy';
+          document_type?: 'terms_of_service' | 'privacy_policy';
           version?: string;
-          accepted_at?: string;
-          ip_address?: string | null;
-          user_agent?: string | null;
+          title?: string;
+          content?: string;
+          effective_date?: string;
+          is_active?: boolean;
+          created_by?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "legal_agreements_user_id_fkey";
-            columns: ["user_id"];
+            foreignKeyName: "legal_document_versions_created_by_fkey";
+            columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
@@ -589,9 +595,6 @@ export type Database = {
           username: string;
           is_admin: boolean;
           college_id: string | null;
-          legal_agreements_accepted: boolean;
-          legal_agreements_version: string | null;
-          legal_agreements_accepted_at: string | null;
           expo_push_token?: string | null;
         };
         Insert: {
@@ -603,9 +606,6 @@ export type Database = {
           username: string;
           is_admin?: boolean;
           college_id?: string | null;
-          legal_agreements_accepted?: boolean;
-          legal_agreements_version?: string | null;
-          legal_agreements_accepted_at?: string | null;
           expo_push_token?: string | null;
         };
         Update: {
@@ -617,9 +617,6 @@ export type Database = {
           username?: string;
           is_admin?: boolean;
           college_id?: string | null;
-          legal_agreements_accepted?: boolean;
-          legal_agreements_version?: string | null;
-          legal_agreements_accepted_at?: string | null;
           expo_push_token?: string | null;
         };
         Relationships: [

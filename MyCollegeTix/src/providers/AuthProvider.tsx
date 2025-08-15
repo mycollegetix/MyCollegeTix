@@ -31,8 +31,7 @@ interface AuthContextType {
     email: string,
     password: string,
     name: string,
-    collegeId?: string,
-    acceptedAgreements?: boolean
+    collegeId?: string
   ) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -174,8 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     name: string,
-    collegeId?: string,
-    acceptedAgreements?: boolean
+    collegeId?: string
   ) => {
     try {
       console.log("🔄 Starting registration with trigger...");
@@ -191,7 +189,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             full_name: name,
             college_id: collegeId,
-            legal_agreements_accepted: acceptedAgreements,
           },
         },
       });

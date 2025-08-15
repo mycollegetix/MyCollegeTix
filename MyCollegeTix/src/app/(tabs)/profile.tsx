@@ -20,8 +20,8 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useRouter } from "expo-router";
 import { supabase } from "@/src/lib/supabase";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
-import { LegalAgreementStatus } from "@/src/components/LegalAgreementStatus";
 import { AccountService } from "@/src/services/accountService";
+import { LegalDocumentStatus } from "@/src/components/LegalDocumentStatus";
 import Constants from "expo-constants";
 
 const { width, height } = Dimensions.get("window");
@@ -537,8 +537,8 @@ export default function ProfileScreen() {
                   </View>
                 </View>
 
-                {/* Legal Agreement Status */}
-                <LegalAgreementStatus />
+                {/* Legal Documents */}
+                <LegalDocumentStatus />
               </View>
             ) : (
               <View style={styles.settingsContent}>

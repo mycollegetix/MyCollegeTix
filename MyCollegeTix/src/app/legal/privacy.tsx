@@ -13,13 +13,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/providers/ThemeProvider";
-import { legalService } from "@/src/services/legalService";
+import { documentService } from "@/src/services/documentService";
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
   const theme = useTheme();
   const [content, setContent] = useState<string>('');
-  const [source, setSource] = useState<'website' | 'fallback' | 'error'>('fallback');
+  const [source, setSource] = useState<'database' | 'error'>('database');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,16 +28,16 @@ export default function PrivacyPolicyScreen() {
 
   const loadPrivacyContent = async () => {
     try {
-      const result = await legalService.getLegalDocument('privacy_policy');
+      const result = await documentService.getLegalDocument('privacy_policy');
       setContent(result.content);
       setSource(result.source);
       console.log(`📄 Privacy Policy loaded from: ${result.source}`);
     } catch (error) {
       console.error('Error loading privacy policy:', error);
       // Use fallback content from service
-      const fallback = await legalService.getLegalDocument('privacy_policy');
+      const fallback = await documentService.getLegalDocument('privacy_policy');
       setContent(fallback.content);
-      setSource('fallback');
+      setSource('error');
     } finally {
       setLoading(false);
     }
