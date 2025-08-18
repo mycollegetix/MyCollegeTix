@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirm Your Email - MyCollegeTix</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f5f5f5;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 500px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        padding: 40px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .logo {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .logo h1 {
+        color: #18453b;
+        font-size: 24px;
+        margin: 0;
+      }
+
+      .message {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .message h2 {
+        color: #18453b;
+        font-size: 20px;
+        margin-bottom: 10px;
+      }
+
+      .message p {
+        color: #666;
+        font-size: 16px;
+      }
+
+      .confirm-button {
+        text-align: center;
+        margin: 30px 0;
+      }
+
+      .confirm-button a {
+        display: inline-block;
+        background: #18453b;
+        color: white;
+        text-decoration: none;
+        padding: 15px 30px;
+        border-radius: 5px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .confirm-button a:hover {
+        background: #2a6b5a;
+      }
+
+      .fallback {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 5px;
+        border-left: 4px solid #18453b;
+      }
+
+      .fallback p {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        color: #666;
+      }
+
+      .url-text {
+        word-break: break-all;
+        font-family: monospace;
+        background: #e9ecef;
+        padding: 10px;
+        border-radius: 3px;
+        font-size: 12px;
+        color: #495057;
+      }
+
+      .footer {
+        text-align: center;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+        font-size: 12px;
+        color: #999;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">
+        <h1>MyCollegeTix</h1>
+      </div>
+
+      <div class="message">
+        <h2>Confirm Your Email</h2>
+        <p>
+          Click the button below to confirm your email address and activate your
+          account.
+        </p>
+      </div>
+
+      <div class="confirm-button">
+        <a href="{{ .ConfirmationURL }}"> Confirm Email </a>
+      </div>
+
+      <div class="fallback">
+        <p><strong>Button not working?</strong></p>
+        <p>Copy and paste this link into your browser:</p>
+        <div class="url-text">{{ .ConfirmationURL }}</div>
+      </div>
+
+      <div class="footer">
+        <p>© 2025 MyCollegeTix. All rights reserved.</p>
+        <p>This link will expire in 24 hours.</p>
+      </div>
+    </div>
+  </body>
+</html>
