@@ -4,12 +4,6 @@ apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
-// Read version info from app.json
-def appJsonFile = new File(projectRoot, "app.json")
-def appJson = new groovy.json.JsonSlurper().parseText(appJsonFile.text)
-def appVersion = appJson.expo.version
-def appVersionCode = appJson.expo.android.versionCode
-
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -98,8 +92,8 @@ android {
         applicationId 'com.mycollegetix.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode appVersionCode
-        versionName appVersion
+        versionCode 13
+        versionName "1.2.0"
     }
     signingConfigs {
         debug {
@@ -110,17 +104,18 @@ android {
         }
         release {
             storeFile file('release-key.keystore')
-            storePassword 'NIKmam046214!'
+            storePassword System.getenv('KEYSTORE_PASSWORD') ?: 'NIKmam046214!'
             keyAlias 'release-key'
-            keyPassword 'NIKmam046214!'
+            keyPassword System.getenv('KEY_PASSWORD') ?: 'NIKmam046214!'
         }
     }
     buildTypes {
         debug {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
         }
         release {
-            // Using release keystore for production builds
+            // Caution! In production, you need to generate your own keystore file.
+            // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.release
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
