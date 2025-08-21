@@ -9,25 +9,25 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		650864F8D01111EB78E91CDD /* libPods-MyCollegeTix.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B9CCF65995836B4ECD1B3D0F /* libPods-MyCollegeTix.a */; };
 		8AB6A5D77CF5990D4A9DC268 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2124886DC1B543667D634E51 /* ExpoModulesProvider.swift */; };
 		A0C46EF3CE4E98D3A2A682C9 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 63EC6597675481B1B12B7CD4 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		F4BEDAA76ACF4049DBD2B569 /* libPods-MyCollegeTix.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 07C1BB5383DEA654850DF882 /* libPods-MyCollegeTix.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		07C1BB5383DEA654850DF882 /* libPods-MyCollegeTix.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MyCollegeTix.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07F961A680F5B00A75B9A /* MyCollegeTix.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyCollegeTix.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = MyCollegeTix/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = MyCollegeTix/Info.plist; sourceTree = "<group>"; };
+		1D561D7734185739A7D82A9F /* Pods-MyCollegeTix.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.release.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.release.xcconfig"; sourceTree = "<group>"; };
 		2124886DC1B543667D634E51 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MyCollegeTix/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		337B138C7FA1EF3F138C3F18 /* Pods-MyCollegeTix.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.debug.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.debug.xcconfig"; sourceTree = "<group>"; };
-		5885728805E2E3C548BFC75F /* Pods-MyCollegeTix.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.release.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.release.xcconfig"; sourceTree = "<group>"; };
 		63EC6597675481B1B12B7CD4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = MyCollegeTix/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = MyCollegeTix/SplashScreen.storyboard; sourceTree = "<group>"; };
+		B9CCF65995836B4ECD1B3D0F /* libPods-MyCollegeTix.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MyCollegeTix.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		F0DDEB6ECBF0D38F1FB0D1F9 /* Pods-MyCollegeTix.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.debug.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.debug.xcconfig"; sourceTree = "<group>"; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = MyCollegeTix/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* MyCollegeTix-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MyCollegeTix-Bridging-Header.h"; path = "MyCollegeTix/MyCollegeTix-Bridging-Header.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F4BEDAA76ACF4049DBD2B569 /* libPods-MyCollegeTix.a in Frameworks */,
+				650864F8D01111EB78E91CDD /* libPods-MyCollegeTix.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -62,7 +62,7 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				07C1BB5383DEA654850DF882 /* libPods-MyCollegeTix.a */,
+				B9CCF65995836B4ECD1B3D0F /* libPods-MyCollegeTix.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -78,8 +78,8 @@
 		649F8596FAF61BDF29793B93 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				337B138C7FA1EF3F138C3F18 /* Pods-MyCollegeTix.debug.xcconfig */,
-				5885728805E2E3C548BFC75F /* Pods-MyCollegeTix.release.xcconfig */,
+				F0DDEB6ECBF0D38F1FB0D1F9 /* Pods-MyCollegeTix.debug.xcconfig */,
+				1D561D7734185739A7D82A9F /* Pods-MyCollegeTix.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -138,14 +138,14 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "MyCollegeTix" */;
 			buildPhases = (
-				67BB323A768B0277D230D79D /* [CP] Check Pods Manifest.lock */,
+				D2778ACB81CCEF3E44A23471 /* [CP] Check Pods Manifest.lock */,
 				EFCCBFB707070BCAB6DD23A0 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				28F6B48E2B3DD8F4AD8EF4AF /* [CP] Embed Pods Frameworks */,
-				182BCCEFF2E9B8D5AC3A81E4 /* [CP] Copy Pods Resources */,
+				22A049D90F32C511444C28C7 /* [CP] Embed Pods Frameworks */,
+				28A4DBC85B64E6351754CE30 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -217,7 +217,25 @@
 			shellPath = /bin/sh;
 			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  export SKIP_BUNDLING=1\nfi\nif [[ -z \"$ENTRY_FILE\" ]]; then\n  # Set the entry JS file using the bundler's entry resolution.\n  export ENTRY_FILE=\"$(\"$NODE_BINARY\" -e \"require('expo/scripts/resolveAppEntry')\" \"$PROJECT_ROOT\" ios absolute | tail -n 1)\"\nfi\n\nif [[ -z \"$CLI_PATH\" ]]; then\n  # Use Expo CLI\n  export CLI_PATH=\"$(\"$NODE_BINARY\" --print \"require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })\")\"\nfi\nif [[ -z \"$BUNDLE_COMMAND\" ]]; then\n  # Default Expo CLI command for bundling\n  export BUNDLE_COMMAND=\"export:embed\"\nfi\n\n# Source .xcode.env.updates if it exists to allow\n# SKIP_BUNDLING to be unset if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.updates\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.updates\"\nfi\n# Source local changes to allow overrides\n# if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n\n";
 		};
-		182BCCEFF2E9B8D5AC3A81E4 /* [CP] Copy Pods Resources */ = {
+		22A049D90F32C511444C28C7 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		28A4DBC85B64E6351754CE30 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -259,25 +277,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		28F6B48E2B3DD8F4AD8EF4AF /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		67BB323A768B0277D230D79D /* [CP] Check Pods Manifest.lock */ = {
+		D2778ACB81CCEF3E44A23471 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -335,7 +335,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 337B138C7FA1EF3F138C3F18 /* Pods-MyCollegeTix.debug.xcconfig */;
+			baseConfigurationReference = F0DDEB6ECBF0D38F1FB0D1F9 /* Pods-MyCollegeTix.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -372,7 +372,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5885728805E2E3C548BFC75F /* Pods-MyCollegeTix.release.xcconfig */;
+			baseConfigurationReference = 1D561D7734185739A7D82A9F /* Pods-MyCollegeTix.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;

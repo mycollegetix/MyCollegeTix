@@ -67,7 +67,10 @@ export function NotificationDeepLinkHandler() {
     console.log('Parsed deep link:', { hostname, path, queryParams });
 
     // Handle different deep link patterns
-    if (path === '/ticket-details' && queryParams?.id) {
+    if (path === '/verified') {
+      // Email verification deep link - go to verified screen
+      router.push('/verified');
+    } else if (path === '/ticket-details' && queryParams?.id) {
       router.push(`/ticket-details/${queryParams.id}`);
     } else if (path === '/notifications') {
       router.push('/notifications');
