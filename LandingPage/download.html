@@ -37,6 +37,114 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        padding-top: 120px;
+      }
+
+      .nav {
+        position: fixed;
+        top: 0;
+        width: 100%;
+        padding: 1rem 2rem;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        z-index: 1000;
+        transition: all 0.3s ease;
+      }
+
+      .nav-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        color: white;
+        text-decoration: none;
+      }
+
+      .nav-logo img {
+        height: 90px;
+        width: auto;
+        margin-right: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .nav-logo:hover img {
+        transform: scale(1.05);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+      }
+
+      .nav-logo-text {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: white;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 2rem;
+      }
+
+      .nav-links a {
+        color: white;
+        text-decoration: none;
+        transition: opacity 0.3s ease;
+      }
+
+      .nav-links a:hover,
+      .nav-links a.active {
+        opacity: 0.8;
+        border-bottom: 2px solid white;
+        padding-bottom: 4px;
+      }
+
+      .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+
+      .mobile-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: rgba(26, 32, 44, 0.95);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 1rem 2rem;
+      }
+
+      .mobile-menu.show {
+        display: block;
+      }
+
+      .mobile-menu a {
+        display: block;
+        color: white;
+        text-decoration: none;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        transition: opacity 0.3s ease;
+      }
+
+      .mobile-menu a:last-child {
+        border-bottom: none;
+      }
+
+      .mobile-menu a:hover {
+        opacity: 0.8;
       }
 
       .container {
@@ -199,6 +307,25 @@
         font-size: 0.9rem;
       }
 
+      @media (max-width: 768px) {
+        .nav-links {
+          display: none;
+        }
+
+        .mobile-menu-btn {
+          display: block;
+        }
+
+        .nav-logo img {
+          height: 70px;
+          border-radius: 10px;
+        }
+
+        .nav-logo-text {
+          font-size: 1.3rem;
+        }
+      }
+
       @media (max-width: 480px) {
         .container {
           padding: 2rem 1.5rem;
@@ -222,10 +349,45 @@
           height: 120px;
           border-radius: 20px;
         }
+
+        .nav {
+          padding: 0.8rem 1rem;
+        }
+
+        .nav-logo img {
+          height: 60px;
+        }
+
+        .nav-logo-text {
+          font-size: 1.1rem;
+        }
       }
     </style>
   </head>
   <body>
+    <!-- Navigation -->
+    <nav class="nav">
+      <div class="nav-content">
+        <a href="index.html" class="nav-logo">
+          <img src="mycollegetixlogo.png" alt="mycollegetix Logo" />
+          <span class="nav-logo-text"><span style="color: #FFD700;">my</span>collegetix</span>
+        </a>
+        <div class="nav-links">
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
+          <a href="about.html">About</a>
+          <a href="contact.html">Contact</a>
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+        <div class="mobile-menu" id="mobileMenu">
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
+          <a href="about.html">About</a>
+          <a href="contact.html">Contact</a>
+        </div>
+      </div>
+    </nav>
+
     <div class="container">
       <a href="index.html" class="logo">
         <img src="mycollegetixlogo.png" alt="mycollegetix" />
@@ -360,6 +522,24 @@
 
       // Start the redirect process when page loads
       window.addEventListener("load", redirect);
+
+      // Mobile menu toggle
+      function toggleMobileMenu() {
+        const mobileMenu = document.getElementById("mobileMenu");
+        mobileMenu.classList.toggle("show");
+      }
+
+      // Close mobile menu when clicking outside
+      document.addEventListener("click", function (event) {
+        const mobileMenu = document.getElementById("mobileMenu");
+        const menuBtn = document.querySelector(".mobile-menu-btn");
+        if (
+          !mobileMenu.contains(event.target) &&
+          !menuBtn.contains(event.target)
+        ) {
+          mobileMenu.classList.remove("show");
+        }
+      });
     </script>
   </body>
 </html>
