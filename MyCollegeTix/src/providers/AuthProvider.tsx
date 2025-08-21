@@ -33,7 +33,7 @@ interface AuthContextType {
     password: string,
     name: string,
     collegeId?: string
-  ) => Promise<{ error: any }>;
+  ) => Promise<{ error: any; data?: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   deleteAccount: () => Promise<{ success: boolean; error?: any }>;
@@ -207,12 +207,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error("❌ Auth signup failed:", error);
-        return { error };
+        return { error, data: null };
       }
 
       if (!data.user) {
         console.error("❌ No user returned from signup");
-        return { error: new Error("No user returned from signup") };
+        return { error: new Error("No user returned from signup"), data: null };
       }
 
       console.log("✅ Auth user created:", data.user.id);
@@ -236,10 +236,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("📧 Check your email for confirmation link");
       }
 
-      return { error: null };
+      return { error: null, data };
     } catch (error) {
       console.error("💥 Unexpected signup error:", error);
-      return { error };
+      return { error, data: null };
     }
   };
 
