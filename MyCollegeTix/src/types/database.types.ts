@@ -10,6 +10,139 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      blocked_users: {
+        Row: {
+          id: string;
+          created_at: string;
+          blocker_id: string;
+          blocked_id: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          blocker_id: string;
+          blocked_id: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          blocker_id?: string;
+          blocked_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "blocked_users_blocker_id_fkey";
+            columns: ["blocker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "blocked_users_blocked_id_fkey";
+            columns: ["blocked_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      content_reports: {
+        Row: {
+          id: string;
+          created_at: string;
+          content_type: 'ticket' | 'message' | 'profile';
+          content_id: string;
+          reported_by: string;
+          reason: string;
+          description: string | null;
+          additional_context: Json | null;
+          status: 'pending' | 'approved' | 'rejected';
+          admin_notes: string | null;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          content_type: 'ticket' | 'message' | 'profile';
+          content_id: string;
+          reported_by: string;
+          reason: string;
+          description?: string | null;
+          additional_context?: Json | null;
+          status?: 'pending' | 'approved' | 'rejected';
+          admin_notes?: string | null;
+          resolved_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          content_type?: 'ticket' | 'message' | 'profile';
+          content_id?: string;
+          reported_by?: string;
+          reason?: string;
+          description?: string | null;
+          additional_context?: Json | null;
+          status?: 'pending' | 'approved' | 'rejected';
+          admin_notes?: string | null;
+          resolved_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "content_reports_reported_by_fkey";
+            columns: ["reported_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      legal_document_versions: {
+        Row: {
+          id: string;
+          document_type: 'terms_of_service' | 'privacy_policy';
+          version: string;
+          title: string;
+          content: string;
+          effective_date: string;
+          is_active: boolean;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          document_type: 'terms_of_service' | 'privacy_policy';
+          version: string;
+          title: string;
+          content: string;
+          effective_date: string;
+          is_active?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          document_type?: 'terms_of_service' | 'privacy_policy';
+          version?: string;
+          title?: string;
+          content?: string;
+          effective_date?: string;
+          is_active?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "legal_document_versions_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       watchlists: {
         Row: {
           id: string;
@@ -332,6 +465,9 @@ export type Database = {
           title: string;
           type: "purchase" | "sale" | "listing" | "system" | "message";
           user_id: string;
+          push_sent?: boolean | null;
+          push_sent_at?: string | null;
+          push_metadata?: Json | null;
         };
         Insert: {
           created_at?: string;
@@ -343,6 +479,9 @@ export type Database = {
           title: string;
           type?: "purchase" | "sale" | "listing" | "system" | "message";
           user_id: string;
+          push_sent?: boolean | null;
+          push_sent_at?: string | null;
+          push_metadata?: Json | null;
         };
         Update: {
           created_at?: string;
@@ -354,6 +493,9 @@ export type Database = {
           title?: string;
           type?: "purchase" | "sale" | "listing" | "system" | "message";
           user_id?: string;
+          push_sent?: boolean | null;
+          push_sent_at?: string | null;
+          push_metadata?: Json | null;
         };
         Relationships: [
           {
@@ -453,6 +595,13 @@ export type Database = {
           username: string;
           is_admin: boolean;
           college_id: string | null;
+          expo_push_token?: string | null;
+          current_ip_address: string | null;
+          last_ip_address: string | null;
+          ip_updated_at: string | null;
+          device_info: Json | null;
+          location_data: Json | null;
+          user_agent: string | null;
         };
         Insert: {
           avatar_url?: string | null;
@@ -463,6 +612,13 @@ export type Database = {
           username: string;
           is_admin?: boolean;
           college_id?: string | null;
+          expo_push_token?: string | null;
+          current_ip_address?: string | null;
+          last_ip_address?: string | null;
+          ip_updated_at?: string | null;
+          device_info?: Json | null;
+          location_data?: Json | null;
+          user_agent?: string | null;
         };
         Update: {
           avatar_url?: string | null;
@@ -473,6 +629,13 @@ export type Database = {
           username?: string;
           is_admin?: boolean;
           college_id?: string | null;
+          expo_push_token?: string | null;
+          current_ip_address?: string | null;
+          last_ip_address?: string | null;
+          ip_updated_at?: string | null;
+          device_info?: Json | null;
+          location_data?: Json | null;
+          user_agent?: string | null;
         };
         Relationships: [
           {
@@ -607,6 +770,180 @@ export type Database = {
           }
         ];
       };
+      push_tokens: {
+        Row: {
+          id: string;
+          user_id: string;
+          token: string;
+          platform: string;
+          active: boolean;
+          device_info: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          token: string;
+          platform?: string;
+          active?: boolean;
+          device_info?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          token?: string;
+          platform?: string;
+          active?: boolean;
+          device_info?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "push_tokens_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      push_notification_queue: {
+        Row: {
+          id: string;
+          user_ids: string[];
+          title: string;
+          body: string;
+          data: Json;
+          status: string;
+          attempts: number;
+          max_attempts: number;
+          scheduled_for: string;
+          sent_at: string | null;
+          error_message: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_ids: string[];
+          title: string;
+          body: string;
+          data?: Json;
+          status?: string;
+          attempts?: number;
+          max_attempts?: number;
+          scheduled_for?: string;
+          sent_at?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_ids?: string[];
+          title?: string;
+          body?: string;
+          data?: Json;
+          status?: string;
+          attempts?: number;
+          max_attempts?: number;
+          scheduled_for?: string;
+          sent_at?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      user_violations: {
+        Row: {
+          id: string;
+          user_id: string;
+          conversation_id: string | null;
+          ticket_id: string | null;
+          violation_type: string;
+          content: string | null;
+          reason: string | null;
+          status: string;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          conversation_id?: string | null;
+          ticket_id?: string | null;
+          violation_type: string;
+          content?: string | null;
+          reason?: string | null;
+          status?: string;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          conversation_id?: string | null;
+          ticket_id?: string | null;
+          violation_type?: string;
+          content?: string | null;
+          reason?: string | null;
+          status?: string;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_violations_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_violations_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_violations_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "tickets";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      moderation_logs: {
+        Row: {
+          id: string;
+          content: string | null;
+          reason: string;
+          method: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          content?: string | null;
+          reason: string;
+          method: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          content?: string | null;
+          reason?: string;
+          method?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -623,6 +960,18 @@ export type Database = {
       delete_user: {
         Args: Record<PropertyKey, never>;
         Returns: undefined;
+      };
+      delete_user_completely: {
+        Args: {
+          user_id_to_delete: string;
+        };
+        Returns: {
+          success: boolean;
+          error?: string;
+          user_id?: string;
+          deleted_data?: Json;
+          timestamp?: string;
+        };
       };
       purchase_ticket: {
         Args: {
@@ -706,6 +1055,27 @@ export type Database = {
       admin_check_test: {
         Args: Record<PropertyKey, never>;
         Returns: Json;
+      };
+      create_notification: {
+        Args: {
+          p_user_id: string;
+          p_title: string;
+          p_message: string;
+          p_type: string;
+          p_related_ticket_id?: string;
+          p_related_order_id?: string;
+        };
+        Returns: {
+          id: string;
+          user_id: string;
+          title: string;
+          message: string;
+          type: string;
+          related_ticket_id: string | null;
+          related_order_id: string | null;
+          read: boolean | null;
+          created_at: string;
+        }[];
       };
     };
     Enums: {

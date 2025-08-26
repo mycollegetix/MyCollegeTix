@@ -1,0 +1,9 @@
+{
+  "agents": {
+    "auto_select": true,
+    "prefer_project_agents": true
+  },
+  "hooks": {
+    "user-prompt-submit": "#!/bin/bash\n# Auto-select agents based on message content\nmessage=\"$CLAUDE_USER_MESSAGE\"\n\n# Performance optimization keywords\nif [[ \"$message\" =~ (performance|slow|optimize|speed|bottleneck|cache|lag) ]]; then\n  echo 'Use performance-optimizer agent for this task'\n# Database keywords\nelif [[ \"$message\" =~ (database|query|sql|schema|postgres|supabase|db) ]]; then\n  echo 'Use database-performance-specialist agent for this task'\n# UI/Design keywords\nelif [[ \"$message\" =~ (design|ui|ux|interface|visual|premium|animations|styling) ]]; then\n  echo 'Use premium-ui-designer agent for this task'\n# UX Flow keywords\nelif [[ \"$message\" =~ (workflow|flow|user.*experience|navigation|simplify|friction) ]]; then\n  echo 'Use ux-flow-simplifier agent for this task'\nfi"
+  }
+}

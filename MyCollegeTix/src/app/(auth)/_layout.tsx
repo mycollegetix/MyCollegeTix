@@ -4,7 +4,7 @@ import { StatusBar } from "expo-status-bar";
 export default function AuthLayout() {
   return (
     <>
-      <StatusBar style="light" backgroundColor="#18453b" />
+      <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerShown: false,

@@ -1,9 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Google tag (gtag.js) -->
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-S5QR0VXKTJ"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+
+      gtag("config", "G-S5QR0VXKTJ");
+    </script>
+
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Contact - MyCollegeTix</title>
+    <title>Contact - mycollegetix</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="shortcut icon" href="favicon.png">
     <style>
       * {
         margin: 0;
@@ -38,10 +55,37 @@
       }
 
       .logo {
+        display: flex;
+        align-items: center;
+        color: white;
+        text-decoration: none;
+      }
+
+      .logo img {
+        height: 90px;
+        width: auto;
+        margin-right: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .logo:hover img {
+        transform: scale(1.05);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+      }
+
+      @media (max-width: 768px) {
+        .logo img {
+          height: 70px;
+          border-radius: 10px;
+        }
+      }
+
+      .logo-text {
         font-size: 1.5rem;
         font-weight: bold;
         color: white;
-        text-decoration: none;
       }
 
       .nav-links {
@@ -60,6 +104,48 @@
         opacity: 0.8;
         border-bottom: 2px solid white;
         padding-bottom: 4px;
+      }
+
+      .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+
+      .mobile-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: rgba(26, 32, 44, 0.95);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 1rem 2rem;
+      }
+
+      .mobile-menu.show {
+        display: block;
+      }
+
+      .mobile-menu a {
+        display: block;
+        color: white;
+        text-decoration: none;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        transition: opacity 0.3s ease;
+      }
+
+      .mobile-menu a:last-child {
+        border-bottom: none;
+      }
+
+      .mobile-menu a:hover {
+        opacity: 0.8;
       }
 
       .hero-section {
@@ -269,9 +355,20 @@
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-content">
-        <a href="#" class="logo">MyCollegeTix</a>
+        <a href="index.html" class="logo">
+          <img src="mycollegetixlogo.png" alt="mycollegetix Logo" />
+          <span class="logo-text"><span style="color: #FFD700;">my</span>collegetix</span>
+        </a>
         <div class="nav-links">
-          <a href="landing.html">Home</a>
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
+          <a href="about.html">About</a>
+          <a href="contact.html" class="active">Contact</a>
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+        <div class="mobile-menu" id="mobileMenu">
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
           <a href="about.html">About</a>
           <a href="contact.html" class="active">Contact</a>
         </div>
@@ -293,49 +390,50 @@
     <section class="contact-content">
       <div class="container">
         <!-- Contact Information -->
-        <div class="contact-info" style="max-width: 800px; margin: 0 auto;">
-            <h2 class="section-title" style="text-align: center">Contact Information</h2>
+        <div class="contact-info" style="max-width: 800px; margin: 0 auto">
+          <h2 class="section-title" style="text-align: center">
+            Contact Information
+          </h2>
 
-            <div class="contact-methods">
-              <div class="contact-method">
-                <div class="contact-icon">📧</div>
-                <div class="contact-details">
-                  <h4>Contact Us</h4>
-                  <p>contact@mycollegetix.com</p>
-                  <p><small>We typically respond within 24 hours</small></p>
-                </div>
-              </div>
-
-              <div class="contact-method">
-                <div class="contact-icon">🏫</div>
-                <div class="contact-details">
-                  <h4>Add Your College</h4>
-                  <p>college-requests@mycollegetix.com</p>
-                  <p>
-                    <small>Want us to support your school? Let us know!</small>
-                  </p>
-                </div>
-              </div>
-
-              <div class="contact-method">
-                <div class="contact-icon">🛠️</div>
-                <div class="contact-details">
-                  <h4>Technical Support</h4>
-                  <p>support@mycollegetix.com</p>
-                  <p><small>Having issues? We're here to help</small></p>
-                </div>
-              </div>
-
-              <div class="contact-method">
-                <div class="contact-icon">🤝</div>
-                <div class="contact-details">
-                  <h4>Partnerships</h4>
-                  <p>partnerships@mycollegetix.com</p>
-                  <p><small>Interested in working together?</small></p>
-                </div>
+          <div class="contact-methods">
+            <div class="contact-method">
+              <div class="contact-icon">📧</div>
+              <div class="contact-details">
+                <h4>Contact Us</h4>
+                <p>contact@mycollegetix.com</p>
+                <p><small>We typically respond within 24 hours</small></p>
               </div>
             </div>
 
+            <div class="contact-method">
+              <div class="contact-icon">🏫</div>
+              <div class="contact-details">
+                <h4>Add Your College</h4>
+                <p>requests@mycollegetix.com</p>
+                <p>
+                  <small>Want us to support your school? Let us know!</small>
+                </p>
+              </div>
+            </div>
+
+            <div class="contact-method">
+              <div class="contact-icon">🛠️</div>
+              <div class="contact-details">
+                <h4>Technical Support</h4>
+                <p>support@mycollegetix.com</p>
+                <p><small>Having issues? We're here to help</small></p>
+              </div>
+            </div>
+
+            <div class="contact-method">
+              <div class="contact-icon">🤝</div>
+              <div class="contact-details">
+                <h4>Partnerships</h4>
+                <p>partnerships@mycollegetix.com</p>
+                <p><small>Interested in working together?</small></p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -357,7 +455,7 @@
           </div>
 
           <div class="faq-item">
-            <div class="faq-question">Is MyCollegeTix really free?</div>
+            <div class="faq-question">Is <span style="color: #FFD700;">my</span>collegetix really free?</div>
             <div class="faq-answer">
               Yes! We don't charge any fees. Students handle transactions
               directly with each other. We just provide the platform for
@@ -410,13 +508,45 @@
     <!-- Footer -->
     <footer class="footer">
       <div class="container">
-        <div class="footer-links" style="display: flex; justify-content: center; gap: 2rem; margin-bottom: 1rem;">
-          <a href="terms-and-conditions.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Terms & Conditions</a>
-          <a href="privacy-policy.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Privacy Policy</a>
-          <a href="contact.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Contact</a>
+        <div
+          class="footer-links"
+          style="
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+          "
+        >
+          <a
+            href="terms-dynamic.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Terms & Conditions</a
+          >
+          <a
+            href="privacy-dynamic.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Privacy Policy</a
+          >
+          <a
+            href="contact.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Contact</a
+          >
         </div>
         <p>
-          &copy; 2025 MyCollegeTix. A connection platform by students, for
+          &copy; 2025 <span style="color: #FFD700;">my</span>collegetix. A connection platform by students, for
           students.<br />
           <small
             >We facilitate connections only—all transactions are between
@@ -486,6 +616,24 @@
             });
           }
         });
+      });
+
+      // Mobile menu toggle
+      function toggleMobileMenu() {
+        const mobileMenu = document.getElementById("mobileMenu");
+        mobileMenu.classList.toggle("show");
+      }
+
+      // Close mobile menu when clicking outside
+      document.addEventListener("click", function (event) {
+        const mobileMenu = document.getElementById("mobileMenu");
+        const menuBtn = document.querySelector(".mobile-menu-btn");
+        if (
+          !mobileMenu.contains(event.target) &&
+          !menuBtn.contains(event.target)
+        ) {
+          mobileMenu.classList.remove("show");
+        }
       });
     </script>
   </body>

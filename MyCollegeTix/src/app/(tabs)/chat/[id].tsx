@@ -21,6 +21,8 @@ import { useChat } from "@/src/providers/ChatProvider";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { MessageWithSender } from "@/src/types/database.types";
+import { ReportModal } from "@/src/components/ReportModal";
+import { reportingService } from "@/src/services/reportingService";
 
 const { width, height } = Dimensions.get("window");
 
@@ -44,9 +46,11 @@ export default function ChatConversationScreen() {
   const [sending, setSending] = useState(false);
   const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
   const [localMessages, setMessages] = useState<MessageWithSender[]>([]); // ✅ LOCAL STATE
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [isUserBlocked, setIsUserBlocked] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  // Memoized conversation loading
+  // ✅ OPTIMIZED: Smarter conversation loading
   const loadConversationData = useCallback(
     async (conversationId: string) => {
       console.log("🔄 Loading conversation data for:", conversationId);
@@ -57,8 +61,13 @@ export default function ChatConversationScreen() {
         console.log("✅ Found conversation, setting as current");
         setCurrentConversation(conversation);
 
-        // ✅ ALWAYS MARK AS READ: Mark messages as read whenever user enters conversation
-        await markAsRead(conversationId);
+        // ✅ SMART MARK AS READ: Only mark as read if there are unread messages
+        if (conversation.unread_count > 0) {
+          console.log("📖 Marking messages as read (has unread messages)");
+          await markAsRead(conversationId);
+        } else {
+          console.log("✅ No unread messages, skipping mark as read");
+        }
 
         // Only load messages if we haven't loaded them yet
         if (!hasLoadedMessages) {
@@ -84,30 +93,25 @@ export default function ChatConversationScreen() {
     setMessages(messages);
   }, [messages]);
 
+  // Check if user is blocked
+  useEffect(() => {
+    const checkBlockStatus = async () => {
+      if (currentConversation) {
+        const otherParticipant = getOtherParticipant();
+        if (otherParticipant) {
+          const blocked = await reportingService.isUserBlocked(otherParticipant.id);
+          setIsUserBlocked(blocked);
+        }
+      }
+    };
+
+    checkBlockStatus();
+  }, [currentConversation]);
+
   // Effect for loading conversation data
   useEffect(() => {
     if (id && conversations.length > 0) {
       loadConversationData(id);
-    }
-
-    // ✅ REAL-TIME: Set up message subscription for immediate updates
-    let messageSubscription: (() => void) | null = null;
-
-    if (id) {
-      // Import ChatService for direct subscription
-      const { ChatService } = require("@/src/services/chatService");
-
-      messageSubscription = ChatService.subscribeToConversationMessages(
-        id,
-        (newMessage: any) => {
-          // Only add if it's not from the current user (to avoid duplicates when sending)
-          if (newMessage.sender_id !== user?.id) {
-            console.log("📨 New message received:", newMessage.content);
-            // Reload messages to get the complete message with sender info
-            loadMessages(id);
-          }
-        }
-      );
     }
 
     // Cleanup function
@@ -115,11 +119,16 @@ export default function ChatConversationScreen() {
       console.log("🧹 Cleaning up conversation screen");
       setCurrentConversation(null);
       setHasLoadedMessages(false);
-      if (messageSubscription) {
-        messageSubscription();
-      }
     };
-  }, [id, conversations.length, user?.id]);
+  }, [id, conversations.length]);
+
+  // ✅ AUTO MARK AS READ: When viewing a conversation with new messages
+  useEffect(() => {
+    if (currentConversation && currentConversation.unread_count > 0) {
+      console.log("📖 Auto-marking messages as read (viewing conversation)");
+      markAsRead(currentConversation.id);
+    }
+  }, [currentConversation, messages.length]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -143,7 +152,7 @@ export default function ChatConversationScreen() {
       sender_id: user?.id || "",
       conversation_id: id,
       created_at: new Date().toISOString(),
-      message_type: "text",
+      message_type: "text" as const,
       read_by_recipient: false,
       read_at: null,
       edited_at: null,
@@ -178,17 +187,18 @@ export default function ChatConversationScreen() {
         Alert.alert("Error", "Failed to send message. Please try again.");
         setMessageText(content);
       } else {
-        // ✅ REPLACE OPTIMISTIC: Remove temp message and reload to get real message
-        setTimeout(async () => {
-          setMessages((prevMessages) =>
-            prevMessages.filter((msg) => msg.id !== tempId)
-          );
-          await loadMessages(id);
-          // Auto-scroll after loading real messages
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
-        }, 200);
+        // ✅ ENHANCED: Replace optimistic message with real message ID when available
+        console.log("✅ Message sent successfully");
+        
+        // The real-time subscription will add the actual message with the real ID
+        // We'll remove the optimistic message after a short delay to let the real one arrive
+        setTimeout(() => {
+          setMessages((prevMessages) => {
+            // Remove the temporary message - the real one should have arrived by now
+            const filtered = prevMessages.filter((msg) => msg.id !== tempId);
+            return filtered;
+          });
+        }, 1000);
       }
     } catch (error) {
       // Remove optimistic message on error
@@ -259,11 +269,40 @@ export default function ChatConversationScreen() {
     index: number;
   }) => {
     const isMyMessage = item.sender_id === user?.id;
+    const isSystemMessage = item.message_type === "system";
     const showTime =
       index === 0 ||
       new Date(item.created_at).getTime() -
         new Date(localMessages[index - 1].created_at).getTime() >
         300000; // 5 minutes
+
+    // Special rendering for system messages
+    if (isSystemMessage) {
+      return (
+        <View style={styles.systemMessageContainer}>
+          {showTime && (
+            <Text style={styles.messageTime}>
+              {formatMessageTime(item.created_at)}
+            </Text>
+          )}
+          <View style={styles.systemMessageBubble}>
+            <View style={styles.systemMessageHeader}>
+              <Ionicons
+                name="information-circle"
+                size={16}
+                color={theme.primary}
+              />
+              <Text style={[styles.systemMessageTitle, { color: theme.primary }]}>
+                MyCollegeTix Info
+              </Text>
+            </View>
+            <Text style={styles.systemMessageText}>
+              {item.content}
+            </Text>
+          </View>
+        </View>
+      );
+    }
 
     return (
       <View style={styles.messageContainer}>
@@ -295,16 +334,6 @@ export default function ChatConversationScreen() {
           >
             {item.content}
           </Text>
-
-          {item.message_type === "system" && (
-            <View style={styles.systemMessageIndicator}>
-              <Ionicons
-                name="information-circle-outline"
-                size={12}
-                color="#6b7280"
-              />
-            </View>
-          )}
         </View>
 
         {isMyMessage && (
@@ -382,13 +411,51 @@ export default function ChatConversationScreen() {
           onPress={() => {
             Alert.alert("Chat Options", "Choose an action", [
               {
+                text: "Report User",
+                onPress: () => setShowReportModal(true),
+              },
+              {
+                text: isUserBlocked ? "Unblock User" : "Block User",
+                onPress: async () => {
+                  if (isUserBlocked) {
+                    const result = await reportingService.unblockUser(otherParticipant.id);
+                    if (result.success) {
+                      setIsUserBlocked(false);
+                      Alert.alert("Success", "User has been unblocked");
+                    } else {
+                      Alert.alert("Error", result.error || "Failed to unblock user");
+                    }
+                  } else {
+                    Alert.alert(
+                      "Block User",
+                      `Are you sure you want to block ${otherParticipant.full_name}? They won't be able to message you.`,
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Block",
+                          style: "destructive",
+                          onPress: async () => {
+                            const result = await reportingService.blockUser(otherParticipant.id, "Blocked from chat");
+                            if (result.success) {
+                              setIsUserBlocked(true);
+                              Alert.alert("Success", "User has been blocked");
+                            } else {
+                              Alert.alert("Error", result.error || "Failed to block user");
+                            }
+                          }
+                        }
+                      ]
+                    );
+                  }
+                },
+              },
+              {
                 text: "View Profile",
                 onPress: () => {
                   // TODO: Navigate to user profile
                   Alert.alert("Profile", "User profile feature coming soon!");
                 },
               },
-
               {
                 text: "Chat List",
                 onPress: () => {
@@ -450,7 +517,41 @@ export default function ChatConversationScreen() {
               renderItem={renderMessage}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
+              scrollEventThrottle={16}
+              keyboardShouldPersistTaps="handled"
+              removeClippedSubviews={Platform.OS === 'android'}
+              maintainVisibleContentPosition={{
+                minIndexForVisible: 0,
+                autoscrollToTopThreshold: 10,
+              }}
               contentContainerStyle={styles.messagesList}
+              ListHeaderComponent={
+                currentConversation?.ticket && localMessages.length === 0 ? (
+                  <View style={styles.sellingProcessContainer}>
+                    <View style={styles.sellingProcessBubble}>
+                      <View style={styles.sellingProcessHeader}>
+                        <Ionicons
+                          name="information-circle"
+                          size={16}
+                          color={theme.primary}
+                        />
+                        <Text style={[styles.sellingProcessTitle, { color: theme.primary }]}>
+                          How MyCollegeTix Works
+                        </Text>
+                      </View>
+                      <Text style={styles.sellingProcessText}>
+                        Welcome to MyCollegeTix! 🎫{"\n\n"}
+                        Here's how ticket selling works:{"\n"}
+                        • Chat about ticket details and price{"\n"}
+                        • Negotiate terms privately{"\n"}
+                        • When you agree on a sale, the seller marks it as sold in their Orders tab{"\n"}
+                        • Tickets stay available until the seller manually marks them as sold{"\n\n"}
+                        Happy ticket trading! 🏈
+                      </Text>
+                    </View>
+                  </View>
+                ) : null
+              }
               onContentSizeChange={() => {
                 if (hasLoadedMessages) {
                   flatListRef.current?.scrollToEnd({ animated: false });
@@ -459,6 +560,33 @@ export default function ChatConversationScreen() {
             />
           ) : hasLoadedMessages ? (
             <View style={styles.emptyMessages}>
+              {/* Show selling process info for new ticket conversations */}
+              {currentConversation?.ticket && (
+                <View style={styles.sellingProcessContainer}>
+                  <View style={styles.sellingProcessBubble}>
+                    <View style={styles.sellingProcessHeader}>
+                      <Ionicons
+                        name="information-circle"
+                        size={16}
+                        color={theme.primary}
+                      />
+                      <Text style={[styles.sellingProcessTitle, { color: theme.primary }]}>
+                        How MyCollegeTix Works
+                      </Text>
+                    </View>
+                    <Text style={styles.sellingProcessText}>
+                      Welcome to MyCollegeTix! 🎫{"\n\n"}
+                      Here's how ticket selling works:{"\n"}
+                      • Chat about ticket details and price{"\n"}
+                      • Negotiate terms privately{"\n"}
+                      • When you agree on a sale, the seller marks it as sold in their Orders tab{"\n"}
+                      • Tickets stay available until the seller manually marks them as sold{"\n\n"}
+                      Happy ticket trading! 🏈
+                    </Text>
+                  </View>
+                </View>
+              )}
+              
               <View style={styles.emptyMessagesIcon}>
                 <Ionicons
                   name="chatbubbles-outline"
@@ -487,7 +615,7 @@ export default function ChatConversationScreen() {
                 onChangeText={setMessageText}
                 multiline
                 maxLength={1000}
-                placeholderTextColor="black"
+                placeholderTextColor="#9ca3af"
               />
 
               <TouchableOpacity
@@ -517,6 +645,22 @@ export default function ChatConversationScreen() {
           </BlurView>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Report Modal */}
+      {otherParticipant && (
+        <ReportModal
+          visible={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          reportedUserId={otherParticipant.id}
+          reportedUserName={otherParticipant.full_name}
+          contentId={id || ''}
+          contentType="message"
+          onReportSubmitted={() => {
+            // Optionally refresh block status or show success message
+            Alert.alert("Thank you", "Your report has been submitted and will be reviewed within 24 hours.");
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -689,9 +833,63 @@ const styles = StyleSheet.create({
   otherMessageText: {
     color: "#1e293b",
   },
-  systemMessageIndicator: {
-    marginTop: 4,
-    alignSelf: "flex-end",
+  systemMessageContainer: {
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  systemMessageBubble: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    maxWidth: "90%",
+  },
+  systemMessageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 6,
+  },
+  systemMessageTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  systemMessageText: {
+    fontSize: 14,
+    color: "#4b5563",
+    lineHeight: 20,
+    textAlign: "left",
+  },
+  sellingProcessContainer: {
+    marginBottom: 20,
+    alignItems: "center",
+  },
+  sellingProcessBubble: {
+    backgroundColor: "#f0f9ff",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "#bae6fd",
+    maxWidth: "90%",
+  },
+  sellingProcessHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 6,
+  },
+  sellingProcessTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  sellingProcessText: {
+    fontSize: 14,
+    color: "#0369a1",
+    lineHeight: 20,
+    textAlign: "left",
   },
   messageStatus: {
     alignSelf: "flex-end",
@@ -739,15 +937,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     gap: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   messageInput: {
     flex: 1,
     fontSize: 16,
-    color: "#1e293b",
+    color: "#000000",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     maxHeight: 100,
     paddingTop: Platform.OS === "ios" ? 8 : 0,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.1)",
   },
   sendButton: {
     width: 36,

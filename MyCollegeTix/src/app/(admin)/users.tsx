@@ -11,7 +11,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
+import { Link } from "expo-router";
 import { supabase } from "@/src/lib/supabase";
 import { Tables } from "@/src/types/database.types";
 
@@ -74,24 +74,26 @@ export default function UserManagement() {
   };
 
   const UserCard = ({ user }: { user: Profile }) => (
-    <View style={styles.userCard}>
-      <View style={styles.userAvatar}>
-        <Text style={styles.avatarText}>
-          {user.full_name.charAt(0).toUpperCase()}
-        </Text>
-      </View>
-      <View style={styles.userInfo}>
-        <Text style={styles.userName}>{user.full_name}</Text>
-        <Text style={styles.userEmail}>{user.email}</Text>
-        <Text style={styles.userUsername}>@{user.username}</Text>
-        <Text style={styles.userDate}>
-          Joined: {new Date(user.created_at).toLocaleDateString()}
-        </Text>
-      </View>
-      <TouchableOpacity style={styles.userAction}>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
+    <Link href={`/(admin)/users/${user.id}`} asChild>
+      <TouchableOpacity style={styles.userCard}>
+        <View style={styles.userAvatar}>
+          <Text style={styles.avatarText}>
+            {user.full_name.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>{user.full_name}</Text>
+          <Text style={styles.userEmail}>{user.email}</Text>
+          <Text style={styles.userUsername}>@{user.username}</Text>
+          <Text style={styles.userDate}>
+            Joined: {new Date(user.created_at).toLocaleDateString()}
+          </Text>
+        </View>
+        <View style={styles.userAction}>
+          <Ionicons name="chevron-forward" size={20} color="#666" />
+        </View>
       </TouchableOpacity>
-    </View>
+    </Link>
   );
 
   return (

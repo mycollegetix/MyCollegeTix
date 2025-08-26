@@ -1,18 +1,24 @@
 {
   "name": "mycollegetix",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "jest --watchAll"
+    "test": "jest --watchAll",
+    "deploy:functions": "supabase functions deploy send-push-notification",
+    "version:bump": "npm version patch && echo 'Version bumped! Update iOS buildNumber and Android versionCode in app.json manually'",
+    "prebuild:clean": "npx expo prebuild --clean",
+    "build:ios": "eas build --platform ios",
+    "build:android": "eas build --platform android"
   },
   "jest": {
     "preset": "jest-expo"
   },
   "dependencies": {
+    "@expo/config-plugins": "^10.1.2",
     "@expo/vector-icons": "^14.1.0",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-picker/picker": "^2.11.1",
@@ -21,10 +27,13 @@
     "dotenv": "^17.2.0",
     "expo": "53.0.20",
     "expo-blur": "~14.1.5",
+    "expo-constants": "~17.1.7",
+    "expo-device": "~7.1.4",
     "expo-font": "~13.3.2",
     "expo-image-picker": "^16.1.4",
     "expo-linear-gradient": "~14.1.5",
     "expo-linking": "~7.1.7",
+    "expo-notifications": "^0.31.4",
     "expo-router": "~5.1.4",
     "expo-secure-store": "~14.2.3",
     "expo-splash-screen": "~0.30.10",
@@ -33,7 +42,7 @@
     "expo-web-browser": "~14.2.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "react-native": "0.79.5",
+    "react-native": "^0.79.5",
     "react-native-elements": "^3.4.3",
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",

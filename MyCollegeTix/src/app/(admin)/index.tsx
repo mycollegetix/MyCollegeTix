@@ -210,19 +210,19 @@ export default function AdminDashboard() {
               color="#7c3aed"
               onPress={() => router.push("/(admin)/events")}
             />
-            <StatCard
+            {/* <StatCard
               title="Orders"
               value={stats.totalOrders}
               icon="receipt"
               color="#dc2626"
               onPress={() => router.push("/(admin)/orders")}
-            />
-            <StatCard
+            /> */}
+            {/* <StatCard
               title="Revenue"
               value={`${stats.totalRevenue.toFixed(2)}`}
               icon="cash"
               color="#16a34a"
-            />
+            /> */}
             <StatCard
               title="Recent Signups"
               value={stats.recentSignups}

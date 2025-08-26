@@ -1,6 +1,7 @@
-// src/providers/ChatProvider.tsx - FIXED VERSION
-import React, { createContext, useContext, useEffect, useState } from "react";
+// src/providers/ChatProvider.tsx - SIMPLIFIED VERSION (No Infinite Loops)
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { ChatService } from "../services/chatService";
+import { supabase } from "../lib/supabase";
 import { useAuth } from "./AuthProvider";
 import {
   ConversationWithDetails,
@@ -55,6 +56,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  
+  // Use ref to avoid stale closures in subscriptions
+  const currentConversationRef = useRef<ConversationWithDetails | null>(null);
+  const processedMessageIds = useRef<Set<string>>(new Set());
+  
+  // Update ref whenever currentConversation changes
+  useEffect(() => {
+    currentConversationRef.current = currentConversation;
+  }, [currentConversation]);
 
   const loadConversations = async () => {
     if (!user) return;
@@ -106,6 +116,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (error || !data) {
         throw error;
       }
+      
+      // Refresh messages to show the sent message immediately
+      // This ensures the message appears even if real-time subscription has issues
+      await loadMessages(conversationId);
+      
       return true;
     } catch (error) {
       console.error("Error sending message:", error);
@@ -115,19 +130,30 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const markAsRead = async (conversationId: string) => {
     try {
-      await ChatService.markMessagesAsRead(conversationId);
-
-      // Update local state
+      console.log(`📖 ChatProvider: Marking conversation ${conversationId} as read`);
+      
+      // ✅ STEP 1: Update local state immediately for instant UX
       setConversations((prev) =>
         prev.map((conv) =>
           conv.id === conversationId ? { ...conv, unread_count: 0 } : conv
         )
       );
 
-      // Refresh unread count
-      await refreshUnreadCount();
+      // ✅ STEP 2: Update unread count immediately
+      setUnreadCount((prev) => {
+        const conversation = conversations.find(c => c.id === conversationId);
+        const unreadToSubtract = conversation?.unread_count || 0;
+        return Math.max(0, prev - unreadToSubtract);
+      });
+
+      // ✅ STEP 3: Update database in background (no refresh needed)
+      await ChatService.markMessagesAsRead(conversationId);
+      
+      console.log("✅ ChatProvider: Successfully marked as read (no refresh)");
     } catch (error) {
       console.error("Error marking messages as read:", error);
+      // Revert local state on error
+      loadConversations();
     }
   };
 
@@ -135,11 +161,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     otherUserId: string,
     ticketId?: string
   ): Promise<string | null> => {
-    console.log("🚨🚨🚨 ENTERED ChatProvider.getOrCreateConversation 🚨🚨🚨");
-    console.log(
-      "🔍 ChatProvider: Current user in getOrCreateConversation:",
-      user?.id
-    );
+    console.log("🔍 ChatProvider: Creating/finding conversation");
 
     if (!user?.id) {
       console.error("❌ ChatProvider: No authenticated user found");
@@ -147,16 +169,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      console.log("🔍 ChatProvider: getOrCreateConversation called");
-      console.log("🔍 ChatProvider: otherUserId:", otherUserId);
-      console.log("🔍 ChatProvider: ticketId:", ticketId);
-
       const result = await ChatService.getOrCreateConversation(
         otherUserId,
         ticketId
       );
-
-      console.log("🔍 ChatProvider: Raw ChatService result:", result);
 
       if (result.error || !result.data) {
         const errorMessage = result.error
@@ -166,14 +182,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         throw new Error(errorMessage);
       }
 
-      // Refresh conversations to include the new one
-      console.log("🔄 ChatProvider: Refreshing conversations...");
-      await loadConversations();
+      // ✅ OPTIMIZED: Only refresh if it's a new conversation
+      const existingConversation = conversations.find(c => c.id === result.data!.id);
+      if (!existingConversation) {
+        console.log("🔄 ChatProvider: New conversation created, refreshing...");
+        await loadConversations();
+      } else {
+        console.log("✅ ChatProvider: Using existing conversation (no refresh needed)");
+      }
 
-      console.log(
-        "✅ ChatProvider: Returning conversation ID:",
-        result.data.id
-      );
       return result.data.id;
     } catch (error) {
       console.error("❌ ChatProvider: getOrCreateConversation error:", error);
@@ -201,17 +218,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setCurrentConversation(null);
       setMessages([]);
       setUnreadCount(0);
+      // Clear processed message IDs when user changes
+      processedMessageIds.current.clear();
     }
   }, [user]);
 
-  // Set up real-time subscriptions
+  // ✅ ENHANCED: Real-time subscriptions with proper message handling
   useEffect(() => {
     if (!user) return;
 
-    // Subscribe to conversation updates
+    console.log("🔄 Setting up real-time subscriptions for user:", user.id);
+
+    // Subscribe to conversation updates (last_message changes only)
     const unsubscribeConversations = ChatService.subscribeToConversations(
       user.id,
       (updatedConversation) => {
+        console.log("📝 Conversation updated:", updatedConversation.id);
         setConversations((prev) => {
           const index = prev.findIndex((c) => c.id === updatedConversation.id);
           if (index >= 0) {
@@ -221,46 +243,149 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           }
           return prev;
         });
-
-        // Refresh unread count when conversations update
-        refreshUnreadCount();
       }
     );
 
-    // Subscribe to messages in current conversation
-    let unsubscribeMessages: (() => void) | null = null;
+    // ✅ ENHANCED: Subscribe to NEW messages globally for unread count updates
+    const newMessageChannel = supabase
+      .channel(`new-messages:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+        },
+        async (payload) => {
+          try {
+            const newMessage = payload.new as any;
+            
+            // Skip if we've already processed this message
+            if (processedMessageIds.current.has(newMessage.id)) {
+              console.log("🔄 Skipping already processed message:", newMessage.id);
+              return;
+            }
+            
+            // Add to processed set
+            processedMessageIds.current.add(newMessage.id);
+            
+            // Clean up old processed IDs (keep last 100)
+            if (processedMessageIds.current.size > 100) {
+              const ids = Array.from(processedMessageIds.current);
+              processedMessageIds.current = new Set(ids.slice(-100));
+            }
+            
+            console.log("📨 New message received:", {
+              id: newMessage.id,
+              conversation_id: newMessage.conversation_id,
+              sender_id: newMessage.sender_id,
+              content: newMessage.content?.substring(0, 50) + "...",
+              is_from_me: newMessage.sender_id === user.id
+            });
 
-    if (currentConversation) {
-      unsubscribeMessages = ChatService.subscribeToConversationMessages(
-        currentConversation.id,
-        (newMessage) => {
-          // Add message with sender info
-          setMessages((prev) => {
-            // Check if message already exists to avoid duplicates
-            if (prev.some((m) => m.id === newMessage.id)) {
-              return prev;
+            // Get sender information for the message with error handling
+            const { data: sender, error: senderError } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", newMessage.sender_id)
+              .single();
+
+            if (senderError) {
+              console.error("Error fetching sender profile:", senderError);
+              return; // Skip this message if we can't get sender info
             }
 
-            // For real-time messages, we need to fetch sender info
-            // In a production app, you might want to optimize this
-            return [...prev, newMessage as MessageWithSender];
-          });
+            const messageWithSender = {
+              ...newMessage,
+              sender: sender
+            };
 
-          // If it's not from current user, refresh conversations to update unread counts
-          if (newMessage.sender_id !== user.id) {
-            loadConversations();
+            // ✅ UPDATE CURRENT CONVERSATION MESSAGES: Add message to current conversation if viewing it
+            // Use ref to get current value without stale closure
+            const currentConv = currentConversationRef.current;
+            if (currentConv && newMessage.conversation_id === currentConv.id) {
+              console.log("📨 Adding message to current conversation");
+              setMessages((prev) => {
+                // Check if message already exists to avoid duplicates
+                if (prev.some((m) => m.id === newMessage.id)) {
+                  return prev;
+                }
+                return [...prev, messageWithSender as MessageWithSender];
+              });
+            }
+
+            // ✅ UPDATE CONVERSATIONS LIST AND UNREAD COUNTS
+            setConversations((prev) => {
+              let conversationFound = false;
+              const updated = prev.map((conv) => {
+                if (conv.id === newMessage.conversation_id) {
+                  conversationFound = true;
+                  // Only increment unread count if:
+                  // 1. Message is from someone else
+                  // 2. User is not currently viewing this conversation
+                  const isFromOther = newMessage.sender_id !== user.id;
+                  const isNotCurrentlyViewing = !currentConv || currentConv.id !== newMessage.conversation_id;
+                  const shouldIncrementUnread = isFromOther && isNotCurrentlyViewing;
+
+                  return {
+                    ...conv,
+                    unread_count: shouldIncrementUnread ? conv.unread_count + 1 : conv.unread_count,
+                    last_message_at: newMessage.created_at,
+                    updated_at: newMessage.created_at,
+                    last_message_id: newMessage.id,
+                    last_message: {
+                      id: newMessage.id,
+                      content: newMessage.content,
+                      sender_id: newMessage.sender_id,
+                      created_at: newMessage.created_at,
+                      conversation_id: newMessage.conversation_id,
+                      edited_at: null,
+                      message_type: 'text',
+                      read_at: null,
+                      read_by_recipient: null
+                    }
+                  };
+                }
+                return conv;
+              });
+              
+              // If conversation not found in current list, reload conversations
+              // This handles cases where a new conversation was created
+              if (!conversationFound) {
+                console.log("📝 New conversation detected, reloading conversations");
+                setTimeout(() => loadConversations(), 1000);
+                return prev; // Return unchanged for now
+              }
+              
+              // Sort conversations by most recent message
+              return updated.sort((a, b) => {
+                const aTime = new Date(a.last_message_at || a.updated_at).getTime();
+                const bTime = new Date(b.last_message_at || b.updated_at).getTime();
+                return bTime - aTime;
+              });
+            });
+
+            // ✅ UPDATE GLOBAL UNREAD COUNT: Only for messages from others when not viewing that conversation
+            const isFromOther = newMessage.sender_id !== user.id;
+            const isNotCurrentlyViewing = !currentConv || currentConv.id !== newMessage.conversation_id;
+            
+            if (isFromOther && isNotCurrentlyViewing) {
+              setUnreadCount((prev) => prev + 1);
+            }
+
+          } catch (error) {
+            console.error("Error processing real-time message:", error);
           }
         }
-      );
-    }
+      )
+      .subscribe();
 
     return () => {
+      console.log("🧹 Cleaning up real-time subscriptions");
       unsubscribeConversations();
-      if (unsubscribeMessages) {
-        unsubscribeMessages();
-      }
+      supabase.removeChannel(newMessageChannel);
     };
-  }, [user, currentConversation]);
+  }, [user]); // Remove currentConversation dependency to prevent subscription restarts
 
   const value = {
     conversations,

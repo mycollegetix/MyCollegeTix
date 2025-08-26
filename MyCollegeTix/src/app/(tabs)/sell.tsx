@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import Colors from "@/src/constants/Colors";
 import { useColorScheme } from "@/src/components/useColorScheme";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { TicketService } from "@/src/services/ticketService";
@@ -27,6 +27,7 @@ import { Event } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { useNotifications } from "@/src/providers/NotificationProvider";
+import { formatEventDateTime } from "@/src/utils/dateUtils";
 
 const { width, height } = Dimensions.get("window");
 
@@ -36,9 +37,12 @@ const sports = [
   { name: "Basketball", icon: "basketball-outline" },
   { name: "Soccer", icon: "football-outline" },
   { name: "Volleyball", icon: "tennisball-outline" },
-  { name: "Hockey", icon: "golf-outline" },
+  { name: "Hockey", icon: "hockey-puck", iconSet: "MaterialCommunityIcons" },
   { name: "Baseball", icon: "baseball-outline" },
-  { name: "Field Hockey", icon: "leaf-outline" },
+  { name: "Tennis", icon: "tennisball-outline" },
+  { name: "Track and Field", icon: "run-fast", iconSet: "MaterialCommunityIcons" },
+  { name: "Cross Country", icon: "run", iconSet: "MaterialCommunityIcons" },
+  { name: "Golf", icon: "golf-outline" },
 ];
 
 interface FormData {
@@ -119,24 +123,13 @@ export default function SellScreen() {
       ...prev,
       description:
         prev.description ||
-        `Ticket for ${event.title} - ${formatEventDate(event.event_date)}`,
+        `Ticket for ${event.title} - ${formatEventDate(event.event_date, event.game_time)}`,
     }));
   };
 
-  const formatEventDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const dateStr = date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-    const timeStr = date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-    return `${dateStr} • ${timeStr}`;
+  // Use shared utility function for consistent date/time formatting
+  const formatEventDate = (dateString: string, gameTime?: string | null) => {
+    return formatEventDateTime(dateString, gameTime, { dateStyle: 'medium', separator: ' • ' });
   };
 
   const updateFormData = (key: keyof FormData, value: string | boolean) => {
@@ -238,9 +231,11 @@ export default function SellScreen() {
   const SportFilterCard = ({
     sport,
     icon,
+    iconSet,
   }: {
     sport: string;
     icon: string;
+    iconSet?: string;
   }) => (
     <TouchableOpacity
       style={[
@@ -252,11 +247,19 @@ export default function SellScreen() {
       ]}
       onPress={() => setSelectedSport(sport)}
     >
-      <Ionicons
-        name={icon as any}
-        size={20}
-        color={selectedSport === sport ? theme.secondary : theme.primary}
-      />
+      {iconSet === "MaterialCommunityIcons" ? (
+        <MaterialCommunityIcons
+          name={icon as any}
+          size={20}
+          color={selectedSport === sport ? theme.secondary : theme.primary}
+        />
+      ) : (
+        <Ionicons
+          name={icon as any}
+          size={20}
+          color={selectedSport === sport ? theme.secondary : theme.primary}
+        />
+      )}
       <Text
         style={[
           styles.sportText,
@@ -278,7 +281,7 @@ export default function SellScreen() {
         <View style={styles.eventItemInfo}>
           <Text style={styles.eventItemTitle}>{item.title}</Text>
           <Text style={styles.eventItemDate}>
-            {formatEventDate(item.event_date)}
+            {formatEventDate(item.event_date, item.game_time)}
           </Text>
           <Text style={styles.eventItemLocation}>
             {item.venue || item.location}
@@ -329,6 +332,9 @@ export default function SellScreen() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        keyboardDismissMode={Platform.OS === 'android' ? 'on-drag' : 'interactive'}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollContent}
       >
         {/* Header Section */}
@@ -361,7 +367,8 @@ export default function SellScreen() {
         <View style={styles.contentContainer}>
           <KeyboardAvoidingView
             style={styles.keyboardView}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
           >
             {/* Event Selection */}
             <View style={styles.section}>
@@ -398,7 +405,7 @@ export default function SellScreen() {
                           { color: theme.primary },
                         ]}
                       >
-                        {formatEventDate(selectedEvent.event_date)}
+                        {formatEventDate(selectedEvent.event_date, selectedEvent.game_time)}
                       </Text>
                       <Text style={styles.selectedEventLocation}>
                         {selectedEvent.venue || selectedEvent.location}
@@ -744,6 +751,7 @@ export default function SellScreen() {
                   key={sport.name}
                   sport={sport.name}
                   icon={sport.icon}
+                  iconSet={(sport as any).iconSet}
                 />
               ))}
             </ScrollView>
@@ -765,6 +773,9 @@ export default function SellScreen() {
                 renderItem={renderEventItem}
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
+                scrollEventThrottle={16}
+                keyboardShouldPersistTaps="handled"
+                removeClippedSubviews={Platform.OS === 'android'}
                 contentContainerStyle={styles.modalEventsList}
               />
             ) : (

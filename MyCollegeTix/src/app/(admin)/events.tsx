@@ -40,6 +40,208 @@ const STATUS_LABELS = {
   cancelled: "Cancelled",
 };
 
+// ✅ FIXED: Moved EditEventModal outside of the main component to prevent re-renders
+const EditEventModal = ({
+  visible,
+  onClose,
+  onSave,
+  editForm,
+  updateFormField,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSave: () => void;
+  editForm: {
+    title: string;
+    event_date: string;
+    game_time: string;
+    location: string;
+    venue: string;
+    sport: string;
+    opponent: string;
+    is_home_game: boolean;
+    status: Event['status'];
+    description: string;
+  };
+  updateFormField: (field: string, value: string | boolean) => void;
+}) => (
+  <Modal
+    visible={visible}
+    transparent
+    animationType="slide"
+    onRequestClose={onClose}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={[styles.modalContent, { maxHeight: '90%' }]}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <Text style={styles.modalTitle}>
+            Edit Event Details
+          </Text>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Event Title *</Text>
+            <TextInput
+              style={styles.formInput}
+              value={editForm.title}
+              onChangeText={(text) => updateFormField('title', text)}
+              placeholder="Enter event title"
+              multiline
+            />
+          </View>
+          
+          <View style={styles.formRow}>
+            <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.formLabel}>Date *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={editForm.event_date}
+                onChangeText={(text) => updateFormField('event_date', text)}
+                placeholder="YYYY-MM-DD"
+              />
+            </View>
+            
+            <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.formLabel}>Time</Text>
+              <TextInput
+                style={styles.formInput}
+                value={editForm.game_time}
+                onChangeText={(text) => updateFormField('game_time', text)}
+                placeholder="7:00 PM"
+              />
+            </View>
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Location *</Text>
+            <TextInput
+              style={styles.formInput}
+              value={editForm.location}
+              onChangeText={(text) => updateFormField('location', text)}
+              placeholder="City, State"
+            />
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Venue</Text>
+            <TextInput
+              style={styles.formInput}
+              value={editForm.venue}
+              onChangeText={(text) => updateFormField('venue', text)}
+              placeholder="Stadium or arena name"
+            />
+          </View>
+          
+          <View style={styles.formRow}>
+            <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.formLabel}>Sport</Text>
+              <TextInput
+                style={styles.formInput}
+                value={editForm.sport}
+                onChangeText={(text) => updateFormField('sport', text)}
+                placeholder="Football, Basketball, etc."
+              />
+            </View>
+            
+            <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.formLabel}>Opponent</Text>
+              <TextInput
+                style={styles.formInput}
+                value={editForm.opponent}
+                onChangeText={(text) => updateFormField('opponent', text)}
+                placeholder="Opposing team"
+              />
+            </View>
+          </View>
+          
+          <View style={styles.formRow}>
+            <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.formLabel}>Game Type</Text>
+              <View style={styles.segmentedControl}>
+                <TouchableOpacity
+                  style={[
+                    styles.segmentedOption,
+                    editForm.is_home_game && styles.segmentedOptionActive
+                  ]}
+                  onPress={() => updateFormField('is_home_game', true)}
+                >
+                  <Text style={[
+                    styles.segmentedOptionText,
+                    editForm.is_home_game && styles.segmentedOptionTextActive
+                  ]}>Home</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.segmentedOption,
+                    !editForm.is_home_game && styles.segmentedOptionActive
+                  ]}
+                  onPress={() => updateFormField('is_home_game', false)}
+                >
+                  <Text style={[
+                    styles.segmentedOptionText,
+                    !editForm.is_home_game && styles.segmentedOptionTextActive
+                  ]}>Away</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.formLabel}>Status</Text>
+              <View style={styles.statusPicker}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {Object.keys(STATUS_LABELS).map((status) => (
+                    <TouchableOpacity
+                      key={status}
+                      style={[
+                        styles.statusOption,
+                        { backgroundColor: STATUS_COLORS[status as keyof typeof STATUS_COLORS] },
+                        editForm.status === status && styles.statusOptionActive
+                      ]}
+                      onPress={() => updateFormField('status', status)}
+                    >
+                      <Text style={styles.statusOptionText}>
+                        {STATUS_LABELS[status as keyof typeof STATUS_LABELS]}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Description</Text>
+            <TextInput
+              style={[styles.formInput, styles.textArea]}
+              value={editForm.description}
+              onChangeText={(text) => updateFormField('description', text)}
+              placeholder="Additional event details..."
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+          
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={onClose}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.saveBtn, { opacity: editForm.title && editForm.event_date && editForm.location ? 1 : 0.5 }]}
+              onPress={onSave}
+              disabled={!editForm.title || !editForm.event_date || !editForm.location}
+            >
+              <Text style={styles.saveBtnText}>Save Changes</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    </View>
+  </Modal>
+);
+
 export default function EventManagement() {
   const [events, setEvents] = useState<EventWithColleges[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<EventWithColleges[]>([]);
@@ -56,6 +258,20 @@ export default function EventManagement() {
   const [bulkModalVisible, setBulkModalVisible] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventWithColleges | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    event_date: '',
+    game_time: '',
+    location: '',
+    venue: '',
+    sport: '',
+    opponent: '',
+    is_home_game: true,
+    status: 'scraped' as Event['status'],
+    description: ''
+  });
 
   useEffect(() => {
     fetchEvents();
@@ -297,10 +513,15 @@ export default function EventManagement() {
   const EventCard = ({ event }: { event: Event }) => {
     const isSelected = selectedEvents.has(event.id);
     const eventDate = new Date(event.event_date);
+    const isExpired = eventDate < new Date();
 
     return (
       <TouchableOpacity
-        style={[styles.eventCard, isSelected && styles.selectedCard]}
+        style={[
+          styles.eventCard, 
+          isSelected && styles.selectedCard,
+          isExpired && styles.expiredCard
+        ]}
         onPress={() => {
           if (selectMode) {
             toggleEventSelection(event.id);
@@ -400,11 +621,15 @@ export default function EventManagement() {
     );
   };
 
-  const showEventActions = (event: Event) => {
+  const showEventActions = (event: EventWithColleges) => {
     Alert.alert(
       "Event Actions",
       `${event.title}\n${new Date(event.event_date).toLocaleDateString()}`,
       [
+        {
+          text: "Edit Event Details",
+          onPress: () => openEditModal(event),
+        },
         {
           text: "Set Available",
           onPress: () => updateEventStatus(event.id, "available"),
@@ -431,6 +656,88 @@ export default function EventManagement() {
         },
       ]
     );
+  };
+
+  const openEditModal = (event: EventWithColleges) => {
+    setEditingEvent(event);
+    setEditForm({
+      title: event.title || '',
+      event_date: event.event_date.split('T')[0], // Format as YYYY-MM-DD
+      game_time: event.game_time || '',
+      location: event.location || '',
+      venue: event.venue || '',
+      sport: event.sport || '',
+      opponent: event.opponent || '',
+      is_home_game: event.is_home_game ?? true,
+      status: event.status,
+      description: event.description || ''
+    });
+    setEditModalVisible(true);
+  };
+
+  const saveEventChanges = async () => {
+    if (!editingEvent) return;
+    
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({
+          title: editForm.title,
+          event_date: (() => {
+            let date = editForm.event_date;
+            // If it's just a date (YYYY-MM-DD), add time and timezone
+            if (date && !date.includes('T')) {
+              date = date + 'T12:00:00.000Z'; // Use noon UTC to avoid timezone issues
+            }
+            // Validate the date
+            const parsedDate = new Date(date);
+            if (isNaN(parsedDate.getTime())) {
+              throw new Error('Invalid date format');
+            }
+            return date;
+          })(),
+          game_time: editForm.game_time,
+          location: editForm.location,
+          venue: editForm.venue,
+          sport: editForm.sport,
+          opponent: editForm.opponent,
+          is_home_game: editForm.is_home_game,
+          status: editForm.status,
+          description: editForm.description,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingEvent.id);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setEvents(prev => prev.map(event => 
+        event.id === editingEvent.id 
+          ? { ...event, ...editForm }
+          : event
+      ));
+      
+      setEditModalVisible(false);
+      setEditingEvent(null);
+      
+      // Check if event was auto-expired
+      const updatedEvent = { ...editingEvent, ...editForm };
+      const eventDate = new Date(updatedEvent.event_date);
+      const now = new Date();
+      
+      if (eventDate < now && updatedEvent.status !== 'completed' && updatedEvent.status !== 'cancelled') {
+        Alert.alert(
+          'Event Updated & Auto-Expired', 
+          'The event was successfully updated. Since the event date is in the past, it has been automatically marked as completed.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Success', 'Event updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating event:', error);
+      Alert.alert('Error', 'Failed to update event');
+    }
   };
 
   const BulkActionsModal = () => (
@@ -514,6 +821,10 @@ export default function EventManagement() {
     inactive: events.filter((e) => e.status === "inactive").length,
     completed: events.filter((e) => e.status === "completed").length,
     cancelled: events.filter((e) => e.status === "cancelled").length,
+  };
+
+  const updateFormField = (field: string, value: string | boolean) => {
+    setEditForm(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -763,6 +1074,13 @@ export default function EventManagement() {
         </ScrollView>
 
         <BulkActionsModal />
+        <EditEventModal
+          visible={editModalVisible}
+          onClose={() => setEditModalVisible(false)}
+          onSave={saveEventChanges}
+          editForm={editForm}
+          updateFormField={updateFormField}
+        />
       </View>
     </AdminLayout>
   );
@@ -904,6 +1222,10 @@ const styles = StyleSheet.create({
   selectedCard: {
     borderWidth: 2,
     borderColor: "#18453b",
+  },
+  expiredCard: {
+    opacity: 0.6,
+    backgroundColor: "#F3F4F6",
   },
   eventHeader: {
     flexDirection: "row",
@@ -1074,5 +1396,95 @@ const styles = StyleSheet.create({
   },
   eventList: {
     paddingTop: 8,
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  formInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#1F2937',
+    backgroundColor: '#FFFFFF',
+  },
+  formRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 2,
+  },
+  segmentedOption: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  segmentedOptionActive: {
+    backgroundColor: '#18453b',
+  },
+  segmentedOptionText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  segmentedOptionTextActive: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  statusPicker: {
+    marginTop: 4,
+  },
+  statusOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginRight: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  statusOptionActive: {
+    borderColor: '#1F2937',
+    borderWidth: 2,
+  },
+  statusOptionText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 24,
+    gap: 12,
+  },
+  saveBtn: {
+    flex: 1,
+    backgroundColor: '#18453b',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveBtnText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

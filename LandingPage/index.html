@@ -1,9 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Google tag (gtag.js) -->
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-S5QR0VXKTJ"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+
+      gtag("config", "G-S5QR0VXKTJ");
+    </script>
+
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MyCollegeTix - Your Campus Ticket Marketplace</title>
+    <title>mycollegetix - Your Campus Ticket Marketplace</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png" />
+    <link rel="shortcut icon" href="favicon.png" />
     <style>
       * {
         margin: 0;
@@ -111,6 +128,34 @@
       }
 
       .logo {
+        display: flex;
+        align-items: center;
+        color: white;
+        text-decoration: none;
+      }
+
+      .logo img {
+        height: 90px;
+        width: auto;
+        margin-right: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .logo:hover img {
+        transform: scale(1.05);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+      }
+
+      @media (max-width: 768px) {
+        .logo img {
+          height: 70px;
+          border-radius: 10px;
+        }
+      }
+
+      .logo-text {
         font-size: 1.5rem;
         font-weight: bold;
         color: white;
@@ -128,6 +173,48 @@
       }
 
       .nav-links a:hover {
+        opacity: 0.8;
+      }
+
+      .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+
+      .mobile-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: rgba(26, 32, 44, 0.95);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 1rem 2rem;
+      }
+
+      .mobile-menu.show {
+        display: block;
+      }
+
+      .mobile-menu a {
+        display: block;
+        color: white;
+        text-decoration: none;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        transition: opacity 0.3s ease;
+      }
+
+      .mobile-menu a:last-child {
+        border-bottom: none;
+      }
+
+      .mobile-menu a:hover {
         opacity: 0.8;
       }
 
@@ -339,6 +426,10 @@
           display: none;
         }
 
+        .mobile-menu-btn {
+          display: block;
+        }
+
         .cta-buttons {
           flex-direction: column;
           align-items: center;
@@ -355,9 +446,22 @@
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-content">
-        <div class="logo">MyCollegeTix</div>
+        <a href="index.html" class="logo">
+          <img src="mycollegetixlogo.png" alt="mycollegetix Logo" />
+          <span class="logo-text"
+            ><span style="color: #ffd700">my</span>collegetix</span
+          >
+        </a>
         <div class="nav-links">
-          <a href="landing.html">Home</a>
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
+          <a href="about.html">About</a>
+          <a href="contact.html">Contact</a>
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+        <div class="mobile-menu" id="mobileMenu">
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
           <a href="about.html">About</a>
           <a href="contact.html">Contact</a>
         </div>
@@ -376,11 +480,12 @@
       <div class="hero-content">
         <h1 class="hero-title">Your College Ticket Connection</h1>
         <p class="hero-subtitle">
-          Connect with verified students at your school to buy and sell tickets.
-          We verify students, you handle the rest.
+          Sign in with your .edu email. We only allow email addresses from
+          supported colleges. Connect with fellow students to buy and sell
+          college tickets.
         </p>
         <div class="cta-buttons">
-          <a href="#" class="btn btn-primary">Download the App</a>
+          <a href="download.html" class="btn btn-primary">Download the App</a>
         </div>
       </div>
     </section>
@@ -388,14 +493,16 @@
     <!-- Features Section -->
     <section class="features" id="features">
       <div class="container">
-        <h2 class="section-title">Why Choose MyCollegeTix?</h2>
+        <h2 class="section-title">
+          Why Choose <span style="color: #ffd700">my</span>collegetix?
+        </h2>
         <div class="features-grid">
           <div class="feature-card">
             <div class="feature-icon">🎓</div>
             <h3 class="feature-title">Verified College Students Only</h3>
             <p>
-              Connect exclusively with verified students from your college. We
-              handle verification, you handle the transaction.
+              Sign in with your .edu email. We only allow email addresses from
+              supported colleges.
             </p>
           </div>
           <div class="feature-card">
@@ -449,8 +556,8 @@
           <div class="step-number">1</div>
           <h3>Verify & Join</h3>
           <p>
-            Sign up with your .edu email. We verify you're a current student at
-            a supported college.
+            Sign up with your .edu email. We only allow email addresses from
+            supported colleges. You handle everything else
           </p>
         </div>
         <div class="step">
@@ -485,11 +592,10 @@
       <div class="container">
         <h2 class="section-title">Ready to Connect with Fellow Students?</h2>
         <p style="font-size: 1.2rem; margin-bottom: 2rem">
-          Sign in with your .edu email if we support your college. We verify
-          students, you handle everything else.
+          Sign in with your .edu email if we support your college.
         </p>
         <div class="cta-buttons">
-          <a href="#" class="btn btn-primary">Check Your School</a>
+          <a href="download.html" class="btn btn-primary">Download the App</a>
         </div>
       </div>
     </section>
@@ -497,14 +603,46 @@
     <!-- Footer -->
     <footer class="footer">
       <div class="container">
-        <div class="footer-links" style="display: flex; justify-content: center; gap: 2rem; margin-bottom: 1rem;">
-          <a href="terms-and-conditions.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Terms & Conditions</a>
-          <a href="privacy-policy.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Privacy Policy</a>
-          <a href="contact.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Contact</a>
+        <div
+          class="footer-links"
+          style="
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+          "
+        >
+          <a
+            href="terms-dynamic.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Terms & Conditions</a
+          >
+          <a
+            href="privacy-dynamic.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Privacy Policy</a
+          >
+          <a
+            href="contact.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Contact</a
+          >
         </div>
         <p>
-          &copy; 2025 MyCollegeTix. A connection platform by students, for
-          students.<br />
+          &copy; 2025 <span style="color: #ffd700">my</span>collegetix. A
+          connection platform by students, for students.<br />
           <small
             >We facilitate connections only—all transactions are between
             users.</small
@@ -535,6 +673,24 @@
           nav.style.background = "rgba(26, 32, 44, 0.9)";
         } else {
           nav.style.background = "rgba(255, 255, 255, 0.1)";
+        }
+      });
+
+      // Mobile menu toggle
+      function toggleMobileMenu() {
+        const mobileMenu = document.getElementById("mobileMenu");
+        mobileMenu.classList.toggle("show");
+      }
+
+      // Close mobile menu when clicking outside
+      document.addEventListener("click", function (event) {
+        const mobileMenu = document.getElementById("mobileMenu");
+        const menuBtn = document.querySelector(".mobile-menu-btn");
+        if (
+          !mobileMenu.contains(event.target) &&
+          !menuBtn.contains(event.target)
+        ) {
+          mobileMenu.classList.remove("show");
         }
       });
 

@@ -10,6 +10,7 @@ import {
   RefreshControl,
   StatusBar,
   SectionList,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -38,9 +39,13 @@ export default function ChatListScreen() {
     markAsRead,
   } = useChat();
 
+  // ✅ OPTIMIZED: Load conversations only once on mount
   useEffect(() => {
     loadConversations();
   }, []);
+
+  // ✅ REMOVED: useFocusEffect that was causing infinite loops
+  // Real-time subscriptions will handle updates automatically
 
   // ✅ ORGANIZE: Separate conversations into sections
   const conversationSections = useMemo((): ConversationSection[] => {
@@ -382,6 +387,9 @@ export default function ChatListScreen() {
             renderSectionHeader={renderSectionHeader}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            keyboardShouldPersistTaps="handled"
+            removeClippedSubviews={Platform.OS === 'android'}
             refreshControl={
               <RefreshControl
                 refreshing={loading}

@@ -12,6 +12,7 @@ import {
   Dimensions,
   Alert,
   Modal,
+  Image,
 } from "react-native";
 import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -27,7 +28,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [forgotPasswordVisible, setForgotPasswordVisible] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [isResetLoading, setIsResetLoading] = useState(false);
@@ -95,7 +95,7 @@ export default function LoginScreen() {
       console.log("🔐 Sending password reset email to:", resetEmail);
 
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: "your-app://reset-password", // You can customize this
+        redirectTo: process.env.EXPO_PUBLIC_RESET_PASSWORD_URL!,
       });
 
       if (error) {
@@ -171,12 +171,10 @@ export default function LoginScreen() {
           {/* Welcome Section */}
           <View style={styles.welcomeSection}>
             <View style={styles.logoContainer}>
-              <LinearGradient
-                colors={["#ffd700", "#ffed4a"]}
+              <Image
+                source={require("../../../assets/images/icon.png")}
                 style={styles.logo}
-              >
-                <Ionicons name="ticket-outline" size={36} color="#18453b" />
-              </LinearGradient>
+              />
             </View>
 
             <Text style={styles.welcomeTitle}>Welcome</Text>
@@ -273,20 +271,6 @@ export default function LoginScreen() {
 
               {/* Form Options */}
               <View style={styles.formOptions}>
-                <TouchableOpacity
-                  style={styles.rememberMe}
-                  onPress={() => setRememberMe(!rememberMe)}
-                >
-                  <View
-                    style={[styles.checkbox, rememberMe && styles.checkedBox]}
-                  >
-                    {rememberMe && (
-                      <Ionicons name="checkmark" size={14} color="white" />
-                    )}
-                  </View>
-                  <Text style={styles.rememberText}>Remember me</Text>
-                </TouchableOpacity>
-
                 <TouchableOpacity
                   onPress={() => setForgotPasswordVisible(true)}
                 >
@@ -488,13 +472,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#ffd700",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 8,
   },
   welcomeTitle: {
     fontSize: 36,
@@ -622,31 +599,9 @@ const styles = StyleSheet.create({
   },
   formOptions: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
     marginBottom: 24,
-  },
-  rememberMe: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
-    marginRight: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkedBox: {
-    backgroundColor: "#18453b",
-    borderColor: "#18453b",
-  },
-  rememberText: {
-    fontSize: 14,
-    color: "#6b7280",
   },
   forgotPassword: {
     fontSize: 14,

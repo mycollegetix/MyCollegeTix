@@ -12,9 +12,10 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Platform,
 } from "react-native";
 import { TicketCard } from "@/src/components/TicketCard";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
@@ -28,11 +29,14 @@ const sports = [
   { name: "All Sports", icon: "grid-outline" },
   { name: "Football", icon: "american-football-outline" },
   { name: "Basketball", icon: "basketball-outline" },
-  { name: "Hockey", icon: "golf-outline" },
+  { name: "Hockey", icon: "hockey-puck", iconSet: "MaterialCommunityIcons" },
   { name: "Soccer", icon: "football-outline" },
   { name: "Volleyball", icon: "tennisball-outline" },
   { name: "Baseball", icon: "baseball-outline" },
   { name: "Tennis", icon: "tennisball-outline" },
+  { name: "Track and Field", icon: "run-fast", iconSet: "MaterialCommunityIcons" },
+  { name: "Cross Country", icon: "run", iconSet: "MaterialCommunityIcons" },
+  { name: "Golf", icon: "golf-outline" },
 ];
 
 const sortOptions = [
@@ -180,11 +184,21 @@ export default function BrowseScreen() {
       case "basketball":
         return "basketball-outline";
       case "hockey":
-        return "golf-outline";
+        return "hockey-puck";
       case "soccer":
         return "football-outline";
       case "volleyball":
         return "tennisball-outline";
+      case "baseball":
+        return "baseball-outline";
+      case "tennis":
+        return "tennisball-outline";
+      case "track and field":
+        return "run-fast";
+      case "cross country":
+        return "run";
+      case "golf":
+        return "golf-outline";
       default:
         return "ticket-outline";
     }
@@ -197,9 +211,11 @@ export default function BrowseScreen() {
   const SportFilterCard = ({
     sport,
     icon,
+    iconSet,
   }: {
     sport: string;
     icon: string;
+    iconSet?: string;
   }) => (
     <TouchableOpacity
       style={[
@@ -219,11 +235,19 @@ export default function BrowseScreen() {
           },
         ]}
       >
-        <Ionicons
-          name={icon as any}
-          size={20}
-          color={selectedSport === sport ? theme.secondary : theme.primary}
-        />
+        {iconSet === "MaterialCommunityIcons" ? (
+          <MaterialCommunityIcons
+            name={icon as any}
+            size={20}
+            color={selectedSport === sport ? theme.secondary : theme.primary}
+          />
+        ) : (
+          <Ionicons
+            name={icon as any}
+            size={20}
+            color={selectedSport === sport ? theme.secondary : theme.primary}
+          />
+        )}
       </View>
       <Text
         style={[
@@ -272,6 +296,9 @@ export default function BrowseScreen() {
     if (lowerTitle.includes("hockey")) return "Hockey";
     if (lowerTitle.includes("soccer")) return "Soccer";
     if (lowerTitle.includes("volleyball")) return "Volleyball";
+    if (lowerTitle.includes("track") || lowerTitle.includes("field")) return "Track and Field";
+    if (lowerTitle.includes("cross country")) return "Cross Country";
+    if (lowerTitle.includes("golf")) return "Golf";
     return "Sports";
   };
 
@@ -349,6 +376,9 @@ export default function BrowseScreen() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        keyboardDismissMode={Platform.OS === 'android' ? 'on-drag' : 'interactive'}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -477,6 +507,7 @@ export default function BrowseScreen() {
                 key={sport.name}
                 sport={sport.name}
                 icon={sport.icon}
+                iconSet={(sport as any).iconSet}
               />
             ))}
           </ScrollView>
@@ -503,6 +534,9 @@ export default function BrowseScreen() {
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
+              removeClippedSubviews={Platform.OS === 'android'}
+              keyboardShouldPersistTaps="handled"
               onEndReached={loadMore}
               onEndReachedThreshold={0.5}
               ListFooterComponent={renderFooter}

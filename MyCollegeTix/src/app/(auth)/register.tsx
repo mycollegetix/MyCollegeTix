@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Alert,
   Modal,
   FlatList,
+  Image,
+  Animated,
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -40,7 +42,24 @@ export default function EnhancedRegisterScreen() {
   const [loadingColleges, setLoadingColleges] = useState(true);
   const [emailValidationMessage, setEmailValidationMessage] = useState("");
 
-  const { signUp } = useAuth();
+  // Verification polling state (only for new registrations)
+  const [isWaitingForVerification, setIsWaitingForVerification] =
+    useState(false);
+  const [verificationAttempts, setVerificationAttempts] = useState(0);
+  const [userCredentials, setUserCredentials] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
+  const [isNewRegistration, setIsNewRegistration] = useState(false);
+
+  // Animation ref for loading bar pulse
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Legal agreement state
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+
+  const { signUp, signIn } = useAuth();
   const router = useRouter();
 
   // Load colleges on mount
@@ -56,6 +75,114 @@ export default function EnhancedRegisterScreen() {
       setEmailValidationMessage("");
     }
   }, [email, selectedCollege]);
+
+  // Verification polling effect (ONLY for new registrations)
+  useEffect(() => {
+    let pollInterval: ReturnType<typeof setInterval>;
+
+    if (isWaitingForVerification && userCredentials && isNewRegistration) {
+      console.log("🔄 Starting verification polling every 3 seconds...");
+
+      // Start pulsing animation for loading bar
+      const startPulse = () => {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(pulseAnim, {
+              toValue: 0.7,
+              duration: 1000,
+              useNativeDriver: false,
+            }),
+            Animated.timing(pulseAnim, {
+              toValue: 1,
+              duration: 1000,
+              useNativeDriver: false,
+            }),
+          ])
+        ).start();
+      };
+
+      startPulse();
+
+      const checkVerification = async () => {
+        try {
+          console.log(`🔍 Checking verification status...`);
+
+          const { error: loginError } = await signIn(
+            userCredentials.email,
+            userCredentials.password
+          );
+
+          if (!loginError) {
+            console.log("✅ Verification successful! User logged in.");
+
+            // Clear states
+            setIsWaitingForVerification(false);
+            setUserCredentials(null);
+            setVerificationAttempts(0);
+            setIsNewRegistration(false);
+
+            // Stop animation
+            pulseAnim.stopAnimation();
+            pulseAnim.setValue(1);
+
+            // Clear form
+            setName("");
+            setEmail("");
+            setPassword("");
+            setConfirmPassword("");
+            setSelectedCollege(null);
+            setEmailValidationMessage("");
+
+            // Navigate to main app
+            router.replace("/(tabs)");
+
+            // Clear the interval
+            if (pollInterval) clearInterval(pollInterval);
+
+            return;
+          }
+
+          // Handle rate limiting by extending the interval
+          if (loginError.message.includes("rate limit")) {
+            console.log("⚠️ Rate limit hit, waiting longer...");
+            // Don't increment attempts for rate limit errors
+            return;
+          }
+
+          // Just increment attempts for logging purposes (no timeout)
+          setVerificationAttempts(prev => prev + 1);
+        } catch (error) {
+          console.log("❌ Verification check error:", error);
+        }
+      };
+
+      // Wait 5 seconds before first check to give user time to get to their email
+      const initialDelay = setTimeout(() => {
+        checkVerification();
+        // Then check every 3 seconds
+        pollInterval = setInterval(checkVerification, 3000);
+      }, 5000);
+
+      return () => {
+        clearTimeout(initialDelay);
+        if (pollInterval) {
+          clearInterval(pollInterval);
+        }
+      };
+    }
+
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [
+    isWaitingForVerification,
+    userCredentials,
+    isNewRegistration,
+    signIn,
+    router,
+  ]);
 
   const loadColleges = async () => {
     console.log("🔍 Loading colleges for registration...");
@@ -194,6 +321,15 @@ export default function EnhancedRegisterScreen() {
       return;
     }
 
+    // Legal agreements validation
+    if (!termsAccepted || !privacyAccepted) {
+      Alert.alert(
+        "Legal Agreements Required",
+        "You must accept both the Terms of Service and Privacy Policy to create an account."
+      );
+      return;
+    }
+
     // Set loading state IMMEDIATELY to prevent double-clicks
     setIsLoading(true);
     console.log("🔄 Starting registration process...");
@@ -203,7 +339,12 @@ export default function EnhancedRegisterScreen() {
       console.log("🏫 Selected college:", selectedCollege.name);
 
       // Use the AuthProvider signUp method which handles college assignment
-      const { error } = await signUp(email, password, name, selectedCollege.id);
+      const { error, data } = await signUp(
+        email,
+        password,
+        name,
+        selectedCollege.id
+      );
 
       if (error) {
         console.error("❌ Registration error:", error);
@@ -236,28 +377,46 @@ export default function EnhancedRegisterScreen() {
           "✅ Registration successful - profile should be created by trigger"
         );
 
-        // Success - show verification message and redirect to login
-        Alert.alert(
-          "Account Created Successfully!",
-          `We've sent a verification email to ${email}. Please check your email and click the verification link to activate your account before signing in.`,
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                // Clear the form
-                setName("");
-                setEmail("");
-                setPassword("");
-                setConfirmPassword("");
-                setSelectedCollege(null);
-                setEmailValidationMessage("");
+        // Check if user is immediately signed in (confirmations disabled) or needs verification
+        if (data.session && data.user) {
+          // User is immediately signed in - no email verification required
+          console.log("🎉 User registered and logged in automatically");
+          setIsNewRegistration(true); // Mark as new registration
 
-                // Navigate to login
-                router.replace("/(auth)/login");
+          Alert.alert(
+            "Welcome to MyCollegeTix!",
+            `Your account has been created successfully. You are now logged in and ready to explore events!`,
+            [
+              {
+                text: "Get Started",
+                onPress: () => {
+                  // Clear the form
+                  setName("");
+                  setEmail("");
+                  setPassword("");
+                  setConfirmPassword("");
+                  setSelectedCollege(null);
+                  setEmailValidationMessage("");
+
+                  // Navigate to main app - the auth provider will handle the redirect
+                  router.replace("/(tabs)");
+                },
               },
-            },
-          ]
-        );
+            ]
+          );
+        } else {
+          // User needs email verification
+          console.log("📧 User needs to verify email before access");
+
+          // Store credentials for polling (ONLY for new registrations)
+          setUserCredentials({ email, password });
+          setIsWaitingForVerification(true);
+          setVerificationAttempts(0);
+          setIsNewRegistration(true); // Mark as new registration requiring verification
+
+          // No popup - just start polling immediately
+          console.log("🔄 Starting automatic verification polling...");
+        }
       }
     } catch (error: any) {
       console.error("💥 Unexpected registration error:", error);
@@ -356,11 +515,9 @@ export default function EnhancedRegisterScreen() {
       bottom: 0,
     },
     logo: {
-      width: 60,
-      height: 60,
+      width: 80,
+      height: 80,
       borderRadius: 20,
-      alignItems: "center",
-      justifyContent: "center",
     },
     heroTitle: {
       fontSize: 24,
@@ -416,16 +573,10 @@ export default function EnhancedRegisterScreen() {
           {/* Hero Section */}
           <View style={styles.heroSection}>
             <View style={styles.logoContainer}>
-              <LinearGradient
-                colors={[themeColors.secondary, `${themeColors.secondary}DD`]}
+              <Image
+                source={require("../../../assets/images/icon.png")}
                 style={dynamicStyles.logo}
-              >
-                <Ionicons
-                  name="ticket-outline"
-                  size={32}
-                  color={themeColors.primary}
-                />
-              </LinearGradient>
+              />
             </View>
 
             <Text style={dynamicStyles.heroTitle}>{getDynamicTitle()}</Text>
@@ -436,7 +587,7 @@ export default function EnhancedRegisterScreen() {
               <FeatureCard
                 icon="shield-checkmark-outline"
                 title="Secure"
-                subtitle="Bank-level security"
+                subtitle="Safe and private"
               />
               <FeatureCard
                 icon="flash-outline"
@@ -661,16 +812,205 @@ export default function EnhancedRegisterScreen() {
                 </View>
               </View>
 
+              {/* Legal Agreements Section */}
+              <View style={styles.legalSection}>
+                <View style={styles.legalHeader}>
+                  <Ionicons
+                    name="shield-checkmark"
+                    size={20}
+                    color={themeColors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.legalHeaderText,
+                      { color: themeColors.primary },
+                    ]}
+                  >
+                    Legal Agreements
+                  </Text>
+                </View>
+
+                <Text style={styles.legalDescription}>
+                  By creating an account, you agree to our terms and policies:
+                </Text>
+
+                {/* Terms of Service Checkbox */}
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  onPress={() => setTermsAccepted(!termsAccepted)}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      termsAccepted && {
+                        backgroundColor: themeColors.primary,
+                        borderColor: themeColors.primary,
+                      },
+                    ]}
+                  >
+                    {termsAccepted && (
+                      <Ionicons name="checkmark" size={14} color="white" />
+                    )}
+                  </View>
+                  <View style={styles.checkboxText}>
+                    <Text style={styles.checkboxLabel}>
+                      I accept the{" "}
+                      <Text
+                        style={[
+                          styles.linkText,
+                          { color: themeColors.primary },
+                        ]}
+                        onPress={() => router.push("/legal/terms")}
+                      >
+                        Terms of Service
+                      </Text>
+                    </Text>
+                    <Text style={styles.checkboxSubtext}>
+                      Including our zero-tolerance policy for inappropriate
+                      content
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Privacy Policy Checkbox */}
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  onPress={() => setPrivacyAccepted(!privacyAccepted)}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      privacyAccepted && {
+                        backgroundColor: themeColors.primary,
+                        borderColor: themeColors.primary,
+                      },
+                    ]}
+                  >
+                    {privacyAccepted && (
+                      <Ionicons name="checkmark" size={14} color="white" />
+                    )}
+                  </View>
+                  <View style={styles.checkboxText}>
+                    <Text style={styles.checkboxLabel}>
+                      I accept the{" "}
+                      <Text
+                        style={[
+                          styles.linkText,
+                          { color: themeColors.primary },
+                        ]}
+                        onPress={() => router.push("/legal/privacy")}
+                      >
+                        Privacy Policy
+                      </Text>
+                    </Text>
+                    <Text style={styles.checkboxSubtext}>
+                      How we collect, use, and protect your information
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {(!termsAccepted || !privacyAccepted) && (
+                  <View style={styles.legalWarning}>
+                    <Ionicons name="warning" size={16} color="#f59e0b" />
+                    <Text style={styles.legalWarningText}>
+                      You must accept both agreements to create an account
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Verification Status - ONLY shown during new registration flow */}
+              {isWaitingForVerification && isNewRegistration && (
+                <View style={styles.verificationStatus}>
+                  <View style={styles.verificationHeader}>
+                    <Ionicons
+                      name="mail"
+                      size={24}
+                      color={themeColors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.verificationTitle,
+                        { color: themeColors.primary },
+                      ]}
+                    >
+                      Waiting for Email Verification
+                    </Text>
+                  </View>
+                  <Text style={styles.verificationMessage}>
+                    Check your email and click the verification link. We'll
+                    automatically log you in!
+                  </Text>
+                  <View style={styles.verificationProgress}>
+                    <View style={styles.loadingBarContainer}>
+                      <View style={styles.loadingBarTrack} />
+                      <Animated.View
+                        style={[
+                          styles.loadingBarFill,
+                          {
+                            width: "100%", // Always show full progress bar with pulsing animation
+                            opacity: pulseAnim,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.progressText}>
+                      Checking for verification...
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.cancelVerificationButton}
+                    onPress={() => {
+                      setIsWaitingForVerification(false);
+                      setUserCredentials(null);
+                      setVerificationAttempts(0);
+                      setIsNewRegistration(false);
+
+                      // Stop animation
+                      pulseAnim.stopAnimation();
+                      pulseAnim.setValue(1);
+
+                      // Clear the form
+                      setName("");
+                      setEmail("");
+                      setPassword("");
+                      setConfirmPassword("");
+                      setSelectedCollege(null);
+                      setEmailValidationMessage("");
+
+                      // Navigate to login
+                      router.replace("/(auth)/login");
+                    }}
+                  >
+                    <Text style={styles.cancelVerificationText}>
+                      Login Later
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* Register Button */}
               <TouchableOpacity
                 style={[
                   dynamicStyles.registerButton,
-                  (isLoading || !selectedCollege || !isEmailValid()) &&
+                  (isLoading ||
+                    isWaitingForVerification ||
+                    !selectedCollege ||
+                    !isEmailValid() ||
+                    !termsAccepted ||
+                    !privacyAccepted) &&
                     styles.disabledButton,
                 ]}
                 onPress={handleRegister}
-                disabled={isLoading || !selectedCollege || !isEmailValid()}
-                activeOpacity={isLoading ? 1 : 0.8} // Prevent visual feedback when disabled
+                disabled={
+                  isLoading ||
+                  isWaitingForVerification ||
+                  !selectedCollege ||
+                  !isEmailValid() ||
+                  !termsAccepted ||
+                  !privacyAccepted
+                }
+                activeOpacity={isLoading || isWaitingForVerification ? 1 : 0.8}
               >
                 <LinearGradient
                   colors={[themeColors.primary, `${themeColors.primary}DD`]}
@@ -679,6 +1019,13 @@ export default function EnhancedRegisterScreen() {
                   {isLoading ? (
                     <View style={styles.loadingContainer}>
                       <Text style={styles.buttonText}>Creating Account...</Text>
+                      <View style={styles.spinner} />
+                    </View>
+                  ) : isWaitingForVerification ? (
+                    <View style={styles.loadingContainer}>
+                      <Text style={styles.buttonText}>
+                        Waiting for Verification...
+                      </Text>
                       <View style={styles.spinner} />
                     </View>
                   ) : (
@@ -794,7 +1141,11 @@ export default function EnhancedRegisterScreen() {
                       {
                         text: "Contact Support",
                         onPress: () => {
-                          // You can add navigation to support or email functionality here
+                          Alert.alert(
+                            "Request New College",
+                            "To add your college to MyCollegeTix, please email us at:\n\nrequests@mycollegetix.com\n\nInclude your college name and email domain.",
+                            [{ text: "OK", style: "default" }]
+                          );
                         },
                       },
                     ]
@@ -1040,7 +1391,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   legalSection: {
-    alignItems: "center",
     marginTop: 20,
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -1048,6 +1398,69 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#e2e8f0",
+  },
+  legalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  legalHeaderText: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  legalDescription: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+    gap: 12,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: "#d1d5db",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  checkboxText: {
+    flex: 1,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: "#374151",
+    lineHeight: 20,
+    marginBottom: 2,
+  },
+  checkboxSubtext: {
+    fontSize: 12,
+    color: "#6b7280",
+    lineHeight: 16,
+  },
+  legalWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#fef3c7",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#f59e0b",
+  },
+  legalWarningText: {
+    fontSize: 12,
+    color: "#92400e",
+    flex: 1,
   },
   legalTextContainer: {
     flexDirection: "row",
@@ -1153,5 +1566,78 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     color: "#6b7280",
+  },
+  // Verification status styles
+  verificationStatus: {
+    backgroundColor: "#f0f9ff",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  verificationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 12,
+  },
+  verificationTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  verificationMessage: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  verificationProgress: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  loadingBarContainer: {
+    width: "100%",
+    height: 8,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 4,
+    marginBottom: 8,
+    position: "relative",
+    overflow: "hidden",
+  },
+  loadingBarTrack: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 4,
+  },
+  loadingBarFill: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    bottom: 0,
+    backgroundColor: "#3b82f6",
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  cancelVerificationButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
+  cancelVerificationText: {
+    fontSize: 14,
+    color: "#6b7280",
+    fontWeight: "500",
   },
 });

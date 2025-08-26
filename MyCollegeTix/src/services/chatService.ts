@@ -1,5 +1,6 @@
-// services/chatService.ts - UPDATED with notifications
+// services/chatService.ts - UPDATED with notifications and moderation
 import { supabase } from "../lib/supabase";
+import { freeModerationService } from "./freeModerationService"; // ✅ ADDED
 import { NotificationService } from "./notificationService"; // ✅ ADDED
 import {
   Database,
@@ -23,11 +24,29 @@ export class ChatService {
   ): Promise<{ data: Message | null; error: any }> {
     try {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (!user) {
+      if (!session || !session.user) {
         throw new Error("User not authenticated");
+      }
+
+      const user = session.user;
+
+      // ✅ STEP 0: Moderate content before sending (only for user messages, not system)
+      if (messageType === "text") {
+        const moderationResult = await freeModerationService.moderateMessage(
+          user.id,
+          conversationId,
+          content
+        );
+
+        if (!moderationResult.success) {
+          return {
+            data: null,
+            error: { message: moderationResult.error || "Message violates community guidelines" }
+          };
+        }
       }
 
       // ✅ STEP 1: Get conversation details to identify the recipient
@@ -97,9 +116,8 @@ export class ChatService {
         );
       }
 
-      // ✅ STEP 5: Create notification for the recipient
+      // ✅ STEP 5: Create notification and send push notification for the recipient
       try {
-        // Create a custom notification entry for the recipient
         const notificationTitle = `New message from ${sender.full_name}`;
         const notificationMessage =
           content.length > 50 ? `${content.substring(0, 50)}...` : content;
@@ -108,28 +126,40 @@ export class ChatService {
           ? ` about "${conversation.ticket.title}"`
           : "";
 
-        const { error: notificationError } = await supabase
-          .from("notifications")
-          .insert({
-            user_id: recipient.id,
+        // Check if recipient exists before creating notification
+        if (!recipient || !recipient.id) {
+          console.error("❌ Cannot create notification: recipient is null or missing ID");
+          return { data, error: null }; // Return success for message, skip notification
+        }
+
+        // Use NotificationService to create notification AND send push
+        const { error: notificationError } = await NotificationService.createAndSendNotification(
+          recipient.id,
+          {
             title: notificationTitle,
             message: `${notificationMessage}${ticketContext}`,
-            type: "message", // ✅ UPDATED: Use specific message type
-            related_ticket_id: conversation.ticket_id,
-            read: false,
-          });
+            type: "message",
+            related_ticket_id: conversation.ticket_id || undefined,
+          },
+          {
+            conversation_id: conversationId,
+            message_id: data.id,
+            sender_name: sender.full_name,
+          },
+          session  // Pass the session to avoid duplicate auth checks
+        );
 
         if (notificationError) {
           console.error(
-            "Failed to create message notification:",
+            "Failed to create and send notification:",
             notificationError
           );
         } else {
-          console.log("✅ Created notification for:", recipient.full_name);
+          console.log("✅ Created notification and sent push to:", recipient.full_name);
         }
       } catch (notificationError) {
         console.error(
-          "Error creating message notification:",
+          "Error creating and sending notification:",
           notificationError
         );
         // Don't fail the message send if notification fails
@@ -278,6 +308,8 @@ export class ChatService {
         "✅ Successfully created new conversation:",
         newConversation?.id
       );
+
+
       return { data: newConversation, error: null };
     } catch (error) {
       console.error("💥 Error in getOrCreateConversation:", error);
@@ -545,7 +577,7 @@ export class ChatService {
 
   static subscribeToConversationMessages(
     conversationId: string,
-    onMessage: (message: Message) => void
+    onMessage: (message: MessageWithSender) => void
   ) {
     const channel = supabase
       .channel(`messages:${conversationId}`)
@@ -557,8 +589,23 @@ export class ChatService {
           table: "messages",
           filter: `conversation_id=eq.${conversationId}`,
         },
-        (payload) => {
-          onMessage(payload.new as Message);
+        async (payload) => {
+          const newMessage = payload.new as Message;
+          
+          // Get sender information for the message
+          const { data: sender } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", newMessage.sender_id)
+            .single();
+
+          const messageWithSender = {
+            ...newMessage,
+            sender: sender
+          };
+
+          console.log("📨 ChatService: New message in conversation", conversationId, messageWithSender.content?.substring(0, 50));
+          onMessage(messageWithSender as MessageWithSender);
         }
       )
       .subscribe();

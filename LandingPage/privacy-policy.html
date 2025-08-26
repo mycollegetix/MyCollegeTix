@@ -1,9 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-S5QR0VXKTJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-S5QR0VXKTJ');
+    </script>
+    
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Privacy Policy - MyCollegeTix</title>
+    <title>Privacy Policy - mycollegetix</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="shortcut icon" href="favicon.png">
     <style>
       * {
         margin: 0;
@@ -38,10 +50,37 @@
       }
 
       .logo {
+        display: flex;
+        align-items: center;
+        color: white;
+        text-decoration: none;
+      }
+      
+      .logo img {
+        height: 90px;
+        width: auto;
+        margin-right: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .logo:hover img {
+        transform: scale(1.05);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+      }
+      
+      @media (max-width: 768px) {
+        .logo img {
+          height: 70px;
+          border-radius: 10px;
+        }
+      }
+      
+      .logo-text {
         font-size: 1.5rem;
         font-weight: bold;
         color: white;
-        text-decoration: none;
       }
 
       .nav-links {
@@ -177,9 +216,13 @@
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-content">
-        <a href="landing.html" class="logo">MyCollegeTix</a>
+        <a href="index.html" class="logo">
+          <img src="mycollegetixlogo.png" alt="mycollegetix Logo" />
+          <span class="logo-text"><span style="color: #FFD700;">my</span>collegetix</span>
+        </a>
         <div class="nav-links">
-          <a href="landing.html">Home</a>
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
           <a href="about.html">About</a>
           <a href="contact.html">Contact</a>
         </div>
@@ -224,6 +267,17 @@
           <li>How you interact with our platform</li>
           <li>Pages visited and features used</li>
         </ul>
+
+        <h3>1.3 Communication and Messaging</h3>
+        <p>
+          When you use our messaging features, we collect and store:
+        </p>
+        <ul>
+          <li>Messages you send and receive through our platform</li>
+          <li>Conversation metadata (timestamps, participants, read status)</li>
+          <li>Push notification preferences and device tokens</li>
+          <li>Message content for moderation and safety purposes</li>
+        </ul>
       </div>
 
       <div class="section">
@@ -238,6 +292,10 @@
           <li>Send important service updates and notifications</li>
           <li>Prevent fraud and maintain platform safety</li>
           <li>Analyze usage patterns to improve user experience</li>
+          <li>Enable real-time messaging between verified students</li>
+          <li>Send push notifications for new messages and updates</li>
+          <li>Moderate content to maintain a safe environment</li>
+          <li>Process messaging data ephemerally for real-time delivery</li>
         </ul>
       </div>
 
@@ -245,7 +303,7 @@
         <h2>3. Information Sharing</h2>
         <h3>3.1 With Other Users</h3>
         <p>
-          When you use MyCollegeTix, other verified students can see:
+          When you use <span style="color: #FFD700;">my</span>collegetix, other verified students can see:
         </p>
         <ul>
           <li>Your name and college affiliation</li>
@@ -307,18 +365,45 @@
         </p>
         <ul>
           <li>Access and update your personal information</li>
-          <li>Delete your account and associated data</li>
+          <li>Delete your account and all associated data permanently</li>
+          <li>Export a copy of your personal data</li>
           <li>Opt out of non-essential communications</li>
-          <li>Request a copy of your data</li>
+          <li>Request correction of inaccurate information</li>
           <li>File a complaint with relevant authorities</li>
         </ul>
       </div>
 
       <div class="section">
-        <h2>8. Data Retention</h2>
+        <h2>8. Data Retention and Deletion</h2>
+        <h3>8.1 Data Retention</h3>
         <p>
-          We retain your information for as long as your account is active or as needed to provide services. When you delete your account, we remove your personal information within 30 days, except where required by law.
+          We retain your information for as long as your account is active or as needed to provide services.
         </p>
+        
+        <h3>8.2 Account Deletion</h3>
+        <p>
+          When you delete your account, we permanently remove all your personal information within 30 days, including:
+        </p>
+        <ul>
+          <li>Profile information and account details</li>
+          <li>All messages and conversation history</li>
+          <li>Ticket listings and transaction records</li>
+          <li>Notifications and push notification tokens</li>
+          <li>Watchlist entries and preferences</li>
+          <li>Reports and moderation records</li>
+        </ul>
+        <p>
+          <strong>This deletion is irreversible.</strong> Some information may be retained if required by law or for legitimate business purposes (such as preventing fraud).
+        </p>
+        
+        <h3>8.3 Data Processing Methods</h3>
+        <p>
+          We use different methods to process your data:
+        </p>
+        <ul>
+          <li><strong>Persistent Storage:</strong> Account information, messages, and transaction history are permanently stored</li>
+          <li><strong>Ephemeral Processing:</strong> Real-time message delivery, temporary session data, and UI state are processed temporarily in memory</li>
+        </ul>
       </div>
 
       <div class="section">
@@ -356,7 +441,7 @@
           <a href="contact.html">Contact</a>
         </div>
         <p>
-          &copy; 2025 MyCollegeTix. A connection platform by students, for students.<br />
+          &copy; 2025 <span style="color: #FFD700;">my</span>collegetix. A connection platform by students, for students.<br />
           <small>We facilitate connections only—all transactions are between users.</small>
         </p>
       </div>

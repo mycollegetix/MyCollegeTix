@@ -12,6 +12,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -59,7 +60,7 @@ export default function OrdersScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { user, profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<OrderType>("buying");
+  const [activeTab, setActiveTab] = useState<OrderType>("selling");
   const [purchases, setPurchases] = useState<OrderItem[]>([]);
   const [listings, setListings] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -565,6 +566,9 @@ export default function OrdersScreen() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        keyboardDismissMode={Platform.OS === 'android' ? 'on-drag' : 'interactive'}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -603,7 +607,7 @@ export default function OrdersScreen() {
 
         {/* Tab Navigation */}
         <View style={styles.tabSection}>
-          {(["buying", "selling", "watchlist"] as OrderType[]).map((tab) => {
+          {(["selling", "watchlist"] as OrderType[]).map((tab) => {
             const stats = getTabStats(tab);
             return (
               <TouchableOpacity
@@ -616,9 +620,7 @@ export default function OrdersScreen() {
               >
                 <Ionicons
                   name={
-                    tab === "buying"
-                      ? "bag-outline"
-                      : tab === "selling"
+                    tab === "selling"
                       ? "storefront-outline"
                       : "bookmark-outline"
                   }
@@ -631,9 +633,7 @@ export default function OrdersScreen() {
                     activeTab === tab && styles.activeTabText,
                   ]}
                 >
-                  {tab === "buying"
-                    ? "Buying"
-                    : tab === "selling"
+                  {tab === "selling"
                     ? "Selling"
                     : "Watchlist"}{" "}
                   ({stats.count})
@@ -653,8 +653,7 @@ export default function OrdersScreen() {
               <View style={styles.resultsHeader}>
                 <Text style={[styles.resultsCount, { color: theme.primary }]}>
                   {currentData.length}{" "}
-                  {activeTab === "buying" ? "purchase" : "listing"}
-                  {currentData.length !== 1 ? "s" : ""} found
+                  listing{currentData.length !== 1 ? "s" : ""} found
                 </Text>
                 <Text style={styles.currentSort}>Sorted by most recent</Text>
               </View>
@@ -671,43 +670,34 @@ export default function OrdersScreen() {
                   keyExtractor={(item) => `${item.type}-${item.id}`}
                   scrollEnabled={false}
                   showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                  removeClippedSubviews={Platform.OS === 'android'}
+                  keyboardShouldPersistTaps="handled"
                 />
               ) : (
                 <BlurView intensity={20} style={styles.emptyState}>
                   <View style={styles.emptyIconContainer}>
                     <Ionicons
-                      name={
-                        activeTab === "buying"
-                          ? "bag-outline"
-                          : "storefront-outline"
-                      }
+                      name="storefront-outline"
                       size={48}
                       color="#6b7280"
                     />
                   </View>
                   <Text style={styles.emptyStateTitle}>
-                    No {activeTab === "buying" ? "purchases" : "listings"} yet
+                    No listings yet
                   </Text>
                   <Text style={styles.emptyStateText}>
-                    {activeTab === "buying"
-                      ? "Browse available tickets and make your first purchase"
-                      : "Create your first ticket listing to start selling"}
+                    Create your first ticket listing to start selling
                   </Text>
                   <TouchableOpacity
                     style={[
                       styles.clearFiltersButton,
                       { backgroundColor: theme.primary },
                     ]}
-                    onPress={() =>
-                      router.push(
-                        activeTab === "buying" ? "/(tabs)" : "/(tabs)/sell"
-                      )
-                    }
+                    onPress={() => router.push("/(tabs)/sell")}
                   >
                     <Text style={styles.clearFiltersText}>
-                      {activeTab === "buying"
-                        ? "Browse Tickets"
-                        : "List a Ticket"}
+                      List a Ticket
                     </Text>
                   </TouchableOpacity>
                 </BlurView>

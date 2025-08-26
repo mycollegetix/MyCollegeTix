@@ -1,9 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-S5QR0VXKTJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-S5QR0VXKTJ');
+    </script>
+    
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>About - MyCollegeTix</title>
+    <title>About - mycollegetix</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="shortcut icon" href="favicon.png">
     <style>
       * {
         margin: 0;
@@ -38,10 +50,37 @@
       }
 
       .logo {
+        display: flex;
+        align-items: center;
+        color: white;
+        text-decoration: none;
+      }
+      
+      .logo img {
+        height: 90px;
+        width: auto;
+        margin-right: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .logo:hover img {
+        transform: scale(1.05);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+      }
+      
+      @media (max-width: 768px) {
+        .logo img {
+          height: 70px;
+          border-radius: 10px;
+        }
+      }
+      
+      .logo-text {
         font-size: 1.5rem;
         font-weight: bold;
         color: white;
-        text-decoration: none;
       }
 
       .nav-links {
@@ -60,6 +99,48 @@
         opacity: 0.8;
         border-bottom: 2px solid white;
         padding-bottom: 4px;
+      }
+
+      .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+
+      .mobile-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: rgba(26, 32, 44, 0.95);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 1rem 2rem;
+      }
+
+      .mobile-menu.show {
+        display: block;
+      }
+
+      .mobile-menu a {
+        display: block;
+        color: white;
+        text-decoration: none;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        transition: opacity 0.3s ease;
+      }
+
+      .mobile-menu a:last-child {
+        border-bottom: none;
+      }
+
+      .mobile-menu a:hover {
+        opacity: 0.8;
       }
 
       .hero-section {
@@ -99,7 +180,19 @@
         align-items: start;
       }
 
-      .founder-card {
+      .team-section {
+        padding: 4rem 0;
+        text-align: center;
+      }
+
+      .team-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-top: 3rem;
+      }
+
+      .team-card {
         background: white;
         padding: 2rem;
         border-radius: 20px;
@@ -108,34 +201,58 @@
         border: 1px solid rgba(24, 69, 59, 0.1);
       }
 
-      .founder-photo {
+      .team-photo {
         width: 150px;
         height: 150px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #18453b, #006233);
         margin: 0 auto 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 4rem;
-        color: white;
+        overflow: hidden;
+        border: 4px solid #18453b;
+      }
+      
+      .team-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
       }
 
-      .founder-name {
+      .team-name {
         font-size: 1.5rem;
         font-weight: bold;
         margin-bottom: 0.5rem;
         color: #18453b;
       }
 
-      .founder-title {
+      .team-title {
         color: #666;
         margin-bottom: 1rem;
       }
 
-      .founder-bio {
+      .team-bio {
         text-align: left;
         line-height: 1.6;
+        margin-bottom: 1.5rem;
+      }
+
+      .social-links {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+      }
+
+      .linkedin-link {
+        background: #0077b5;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: background 0.3s ease;
+      }
+
+      .linkedin-link:hover {
+        background: #005885;
       }
 
       .story-section {
@@ -221,13 +338,17 @@
           font-size: 2rem;
         }
 
-        .content-grid {
+        .team-grid {
           grid-template-columns: 1fr;
           gap: 2rem;
         }
 
         .nav-links {
           display: none;
+        }
+
+        .mobile-menu-btn {
+          display: block;
         }
       }
     </style>
@@ -236,9 +357,20 @@
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-content">
-        <a href="#" class="logo">MyCollegeTix</a>
+        <a href="index.html" class="logo">
+          <img src="mycollegetixlogo.png" alt="mycollegetix Logo" />
+          <span class="logo-text"><span style="color: #FFD700;">my</span>collegetix</span>
+        </a>
         <div class="nav-links">
-          <a href="landing.html">Home</a>
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
+          <a href="about.html" class="active">About</a>
+          <a href="contact.html">Contact</a>
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+        <div class="mobile-menu" id="mobileMenu">
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
           <a href="about.html" class="active">About</a>
           <a href="contact.html">Contact</a>
         </div>
@@ -248,7 +380,7 @@
     <!-- Hero Section -->
     <section class="hero-section">
       <div class="container">
-        <h1 class="hero-title">About MyCollegeTix</h1>
+        <h1 class="hero-title">About <span style="color: #FFD700;">my</span>collegetix</h1>
         <p class="hero-subtitle">
           Connecting college students through a simple, trusted ticket
           marketplace
@@ -259,49 +391,75 @@
     <!-- Main Content -->
     <section class="about-content">
       <div class="container">
-        <div class="content-grid">
-          <!-- Founder Info -->
-          <div class="founder-card">
-            <div class="founder-photo">👨‍💼</div>
-            <h3 class="founder-name">[Your Name]</h3>
-            <p class="founder-title">Founder & Developer</p>
-            <div class="founder-bio">
-              <p><strong>School:</strong> [Your College/University]</p>
-              <p><strong>Major:</strong> [Your Major]</p>
-              <p><strong>Year:</strong> [Your Year]</p>
-              <p><strong>Email:</strong> [your.email@college.edu]</p>
-
-              <p style="margin-top: 1rem">
-                [Add your personal bio here - why you're passionate about this
-                project, your background, what drives you to solve this problem,
-                etc.]
-              </p>
-            </div>
+        <!-- Story Section - Now at top -->
+        <div class="story-section" style="margin-bottom: 4rem">
+          <h2 class="section-title">The Story</h2>
+          <div class="story-text">
+            <p>
+              As a college student, I noticed how difficult it was to buy and
+              sell tickets safely within our campus community. Students were
+              using Snapchat, GroupMe, dealing with uncertain sellers, and often
+              getting scammed or overcharged.
+            </p>
+            <p>
+              There must be a better way - a platform that verified students
+              were actually from your school, provided safe communication, but
+              let students handle transactions directly without any middleman
+              fees.
+            </p>
+            <p>
+              <span style="color: #FFD700;">my</span>collegetix was born from the idea that students should be able
+              to connect with their peers safely and easily, without corporate
+              interference or excessive fees eating into their already tight
+              budgets.
+            </p>
           </div>
+        </div>
 
-          <!-- Story Section -->
-          <div class="story-section">
-            <h2 class="section-title">The Story</h2>
-            <div class="story-text">
-              <p>
-                [Tell your story here - maybe something like:] As a college
-                student, I noticed how difficult it was to buy and sell tickets
-                safely within our campus community. Students were using sketchy
-                Facebook groups, dealing with uncertain sellers, and often
-                getting scammed or overcharged.
-              </p>
-              <p>
-                [Continue with your motivation:] I realized there had to be a
-                better way - a platform that verified students were actually
-                from your school, provided safe communication, but let students
-                handle transactions directly without any middleman fees.
-              </p>
-              <p>
-                [Add your vision:] MyCollegeTix was born from the idea that
-                students should be able to connect with their peers safely and
-                easily, without corporate interference or excessive fees eating
-                into their already tight budgets.
-              </p>
+        <!-- Team Section - Now first -->
+        <div class="team-section">
+          <h2 class="section-title">Our Team</h2>
+          <div class="team-grid">
+            <!-- Founder -->
+            <div class="team-card">
+              <div class="team-photo">
+                <img src="nikhil.jpeg" alt="Nikhil Mamtani" />
+              </div>
+              <h3 class="team-name">Nikhil Mamtani</h3>
+              <p class="team-title">Founder & Developer</p>
+              <div class="team-bio">
+                <p><strong>School:</strong> Michigan State University</p>
+                <p><strong>Major:</strong> Computer Science</p>
+              </div>
+              <div class="social-links">
+                <a
+                  href="https://www.linkedin.com/in/nikhil-mamtani/"
+                  target="_blank"
+                  class="linkedin-link"
+                  >LinkedIn</a
+                >
+              </div>
+            </div>
+
+            <!-- Advisor -->
+            <div class="team-card">
+              <div class="team-photo">
+                <img src="vijay.jpeg" alt="Vijay Agarwal" />
+              </div>
+              <h3 class="team-name">Vijay Agarwal</h3>
+              <p class="team-title">Advisor</p>
+              <div class="team-bio">
+                <p><strong>Role:</strong> Strategic Advisor</p>
+                <p><strong>Expertise:</strong> Business Development</p>
+              </div>
+              <div class="social-links">
+                <a
+                  href="https://www.linkedin.com/in/vijaykagarwal/"
+                  target="_blank"
+                  class="linkedin-link"
+                  >LinkedIn</a
+                >
+              </div>
             </div>
           </div>
         </div>
@@ -342,13 +500,45 @@
     <!-- Footer -->
     <footer class="footer">
       <div class="container">
-        <div class="footer-links" style="display: flex; justify-content: center; gap: 2rem; margin-bottom: 1rem;">
-          <a href="terms-and-conditions.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Terms & Conditions</a>
-          <a href="privacy-policy.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Privacy Policy</a>
-          <a href="contact.html" style="color: #94a3b8; text-decoration: none; transition: color 0.3s ease;">Contact</a>
+        <div
+          class="footer-links"
+          style="
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+          "
+        >
+          <a
+            href="terms-dynamic.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Terms & Conditions</a
+          >
+          <a
+            href="privacy-dynamic.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Privacy Policy</a
+          >
+          <a
+            href="contact.html"
+            style="
+              color: #94a3b8;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            "
+            >Contact</a
+          >
         </div>
         <p>
-          &copy; 2025 MyCollegeTix. A connection platform by students, for
+          &copy; 2025 <span style="color: #FFD700;">my</span>collegetix. A connection platform by students, for
           students.<br />
           <small
             >We facilitate connections only—all transactions are between
@@ -366,6 +556,24 @@
           nav.style.background = "rgba(26, 32, 44, 0.9)";
         } else {
           nav.style.background = "rgba(255, 255, 255, 0.1)";
+        }
+      });
+
+      // Mobile menu toggle
+      function toggleMobileMenu() {
+        const mobileMenu = document.getElementById("mobileMenu");
+        mobileMenu.classList.toggle("show");
+      }
+
+      // Close mobile menu when clicking outside
+      document.addEventListener("click", function (event) {
+        const mobileMenu = document.getElementById("mobileMenu");
+        const menuBtn = document.querySelector(".mobile-menu-btn");
+        if (
+          !mobileMenu.contains(event.target) &&
+          !menuBtn.contains(event.target)
+        ) {
+          mobileMenu.classList.remove("show");
         }
       });
 

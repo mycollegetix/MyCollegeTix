@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-S5QR0VXKTJ"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+
+      gtag("config", "G-S5QR0VXKTJ");
+    </script>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Download mycollegetix</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="shortcut icon" href="favicon.png">
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        line-height: 1.6;
+        color: #1a202c;
+        background: linear-gradient(135deg, #18453b 0%, #006233 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-top: 120px;
+      }
+
+      .nav {
+        position: fixed;
+        top: 0;
+        width: 100%;
+        padding: 1rem 2rem;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        z-index: 1000;
+        transition: all 0.3s ease;
+      }
+
+      .nav-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        color: white;
+        text-decoration: none;
+      }
+
+      .nav-logo img {
+        height: 90px;
+        width: auto;
+        margin-right: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .nav-logo:hover img {
+        transform: scale(1.05);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+      }
+
+      .nav-logo-text {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: white;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 2rem;
+      }
+
+      .nav-links a {
+        color: white;
+        text-decoration: none;
+        transition: opacity 0.3s ease;
+      }
+
+      .nav-links a:hover,
+      .nav-links a.active {
+        opacity: 0.8;
+        border-bottom: 2px solid white;
+        padding-bottom: 4px;
+      }
+
+      .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+
+      .mobile-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: rgba(26, 32, 44, 0.95);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 1rem 2rem;
+      }
+
+      .mobile-menu.show {
+        display: block;
+      }
+
+      .mobile-menu a {
+        display: block;
+        color: white;
+        text-decoration: none;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        transition: opacity 0.3s ease;
+      }
+
+      .mobile-menu a:last-child {
+        border-bottom: none;
+      }
+
+      .mobile-menu a:hover {
+        opacity: 0.8;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        padding: 3rem 2rem;
+        text-align: center;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        width: 90%;
+      }
+
+      .logo {
+        display: block;
+        margin: 0 auto 1rem;
+        text-align: center;
+      }
+
+      .logo img {
+        width: 150px;
+        height: 150px;
+        border-radius: 24px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .logo:hover img {
+        transform: scale(1.05);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      }
+
+
+
+      .subtitle {
+        color: #6b7280;
+        margin-bottom: 2rem;
+        font-size: 1rem;
+      }
+
+      .auto-redirect {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+      }
+
+      .auto-redirect h3 {
+        color: #0369a1;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .auto-redirect p {
+        color: #0369a1;
+        font-size: 0.9rem;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #bae6fd;
+        border-top: 2px solid #0369a1;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 8px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .manual-download {
+        display: none;
+      }
+
+      .manual-download.show {
+        display: block;
+      }
+
+      .manual-download h3 {
+        color: #18453b;
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .download-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .download-btn {
+        display: inline-block;
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .download-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      }
+
+      .badge-img {
+        height: 68px;
+        width: 215px;
+        display: block;
+        object-fit: contain;
+      }
+
+      .coming-soon-btn {
+        position: relative;
+        display: inline-block;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .coming-soon-content {
+        position: relative;
+      }
+
+      .badge-img.grayed-out {
+        opacity: 0.4;
+        filter: grayscale(100%);
+      }
+
+      .coming-soon-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(24, 69, 59, 0.9);
+        backdrop-filter: blur(2px);
+      }
+
+      .coming-soon-text {
+        color: white;
+        font-weight: 600;
+        font-size: 1rem;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+      }
+
+      .fallback-text {
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e5e7eb;
+        color: #6b7280;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 768px) {
+        .nav-links {
+          display: none;
+        }
+
+        .mobile-menu-btn {
+          display: block;
+        }
+
+        .nav-logo img {
+          height: 70px;
+          border-radius: 10px;
+        }
+
+        .nav-logo-text {
+          font-size: 1.3rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .container {
+          padding: 2rem 1.5rem;
+        }
+
+        .title {
+          font-size: 1.5rem;
+        }
+
+        .download-buttons {
+          gap: 0.8rem;
+        }
+
+        .badge-img {
+          height: 58px;
+          width: 175px;
+        }
+
+        .logo img {
+          width: 120px;
+          height: 120px;
+          border-radius: 20px;
+        }
+
+        .nav {
+          padding: 0.8rem 1rem;
+        }
+
+        .nav-logo img {
+          height: 60px;
+        }
+
+        .nav-logo-text {
+          font-size: 1.1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav">
+      <div class="nav-content">
+        <a href="index.html" class="nav-logo">
+          <img src="mycollegetixlogo.png" alt="mycollegetix Logo" />
+          <span class="nav-logo-text"><span style="color: #FFD700;">my</span>collegetix</span>
+        </a>
+        <div class="nav-links">
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
+          <a href="about.html">About</a>
+          <a href="contact.html">Contact</a>
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+        <div class="mobile-menu" id="mobileMenu">
+          <a href="index.html">Home</a>
+          <a href="supported-colleges.html">Supported Colleges</a>
+          <a href="about.html">About</a>
+          <a href="contact.html">Contact</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+      <a href="index.html" class="logo">
+        <img src="mycollegetixlogo.png" alt="mycollegetix" />
+      </a>
+      <p class="subtitle">Your Campus Ticket Marketplace</p>
+
+      <!-- Auto-redirect section (shown initially) -->
+      <div class="auto-redirect" id="autoRedirect">
+        <h3><span class="spinner"></span>Detecting your device...</h3>
+        <p>You'll be redirected to the appropriate app store automatically.</p>
+      </div>
+
+      <!-- Manual download section (shown if auto-redirect fails) -->
+      <div class="manual-download" id="manualDownload">
+        <h3>Choose your platform:</h3>
+        <div class="download-buttons">
+          <a
+            href="https://apps.apple.com/us/app/mycollegetix/id6748928832"
+            class="download-btn"
+            id="iosBtn"
+          >
+            <img
+              src="Download_on_the_App_Store_Badge_US-UK_RGB_blk_0929172.png"
+              alt="Download on the App Store"
+              class="badge-img"
+            />
+          </a>
+
+          <div class="coming-soon-btn" id="androidBtn">
+            <div class="coming-soon-content">
+              <img
+                src="GetItOnGooglePlay_Badge_Web_color_English.png"
+                alt="Get it on Google Play"
+                class="badge-img grayed-out"
+              />
+              <div class="coming-soon-overlay">
+                <span class="coming-soon-text">Android Coming Soon</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fallback-text">
+        <p>
+          Having trouble? Visit
+          <a
+            href="https://mycollegetix.com"
+            target="_blank"
+            style="color: #18453b; text-decoration: none; font-weight: bold"
+            >mycollegetix.com</a
+          >
+          for more information.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // Device detection and auto-redirect
+      function detectDevice() {
+        const userAgent =
+          navigator.userAgent || navigator.vendor || window.opera;
+
+        // iOS detection
+        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+          return "ios";
+        }
+
+        // Android detection
+        if (/android/i.test(userAgent)) {
+          return "android";
+        }
+
+        // Additional mobile detection
+        if (/Mobile|mini|Fennec|Android|iP(ad|od|hone)/.test(userAgent)) {
+          // Try to detect based on other indicators
+          if (userAgent.includes("iPhone") || userAgent.includes("iPad")) {
+            return "ios";
+          }
+          if (userAgent.includes("Android")) {
+            return "android";
+          }
+        }
+
+        return "unknown";
+      }
+
+      function redirect() {
+        const device = detectDevice();
+        const autoRedirectEl = document.getElementById("autoRedirect");
+        const manualDownloadEl = document.getElementById("manualDownload");
+
+        console.log("Detected device:", device);
+        console.log("User agent:", navigator.userAgent);
+
+        if (device === "ios") {
+          // Redirect to App Store
+          setTimeout(() => {
+            window.location.href =
+              "https://apps.apple.com/us/app/mycollegetix/id6748928832";
+          }, 1500);
+        } else if (device === "android") {
+          // Show manual download for Android (coming soon)
+          setTimeout(() => {
+            autoRedirectEl.style.display = "none";
+            manualDownloadEl.classList.add("show");
+          }, 2000);
+        } else {
+          // Show manual download options
+          setTimeout(() => {
+            autoRedirectEl.style.display = "none";
+            manualDownloadEl.classList.add("show");
+          }, 2000);
+        }
+      }
+
+      // Analytics/tracking (optional)
+      function trackDownload(platform) {
+        console.log("Download initiated for:", platform);
+        // Add analytics tracking here if needed
+        // gtag('event', 'download_app', { platform: platform });
+      }
+
+      // Add click tracking to manual buttons
+      document.getElementById("iosBtn").addEventListener("click", () => {
+        trackDownload("ios");
+      });
+
+      document.getElementById("androidBtn").addEventListener("click", () => {
+        trackDownload("android");
+      });
+
+      // Start the redirect process when page loads
+      window.addEventListener("load", redirect);
+
+      // Mobile menu toggle
+      function toggleMobileMenu() {
+        const mobileMenu = document.getElementById("mobileMenu");
+        mobileMenu.classList.toggle("show");
+      }
+
+      // Close mobile menu when clicking outside
+      document.addEventListener("click", function (event) {
+        const mobileMenu = document.getElementById("mobileMenu");
+        const menuBtn = document.querySelector(".mobile-menu-btn");
+        if (
+          !mobileMenu.contains(event.target) &&
+          !menuBtn.contains(event.target)
+        ) {
+          mobileMenu.classList.remove("show");
+        }
+      });
+    </script>
+  </body>
+</html>
