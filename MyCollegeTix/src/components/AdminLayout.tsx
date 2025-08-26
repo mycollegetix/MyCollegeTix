@@ -92,8 +92,8 @@ export default function AdminLayout({
                 onPress={() => {
                   // Handle back navigation properly
                   if (pathname === "/(admin)" || pathname === "/admin") {
-                    // If on admin dashboard, go back to profile
-                    router.push("/(tabs)/profile");
+                    // If on admin dashboard, go back to main app
+                    router.push("/(tabs)");
                   } else if (router.canGoBack()) {
                     // If we can go back in history, do so
                     router.back();
@@ -114,12 +114,20 @@ export default function AdminLayout({
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={handleSignOut}
-          >
-            <Ionicons name="log-out-outline" size={24} color="white" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => router.push("/(tabs)")}
+            >
+              <Ionicons name="apps-outline" size={22} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={handleSignOut}
+            >
+              <Ionicons name="log-out-outline" size={24} color="white" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Navigation */}
@@ -194,6 +202,16 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: "rgba(255,255,255,0.8)",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  actionButton: {
+    padding: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
   },
   profileButton: {
     padding: 8,
