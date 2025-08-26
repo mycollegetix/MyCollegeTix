@@ -27,6 +27,7 @@ import { Event } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { useNotifications } from "@/src/providers/NotificationProvider";
+import { formatEventDateTime } from "@/src/utils/dateUtils";
 
 const { width, height } = Dimensions.get("window");
 
@@ -122,24 +123,13 @@ export default function SellScreen() {
       ...prev,
       description:
         prev.description ||
-        `Ticket for ${event.title} - ${formatEventDate(event.event_date)}`,
+        `Ticket for ${event.title} - ${formatEventDate(event.event_date, event.game_time)}`,
     }));
   };
 
-  const formatEventDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const dateStr = date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-    const timeStr = date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-    return `${dateStr} • ${timeStr}`;
+  // Use shared utility function for consistent date/time formatting
+  const formatEventDate = (dateString: string, gameTime?: string | null) => {
+    return formatEventDateTime(dateString, gameTime, { dateStyle: 'medium', separator: ' • ' });
   };
 
   const updateFormData = (key: keyof FormData, value: string | boolean) => {
@@ -291,7 +281,7 @@ export default function SellScreen() {
         <View style={styles.eventItemInfo}>
           <Text style={styles.eventItemTitle}>{item.title}</Text>
           <Text style={styles.eventItemDate}>
-            {formatEventDate(item.event_date)}
+            {formatEventDate(item.event_date, item.game_time)}
           </Text>
           <Text style={styles.eventItemLocation}>
             {item.venue || item.location}
@@ -415,7 +405,7 @@ export default function SellScreen() {
                           { color: theme.primary },
                         ]}
                       >
-                        {formatEventDate(selectedEvent.event_date)}
+                        {formatEventDate(selectedEvent.event_date, selectedEvent.game_time)}
                       </Text>
                       <Text style={styles.selectedEventLocation}>
                         {selectedEvent.venue || selectedEvent.location}

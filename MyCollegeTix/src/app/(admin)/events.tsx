@@ -1223,6 +1223,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#18453b",
   },
+  expiredCard: {
+    opacity: 0.6,
+    backgroundColor: "#F3F4F6",
+  },
   eventHeader: {
     flexDirection: "row",
     justifyContent: "space-between",

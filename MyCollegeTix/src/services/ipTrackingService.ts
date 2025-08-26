@@ -66,8 +66,10 @@ class IPTrackingService {
       brand: Device.brand,
       modelName: Device.modelName,
       appVersion: Constants.expoConfig?.version || "unknown",
-      buildVersion: Constants.expoConfig?.android?.versionCode?.toString() || 
-                   Constants.expoConfig?.ios?.buildNumber || "unknown",
+      buildVersion:
+        Constants.expoConfig?.android?.versionCode?.toString() ||
+        Constants.expoConfig?.ios?.buildNumber ||
+        "unknown",
       isDevice: Device.isDevice,
     };
 
@@ -84,7 +86,7 @@ class IPTrackingService {
   private async getPublicIP(): Promise<string | null> {
     try {
       console.log("🌐 Fetching public IP address...");
-      
+
       // Try multiple IP services for reliability
       const ipServices = [
         "https://api.ipify.org?format=json",
@@ -97,16 +99,16 @@ class IPTrackingService {
           const response = await fetch(service, {
             timeout: 5000, // 5 second timeout
             headers: {
-              'User-Agent': this.getUserAgent(),
+              "User-Agent": this.getUserAgent(),
             },
           });
 
           if (response.ok) {
             const data = await response.json();
-            
+
             // Different services return IP in different fields
             const ip = data.ip || data.query || data.ipAddress;
-            
+
             if (ip && this.isValidIP(ip)) {
               console.log(`✅ Got IP from ${service}: ${ip}`);
               return ip;
@@ -130,20 +132,25 @@ class IPTrackingService {
   private async getLocationFromIP(ip: string): Promise<LocationData | null> {
     try {
       console.log(`🌍 Getting location data for IP: ${ip}`);
-      
+
       // Use ip-api.com for free geolocation (100 requests/minute limit)
-      const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,query`, {
-        timeout: 10000, // 10 second timeout
-        headers: {
-          'User-Agent': this.getUserAgent(),
-        },
-      });
+      const response = await fetch(
+        `http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,query`,
+        {
+          timeout: 10000, // 10 second timeout
+          headers: {
+            "User-Agent": this.getUserAgent(),
+          },
+        }
+      );
 
       if (response.ok) {
         const data = await response.json();
-        
-        if (data.status === 'success') {
-          console.log(`✅ Got location data: ${data.city}, ${data.regionName}, ${data.country}`);
+
+        if (data.status === "success") {
+          console.log(
+            `✅ Got location data: ${data.city}, ${data.regionName}, ${data.country}`
+          );
           return {
             ip: data.query || ip,
             country: data.country,
@@ -175,15 +182,18 @@ class IPTrackingService {
   // Validate IP address format
   private isValidIP(ip: string): boolean {
     // Simple IPv4 validation
-    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    const ipv4Regex =
+      /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
     // Simple IPv6 validation
     const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
-    
+
     return ipv4Regex.test(ip) || ipv6Regex.test(ip);
   }
 
   // Track user IP and device info
-  async trackUserIP(userId: string): Promise<{ success: boolean; ip?: string; error?: string }> {
+  async trackUserIP(
+    userId: string
+  ): Promise<{ success: boolean; ip?: string; error?: string }> {
     if (this.trackingInProgress) {
       console.log("🔄 IP tracking already in progress, skipping...");
       return { success: false, error: "Tracking in progress" };
@@ -209,10 +219,10 @@ class IPTrackingService {
 
       // Get device info
       const deviceInfo = this.getDeviceInfo();
-      
+
       // Get location data (disabled for privacy)
       const locationData = null; // await this.getLocationFromIP(ip);
-      
+
       // Get current profile to preserve last IP
       const { data: currentProfile } = await supabase
         .from("profiles")
@@ -249,17 +259,18 @@ class IPTrackingService {
 
       console.log(`✅ IP tracking successful for user ${userId}:`, {
         ip,
-        location: locationData ? `${locationData.city}, ${locationData.country}` : "unknown",
+        location: locationData
+          ? `${locationData.city}, ${locationData.country}`
+          : "unknown",
         device: `${deviceInfo.platform} ${deviceInfo.osVersion}`,
       });
 
       return { success: true, ip };
-
     } catch (error) {
       console.error("❌ Error in IP tracking:", error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : "Unknown error" 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     } finally {
       this.trackingInProgress = false;
@@ -277,7 +288,9 @@ class IPTrackingService {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("current_ip_address, last_ip_address, location_data, device_info, ip_updated_at")
+        .select(
+          "current_ip_address, last_ip_address, location_data, device_info, ip_updated_at"
+        )
         .eq("id", userId)
         .single();
 
@@ -305,7 +318,9 @@ class IPTrackingService {
       const { data, error } = await supabase
         .from("profiles")
         .select("id, username, email, current_ip_address, ip_updated_at")
-        .or(`current_ip_address.eq.${ipAddress},last_ip_address.eq.${ipAddress}`);
+        .or(
+          `current_ip_address.eq.${ipAddress},last_ip_address.eq.${ipAddress}`
+        );
 
       if (error) {
         console.error("Error fetching users by IP:", error);

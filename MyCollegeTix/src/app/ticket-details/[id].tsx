@@ -20,6 +20,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useChat } from "@/src/providers/ChatProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import WatchlistButton from "@/src/components/WatchlistButton";
+import { formatEventDateSeparate } from "@/src/utils/dateUtils";
 
 const { width, height } = Dimensions.get("window");
 
@@ -105,20 +106,9 @@ export default function TicketDetailsScreen() {
     }
   };
 
-  const formatEventDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const dateStr = date.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
-    const timeStr = date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-    return { dateStr, timeStr };
+  // Use shared utility function for consistent date/time formatting
+  const formatEventDate = (dateString: string, gameTime?: string | null) => {
+    return formatEventDateSeparate(dateString, gameTime, 'long');
   };
 
   const getSportFromTitle = (title: string): string => {
@@ -184,7 +174,7 @@ export default function TicketDetailsScreen() {
   }
 
   const sport = getSportFromTitle(ticket.title);
-  const { dateStr, timeStr } = formatEventDate(ticket.event_date);
+  const { dateStr, timeStr } = formatEventDate(ticket.event_date, ticket.event?.game_time);
   const isOwnTicket = user?.id === ticket.seller.id;
   const isAvailable = ticket.status === "available";
 
