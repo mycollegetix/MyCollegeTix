@@ -1,0 +1,6 @@
+# Supabase local development files
+/.branches
+/.temp
+/logs
+.env.local
+.env.example
