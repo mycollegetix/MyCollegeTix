@@ -39,7 +39,27 @@ export class EventService {
 
       if (error) throw error;
 
-      return { data: data || [], error: null };
+      let events = data || [];
+
+      // Apply priority sorting: Season Pass events at top only when filtering by specific sport
+      events = events.sort((a, b) => {
+        // Only prioritize season passes when filtering by a specific sport (not "All Sports")
+        if (sport && sport !== "All Sports") {
+          const aIsSeasonPass = a.title.toLowerCase().includes('season pass') || 
+                               a.category?.toLowerCase().includes('season pass');
+          const bIsSeasonPass = b.title.toLowerCase().includes('season pass') || 
+                               b.category?.toLowerCase().includes('season pass');
+
+          // If one is season pass and the other isn't, season pass goes first
+          if (aIsSeasonPass && !bIsSeasonPass) return -1;
+          if (!aIsSeasonPass && bIsSeasonPass) return 1;
+        }
+
+        // For all other cases, sort by date
+        return new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
+      });
+
+      return { data: events, error: null };
     } catch (error) {
       console.error("Error fetching events:", error);
       return { data: [], error };
@@ -116,7 +136,27 @@ export class EventService {
 
       if (error) throw error;
 
-      return { data: data as EventWithColleges[], error: null };
+      let events = data as EventWithColleges[];
+
+      // Apply priority sorting: Season Pass events at top only when filtering by specific sport
+      events = events.sort((a, b) => {
+        // Only prioritize season passes when filtering by a specific sport (not "All Sports")
+        if (sport && sport !== "All Sports") {
+          const aIsSeasonPass = a.title.toLowerCase().includes('season pass') || 
+                               a.category?.toLowerCase().includes('season pass');
+          const bIsSeasonPass = b.title.toLowerCase().includes('season pass') || 
+                               b.category?.toLowerCase().includes('season pass');
+
+          // If one is season pass and the other isn't, season pass goes first
+          if (aIsSeasonPass && !bIsSeasonPass) return -1;
+          if (!aIsSeasonPass && bIsSeasonPass) return 1;
+        }
+
+        // For all other cases, sort by date
+        return new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
+      });
+
+      return { data: events, error: null };
     } catch (error) {
       console.error("Error fetching events for college:", error);
       return { data: [], error };
