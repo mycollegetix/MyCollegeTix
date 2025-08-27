@@ -2,7 +2,7 @@
   "expo": {
     "name": "MyCollegeTix",
     "slug": "msu-tickets",
-    "version": "1.1.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mycollegetix",
@@ -20,11 +20,13 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mycollegetix.app",
-      "buildNumber": "2.0",
+      "buildNumber": "2.2",
       "requireFullScreen": false,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload ticket images",
@@ -40,7 +42,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.mycollegetix.app",
-      "versionCode": 14,
+      "versionCode": 16,
       "softwareKeyboardLayoutMode": "adjustResize",
       "navigationBar": {
         "visible": "leanback",

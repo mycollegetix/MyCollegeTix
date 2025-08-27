@@ -1,5 +1,22 @@
 #!/usr/bin/env node
 
+/**
+ * Version Bump Script for MyCollegeTix Expo Project
+ * 
+ * This script automatically bumps version numbers across:
+ * - package.json
+ * - app.json (Expo configuration)
+ * - Android versionCode
+ * - iOS buildNumber
+ * 
+ * Usage:
+ *   node bump-version.cjs patch    # 1.2.3 -> 1.2.4
+ *   node bump-version.cjs minor    # 1.2.3 -> 1.3.0
+ *   node bump-version.cjs major    # 1.2.3 -> 2.0.0
+ * 
+ * If no argument is provided, defaults to 'patch'
+ */
+
 const fs = require('fs');
 const path = require('path');
 
@@ -26,7 +43,7 @@ function incrementVersion(version, type = 'patch') {
 }
 
 function updatePackageJson(newVersion) {
-  const packagePath = path.join(__dirname, 'MyCollegeTix', 'package.json');
+  const packagePath = path.join(__dirname, 'package.json');
   const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
   
   packageJson.version = newVersion;
@@ -35,55 +52,32 @@ function updatePackageJson(newVersion) {
   console.log(`✅ Updated package.json version to ${newVersion}`);
 }
 
-function updateAndroidVersion(newVersion) {
-  const buildGradlePath = path.join(__dirname, 'MyCollegeTix', 'android', 'app', 'build.gradle');
-  let content = fs.readFileSync(buildGradlePath, 'utf8');
+function updateAppJson(newVersion) {
+  const appJsonPath = path.join(__dirname, 'app.json');
+  const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
   
-  // Update versionName
-  content = content.replace(
-    /versionName\s+"[^"]+"/,
-    `versionName "${newVersion}"`
-  );
+  // Update main version
+  appJson.expo.version = newVersion;
   
-  // Increment versionCode
-  const versionCodeMatch = content.match(/versionCode\s+(\d+)/);
-  if (versionCodeMatch) {
-    const currentVersionCode = parseInt(versionCodeMatch[1]);
-    const newVersionCode = currentVersionCode + 1;
-    content = content.replace(
-      /versionCode\s+\d+/,
-      `versionCode ${newVersionCode}`
-    );
-    console.log(`✅ Updated Android versionCode to ${newVersionCode} and versionName to ${newVersion}`);
+  // Increment Android versionCode
+  if (appJson.expo.android && appJson.expo.android.versionCode) {
+    appJson.expo.android.versionCode += 1;
+    console.log(`✅ Updated Android versionCode to ${appJson.expo.android.versionCode}`);
   }
   
-  fs.writeFileSync(buildGradlePath, content);
+  // Increment iOS buildNumber
+  if (appJson.expo.ios && appJson.expo.ios.buildNumber) {
+    const currentBuildNumber = parseFloat(appJson.expo.ios.buildNumber);
+    const newBuildNumber = (currentBuildNumber + 0.1).toFixed(1);
+    appJson.expo.ios.buildNumber = newBuildNumber;
+    console.log(`✅ Updated iOS buildNumber to ${newBuildNumber}`);
+  }
+  
+  fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2) + '\n');
+  console.log(`✅ Updated app.json version to ${newVersion}`);
 }
 
-function updateiOSVersion(newVersion) {
-  const infoPlistPath = path.join(__dirname, 'MyCollegeTix', 'ios', 'MyCollegeTix', 'Info.plist');
-  let content = fs.readFileSync(infoPlistPath, 'utf8');
-  
-  // Update CFBundleShortVersionString
-  content = content.replace(
-    /<key>CFBundleShortVersionString<\/key>\s*<string>[^<]+<\/string>/,
-    `<key>CFBundleShortVersionString</key>\n    <string>${newVersion}</string>`
-  );
-  
-  // Increment CFBundleVersion (build number)
-  const bundleVersionMatch = content.match(/<key>CFBundleVersion<\/key>\s*<string>([^<]+)<\/string>/);
-  if (bundleVersionMatch) {
-    const currentBuildNumber = parseFloat(bundleVersionMatch[1]);
-    const newBuildNumber = (currentBuildNumber + 0.1).toFixed(1);
-    content = content.replace(
-      /<key>CFBundleVersion<\/key>\s*<string>[^<]+<\/string>/,
-      `<key>CFBundleVersion</key>\n    <string>${newBuildNumber}</string>`
-    );
-    console.log(`✅ Updated iOS CFBundleShortVersionString to ${newVersion} and CFBundleVersion to ${newBuildNumber}`);
-  }
-  
-  fs.writeFileSync(infoPlistPath, content);
-}
+
 
 function main() {
   const args = process.argv.slice(2);
@@ -95,10 +89,10 @@ function main() {
   }
   
   try {
-    // Read current version from package.json
-    const packagePath = path.join(__dirname, 'MyCollegeTix', 'package.json');
-    const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-    const currentVersion = packageJson.version;
+    // Read current version from app.json (Expo project)
+    const appJsonPath = path.join(__dirname, 'app.json');
+    const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+    const currentVersion = appJson.expo.version;
     
     // Calculate new version
     const newVersion = incrementVersion(currentVersion, versionType);
@@ -108,16 +102,16 @@ function main() {
     
     // Update all platform versions
     updatePackageJson(newVersion);
-    updateAndroidVersion(newVersion);
-    updateiOSVersion(newVersion);
+    updateAppJson(newVersion);
     
     console.log('');
     console.log(`🎉 Successfully bumped all platform versions to ${newVersion}`);
     console.log('');
     console.log('📋 Summary:');
     console.log(`   • package.json: ${newVersion}`);
-    console.log(`   • Android: versionName "${newVersion}" + incremented versionCode`);
-    console.log(`   • iOS: CFBundleShortVersionString "${newVersion}" + incremented CFBundleVersion`);
+    console.log(`   • app.json (Expo): ${newVersion}`);
+    console.log(`   • Android: versionCode incremented`);
+    console.log(`   • iOS: buildNumber incremented`);
     
   } catch (error) {
     console.error('❌ Error bumping version:', error.message);
