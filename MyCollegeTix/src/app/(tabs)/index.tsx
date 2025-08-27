@@ -64,8 +64,13 @@ export default function BrowseScreen() {
   const [hasMore, setHasMore] = useState(true);
 
   const loadTickets = async (reset = false) => {
-    if (!user?.id || !profile?.college_id) {
-      console.log("⚠️ User or college not loaded yet, skipping ticket load");
+    if (!user?.id) {
+      console.log("⚠️ User not loaded yet, skipping ticket load");
+      return;
+    }
+    
+    if (!profile?.college_id) {
+      console.log("⚠️ College not loaded yet, skipping ticket load");
       return;
     }
 
@@ -335,7 +340,7 @@ export default function BrowseScreen() {
   };
 
   // Show loading or error state if user/profile not ready
-  if (!user || !profile?.college_id) {
+  if (!user) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -345,7 +350,48 @@ export default function BrowseScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.secondary} />
           <Text style={styles.loadingText}>
-            Loading your college information...
+            Loading user information...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Show college setup needed if profile exists but no college
+  if (profile && !profile?.college_id) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
+          style={styles.background}
+        />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>
+            Please complete your profile setup
+          </Text>
+          <TouchableOpacity
+            style={[styles.clearFiltersButton, { backgroundColor: theme.secondary, marginTop: 16 }]}
+            onPress={() => router.push("/(tabs)/profile" as any)}
+          >
+            <Text style={styles.clearFiltersText}>Go to Profile</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Still loading profile
+  if (!profile) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
+          style={styles.background}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.secondary} />
+          <Text style={styles.loadingText}>
+            Loading your profile...
           </Text>
         </View>
       </View>
@@ -387,7 +433,27 @@ export default function BrowseScreen() {
         <View style={styles.headerSection}>
           <TouchableOpacity
             style={styles.notificationButton}
-            onPress={() => router.push("/notifications" as any)}
+            activeOpacity={0.7}
+            onPress={() => {
+              console.log("🔔 Notification button pressed");
+              // Add small delay for Android to prevent timing issues
+              setTimeout(() => {
+                try {
+                  console.log("🔔 Attempting to navigate to notifications...");
+                  router.push("/notifications" as any);
+                } catch (error) {
+                  console.error("❌ Navigation error:", error);
+                  try {
+                    // Fallback navigation method for Android
+                    console.log("🔔 Trying fallback navigation...");
+                    router.replace("/notifications" as any);
+                  } catch (fallbackError) {
+                    console.error("❌ Fallback navigation also failed:", fallbackError);
+                    Alert.alert("Error", "Unable to open notifications. Please try again.");
+                  }
+                }
+              }, Platform.OS === 'android' ? 100 : 0);
+            }}
           >
             <NotificationBadge
               iconName="notifications-outline"

@@ -12,6 +12,7 @@ import {
   Platform,
   Alert,
   StatusBar,
+  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -92,6 +93,22 @@ export default function ChatConversationScreen() {
   useEffect(() => {
     setMessages(messages);
   }, [messages]);
+
+  // Keyboard handling - simplified for both platforms
+  useEffect(() => {
+    const keyboardDidShow = () => {
+      // Auto-scroll to bottom when keyboard shows
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    };
+
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', keyboardDidShow);
+
+    return () => {
+      keyboardDidShowListener?.remove();
+    };
+  }, []);
 
   // Check if user is blocked
   useEffect(() => {
@@ -519,6 +536,7 @@ export default function ChatConversationScreen() {
               showsVerticalScrollIndicator={false}
               scrollEventThrottle={16}
               keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
               removeClippedSubviews={Platform.OS === 'android'}
               maintainVisibleContentPosition={{
                 minIndexForVisible: 0,
@@ -616,6 +634,12 @@ export default function ChatConversationScreen() {
                 multiline
                 maxLength={1000}
                 placeholderTextColor="#9ca3af"
+                onFocus={() => {
+                  // Ensure we scroll to bottom when focusing input
+                  setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: true });
+                  }, 300);
+                }}
               />
 
               <TouchableOpacity

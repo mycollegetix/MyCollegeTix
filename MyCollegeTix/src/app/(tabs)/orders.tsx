@@ -23,6 +23,7 @@ import { TicketService } from "@/src/services/ticketService";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 import WatchlistSection from "@/src/components/WatchlistSection";
+import { TicketTransferButton } from "@/src/components/TicketTransferButton";
 import { WatchlistService } from "@/src/services/watchlistService";
 import { supabase } from "@/src/lib/supabase";
 
@@ -48,6 +49,8 @@ interface OrderItem {
   status: string;
   created_at: string;
   order_id?: string;
+  home_college_id?: string;
+  away_college_id?: string;
   type: "purchase" | "listing";
 }
 
@@ -145,7 +148,9 @@ export default function OrdersScreen() {
             section,
             row_number,
             seat_number,
-            status
+            status,
+            home_college_id,
+            away_college_id
           )
         `
         )
@@ -173,6 +178,8 @@ export default function OrdersScreen() {
           status: order.status,
           created_at: order.created_at,
           order_id: order.id,
+          home_college_id: order.ticket.home_college_id,
+          away_college_id: order.ticket.away_college_id,
           type: "purchase" as const,
         }));
     } catch (error) {
@@ -199,7 +206,9 @@ export default function OrdersScreen() {
         row_number,
         seat_number,
         status,
-        created_at
+        created_at,
+        home_college_id,
+        away_college_id
       `
         )
         .eq("seller_id", user!.id)
@@ -223,6 +232,8 @@ export default function OrdersScreen() {
         seat_number: ticket.seat_number,
         status: ticket.status,
         created_at: ticket.created_at,
+        home_college_id: ticket.home_college_id,
+        away_college_id: ticket.away_college_id,
         type: "listing" as const,
       }));
     } catch (error) {
@@ -518,6 +529,38 @@ export default function OrdersScreen() {
               <Ionicons name="close" size={16} color="white" />
               <Text style={styles.actionButtonText}>Cancel</Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Transfer Portal for available tickets */}
+        {activeTab === "selling" && item.status === "available" && (item.home_college_id || item.away_college_id) && (
+          <View style={styles.transferSection}>
+            <View style={styles.transferInfo}>
+              <Ionicons name="shield-checkmark" size={16} color={theme.primary} />
+              <Text style={styles.transferText}>
+                Use official portal to transfer this ticket
+              </Text>
+            </View>
+            <TicketTransferButton
+              collegeId={item.home_college_id || item.away_college_id}
+              ticketInfo={{
+                title: item.title,
+                eventDate: new Date(item.event_date).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true,
+                }),
+                section: item.section,
+                row: item.row_number,
+                seat: item.seat_number,
+              }}
+              variant="outline"
+              size="small"
+              style={styles.transferButton}
+            />
           </View>
         )}
       </TouchableOpacity>
@@ -1183,5 +1226,27 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderColor: "#e5e7eb",
     color: "#1e293b",
+  },
+  // Transfer Portal Styles
+  transferSection: {
+    borderTopWidth: 1,
+    borderTopColor: "#e5f3ff",
+    backgroundColor: "#f0f9ff",
+    padding: 12,
+    gap: 8,
+  },
+  transferInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  transferText: {
+    fontSize: 12,
+    color: "#0369a1",
+    fontWeight: "500",
+    flex: 1,
+  },
+  transferButton: {
+    alignSelf: "stretch",
   },
 });

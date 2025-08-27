@@ -290,10 +290,19 @@ export default function NotificationsScreen() {
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              (router.push as any)("/(tabs)/");
+            console.log("🔙 Back button pressed");
+            try {
+              if (router.canGoBack()) {
+                console.log("🔙 Going back...");
+                router.back();
+              } else {
+                console.log("🔙 No back history, going to tabs...");
+                router.replace("/(tabs)/" as any);
+              }
+            } catch (error) {
+              console.error("❌ Back navigation error:", error);
+              // Force navigation to tabs as fallback
+              router.replace("/(tabs)/" as any);
             }
           }}
         >
