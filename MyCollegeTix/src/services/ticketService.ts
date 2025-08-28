@@ -11,7 +11,13 @@ type Ticket = Tables<"tickets">;
 type TicketInsert = TablesInsert<"tickets">;
 
 export class TicketService {
-  // Example of the complete fixed method:
+  /**
+   * Get tickets for a college with sport-specific season pass prioritization
+   * 
+   * Season pass behavior (matches EventService logic):
+   * - When filtering by specific sport (not "All Sports"): Tickets for season pass events appear at top
+   * - When showing "All Sports": Regular date-based sorting applies
+   */
   static async getTicketsForCollege({
     collegeId,
     sport,
@@ -93,7 +99,7 @@ export class TicketService {
         query = query.not("seller_id", "eq", excludeUserId);
       }
 
-      // Sorting
+      // Apply initial database sorting (will be overridden by client-side season ticket prioritization if needed)
       switch (sortBy) {
         case "price_asc":
           query = query.order("price", { ascending: true });
@@ -117,7 +123,35 @@ export class TicketService {
 
       if (error) throw error;
 
-      return { data: data as unknown as TicketWithSeller[], error: null };
+      let tickets = data as unknown as TicketWithSeller[];
+
+      // Apply season pass prioritization - only when filtering by specific sport (not "All Sports")
+      if (sport && sport !== "All Sports") {
+        tickets = tickets.sort((a, b) => {
+          // Check if event title contains "season pass" (matches EventService logic)
+          const aIsSeasonPass = a.title.toLowerCase().includes('season pass');
+          const bIsSeasonPass = b.title.toLowerCase().includes('season pass');
+
+          // If one is season pass and the other isn't, season pass goes first
+          if (aIsSeasonPass && !bIsSeasonPass) return -1;
+          if (!aIsSeasonPass && bIsSeasonPass) return 1;
+
+          // For all other cases, maintain the database sort order by applying the same sort logic
+          switch (sortBy) {
+            case "price_asc":
+              return a.price - b.price;
+            case "price_desc":
+              return b.price - a.price;
+            case "event_date":
+              return new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
+            case "created_at":
+            default:
+              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          }
+        });
+      }
+
+      return { data: tickets, error: null };
     } catch (error) {
       console.error("Error fetching tickets:", error);
       return { data: [], error };
