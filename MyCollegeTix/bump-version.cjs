@@ -77,6 +77,32 @@ function updateAppJson(newVersion) {
   console.log(`✅ Updated app.json version to ${newVersion}`);
 }
 
+function updateInfoPlist(newVersion, newBuildNumber) {
+  const infoPlistPath = path.join(__dirname, 'ios', 'MyCollegeTix', 'Info.plist');
+  
+  if (!fs.existsSync(infoPlistPath)) {
+    console.log(`⚠️ Info.plist not found at ${infoPlistPath}`);
+    return;
+  }
+  
+  let plistContent = fs.readFileSync(infoPlistPath, 'utf8');
+  
+  // Update CFBundleShortVersionString (version)
+  plistContent = plistContent.replace(
+    /<key>CFBundleShortVersionString<\/key>\s*<string>[^<]*<\/string>/,
+    `<key>CFBundleShortVersionString</key>\n    <string>${newVersion}</string>`
+  );
+  
+  // Update CFBundleVersion (build number)
+  plistContent = plistContent.replace(
+    /<key>CFBundleVersion<\/key>\s*<string>[^<]*<\/string>/,
+    `<key>CFBundleVersion</key>\n    <string>${newBuildNumber}</string>`
+  );
+  
+  fs.writeFileSync(infoPlistPath, plistContent);
+  console.log(`✅ Updated Info.plist version to ${newVersion} and build to ${newBuildNumber}`);
+}
+
 
 
 function main() {
@@ -104,12 +130,19 @@ function main() {
     updatePackageJson(newVersion);
     updateAppJson(newVersion);
     
+    // Also update Info.plist with the new iOS build number from app.json
+    const updatedAppJsonPath = path.join(__dirname, 'app.json');
+    const updatedAppJson = JSON.parse(fs.readFileSync(updatedAppJsonPath, 'utf8'));
+    const iosBuildNumber = updatedAppJson.expo.ios?.buildNumber || '1.0';
+    updateInfoPlist(newVersion, iosBuildNumber);
+    
     console.log('');
     console.log(`🎉 Successfully bumped all platform versions to ${newVersion}`);
     console.log('');
     console.log('📋 Summary:');
     console.log(`   • package.json: ${newVersion}`);
     console.log(`   • app.json (Expo): ${newVersion}`);
+    console.log(`   • Info.plist: ${newVersion}`);
     console.log(`   • Android: versionCode incremented`);
     console.log(`   • iOS: buildNumber incremented`);
     
