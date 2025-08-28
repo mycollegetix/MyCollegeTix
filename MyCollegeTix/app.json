@@ -2,12 +2,12 @@
   "expo": {
     "name": "MyCollegeTix",
     "slug": "msu-tickets",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mycollegetix",
     "notification": {
-      "icon": "./assets/images/notification-icon.png",
+      "icon": "./assets/images/icon.png",
       "color": "#18583E",
       "androidMode": "default",
       "androidCollapsedTitle": "#{unread_notifications} new notifications"
@@ -26,7 +26,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mycollegetix.app",
-      "buildNumber": "1.1",
+      "buildNumber": "1.2",
       "requireFullScreen": false,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload ticket images",
@@ -42,7 +42,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.mycollegetix.app",
-      "versionCode": 11,
+      "versionCode": 15,
       "softwareKeyboardLayoutMode": "adjustResize",
       "navigationBar": {
         "visible": "leanback",
@@ -83,7 +83,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/notification-icon.png",
+          "icon": "./assets/images/icon.png",
           "color": "#18583E",
           "defaultChannel": "default"
         }
