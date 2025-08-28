@@ -62,10 +62,58 @@ export default function LoginScreen() {
           setLoginError(
             "Please check your email and confirm your account before signing in."
           );
+          
+          // Auto-open verification modal with user's email
+          setTimeout(() => {
+            Alert.alert(
+              "Email Verification Required",
+              "Your account isn't verified yet. We'll help you resend the verification email so you can complete your registration.",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                },
+                {
+                  text: "Send Verification Email",
+                  onPress: () => {
+                    setVerificationEmail(email);
+                    setResendVerificationVisible(true);
+                  },
+                },
+              ]
+            );
+          }, 500); // Small delay to let login error show first
         } else if (error.message.includes("Too many requests")) {
           setLoginError(
             "Too many login attempts. Please wait a moment and try again."
           );
+        } else if (error.message.includes("email_not_confirmed") || 
+                   error.message.includes("not confirmed") || 
+                   error.message.includes("unverified")) {
+          setLoginError(
+            "Please check your email and confirm your account before signing in."
+          );
+          
+          // Auto-open verification modal with user's email
+          setTimeout(() => {
+            Alert.alert(
+              "Email Verification Required",
+              "Your account isn't verified yet. We'll help you resend the verification email so you can complete your registration.",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                },
+                {
+                  text: "Send Verification Email",
+                  onPress: () => {
+                    setVerificationEmail(email);
+                    setResendVerificationVisible(true);
+                  },
+                },
+              ]
+            );
+          }, 500);
         } else {
           setLoginError(
             "Login failed. Please check your credentials and try again."
