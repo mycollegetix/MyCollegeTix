@@ -1,5 +1,5 @@
 // src/services/ipTrackingService.ts - IP Address and Device Tracking Service
-import { supabase } from "@/src/lib/supabase";
+import { supabase } from "../lib/supabase";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
@@ -123,15 +123,20 @@ class IPTrackingService {
           try {
             console.log(`🔄 Trying ${service} (attempt ${attempt})`);
 
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
             const response = await fetch(service, {
-              timeout: 10000, // Increased to 10 second timeout
+              signal: controller.signal,
               headers: {
                 "User-Agent": this.getUserAgent(),
               },
             });
 
+            clearTimeout(timeoutId);
+
             if (response.ok) {
-              const data = await response.json();
+              const data: any = await response.json();
 
               // Different services return IP in different fields
               const ip = data.ip || data.query || data.ipAddress;
@@ -169,22 +174,29 @@ class IPTrackingService {
       console.log(`🌍 Getting location data for IP: ${ip}`);
 
       // Use ip-api.com for free geolocation (100 requests/minute limit)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
       const response = await fetch(
         `http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,query`,
         {
-          timeout: 10000, // 10 second timeout
+          signal: controller.signal,
           headers: {
             "User-Agent": this.getUserAgent(),
           },
         }
       );
 
+      clearTimeout(timeoutId);
+
       if (response.ok) {
-        const data = await response.json();
+        const data: any = await response.json();
 
         if (data.status === "success") {
           console.log(
-            `✅ Got location data: ${data.city}, ${data.regionName}, ${data.country}`
+            `✅ Got location data: ${data.city || "Unknown"}, ${
+              data.regionName || "Unknown"
+            }, ${data.country || "Unknown"}`
           );
           return {
             ip: data.query || ip,
@@ -403,7 +415,9 @@ class IPTrackingService {
         action: context.action,
         reason: shouldTrackResult.reason,
         location: locationData
-          ? `${locationData.city}, ${locationData.country}`
+          ? `${(locationData as any).city || "Unknown"}, ${
+              (locationData as any).country || "Unknown"
+            }`
           : "unknown",
         device: `${deviceInfo.platform} ${deviceInfo.osVersion}`,
       });
@@ -425,11 +439,11 @@ class IPTrackingService {
 
   // Get user's current tracked IP info
   async getUserIPInfo(userId: string): Promise<{
-    current_ip?: string;
-    last_ip?: string;
+    current_ip?: string | null;
+    last_ip?: string | null;
     location?: any;
     device?: any;
-    updated_at?: string;
+    updated_at?: string | null;
   } | null> {
     try {
       const { data, error } = await supabase
@@ -446,11 +460,11 @@ class IPTrackingService {
       }
 
       return {
-        current_ip: data.current_ip_address,
-        last_ip: data.last_ip_address,
+        current_ip: data.current_ip_address || null,
+        last_ip: data.last_ip_address || null,
         location: data.location_data,
         device: data.device_info,
-        updated_at: data.ip_updated_at,
+        updated_at: data.ip_updated_at || null,
       };
     } catch (error) {
       console.error("Error in getUserIPInfo:", error);
@@ -459,9 +473,7 @@ class IPTrackingService {
   }
 
   // Convenience methods for different tracking contexts
-  async trackOnAppResume(
-    userId: string
-  ): Promise<{
+  async trackOnAppResume(userId: string): Promise<{
     success: boolean;
     ip?: string;
     error?: string;
@@ -482,9 +494,7 @@ class IPTrackingService {
     return this.trackUserIP(userId, { trigger: "action_based", action });
   }
 
-  async trackPeriodic(
-    userId: string
-  ): Promise<{
+  async trackPeriodic(userId: string): Promise<{
     success: boolean;
     ip?: string;
     error?: string;
@@ -493,9 +503,7 @@ class IPTrackingService {
     return this.trackUserIP(userId, { trigger: "periodic" });
   }
 
-  async trackForced(
-    userId: string
-  ): Promise<{
+  async trackForced(userId: string): Promise<{
     success: boolean;
     ip?: string;
     error?: string;
