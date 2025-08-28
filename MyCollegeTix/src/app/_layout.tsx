@@ -5,16 +5,18 @@ import { ThemeProvider } from "@/src/providers/ThemeProvider";
 import { ChatProvider } from "@/src/providers/ChatProvider";
 import NotificationDeepLinkHandler from "@/src/components/NotificationDeepLinkHandler";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { useColorScheme, KeyboardAvoidingView, Platform } from "react-native";
-import { useEffect } from "react";
+import { useColorScheme, KeyboardAvoidingView, Platform, AppState, AppStateStatus } from "react-native";
+import { useEffect, useRef } from "react";
 import * as Font from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ipTrackingService } from "@/src/services/ipTrackingService";
 
 function RootLayoutNav() {
-  const { session, isLoading, profile } = useAuth();
+  const { session, isLoading, profile, user } = useAuth();
   const router = useRouter();
   const segments = useSegments();
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     if (isLoading) {
@@ -88,6 +90,39 @@ function RootLayoutNav() {
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [session, segments, isLoading, router, profile]);
+
+  // AppState listener for IP tracking on app resume
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active' &&
+        user?.id
+      ) {
+        console.log('📱 App has come to the foreground - attempting IP tracking');
+        
+        // Track IP on app resume with smart throttling
+        ipTrackingService.trackOnAppResume(user.id).then((result) => {
+          if (result.success) {
+            console.log('🌐 App resume IP tracking successful:', result.ip, result.reason);
+          } else {
+            console.log('⏰ App resume IP tracking skipped:', result.reason);
+          }
+        }).catch((error) => {
+          console.log('❌ App resume IP tracking error:', error);
+        });
+      }
+
+      appState.current = nextAppState;
+    };
+
+    // Add the app state listener
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [user?.id]);
 
   return (
     <>

@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { CollegeService } from "@/src/services/collegeService";
+import { AdminService } from "@/src/services/adminService";
 
 const { width } = Dimensions.get("window");
 
@@ -59,6 +60,7 @@ export default function AdminDashboard() {
     totalColleges: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchAdminStats();
@@ -66,9 +68,13 @@ export default function AdminDashboard() {
 
   // In your fetchAdminStats function, update the Promise.all to include colleges:
 
-  const fetchAdminStats = async () => {
+  const fetchAdminStats = async (isRefresh = false) => {
     try {
-      setIsLoading(true);
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
 
       // Fetch all stats in parallel
       const [
@@ -122,7 +128,31 @@ export default function AdminDashboard() {
       Alert.alert("Error", "Failed to load admin statistics");
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    AdminService.showRefreshConfirmation(() => {
+      AdminService.refreshAllData().then(() => {
+        fetchAdminStats(true);
+      });
+    });
+  };
+
+  const handleDatabaseReset = () => {
+    AdminService.showResetConfirmation(async () => {
+      setIsRefreshing(true);
+      const result = await AdminService.resetDatabaseToInitialState();
+      
+      if (result.success) {
+        Alert.alert("Success", "Database has been reset successfully!");
+        fetchAdminStats(true);
+      } else {
+        Alert.alert("Error", result.error || "Failed to reset database");
+        setIsRefreshing(false);
+      }
+    });
   };
 
   const StatCard = ({
@@ -176,6 +206,8 @@ export default function AdminDashboard() {
     <AdminLayout
       title="Admin Dashboard"
       subtitle={`Welcome back, ${user?.email}`}
+      onRefresh={handleRefresh}
+      isRefreshing={isRefreshing}
     >
       <ScrollView style={styles.container}>
         {/* Stats Grid */}
@@ -270,6 +302,13 @@ export default function AdminDashboard() {
               icon="analytics"
               color="#16a34a"
               onPress={() => router.push("/(admin)/analytics")}
+            />
+            <QuickActionCard
+              title="Reset Database"
+              description="Clear old data and reset to initial state"
+              icon="refresh-circle"
+              color="#dc2626"
+              onPress={handleDatabaseReset}
             />
           </View>
         </View>

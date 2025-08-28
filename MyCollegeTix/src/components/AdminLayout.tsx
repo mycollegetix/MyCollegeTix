@@ -18,6 +18,8 @@ interface AdminLayoutProps {
   title: string;
   subtitle?: string;
   showBackButton?: boolean;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export default function AdminLayout({
@@ -25,6 +27,8 @@ export default function AdminLayout({
   title,
   subtitle,
   showBackButton = true,
+  onRefresh,
+  isRefreshing = false,
 }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -115,6 +119,19 @@ export default function AdminLayout({
           </View>
 
           <View style={styles.headerActions}>
+            {onRefresh && (
+              <TouchableOpacity
+                style={[styles.actionButton, isRefreshing && styles.refreshingButton]}
+                onPress={onRefresh}
+                disabled={isRefreshing}
+              >
+                <Ionicons 
+                  name="refresh-outline" 
+                  size={22} 
+                  color={isRefreshing ? "rgba(255,255,255,0.5)" : "white"} 
+                />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => router.push("/(tabs)")}
@@ -212,6 +229,9 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 8,
+  },
+  refreshingButton: {
+    opacity: 0.6,
   },
   profileButton: {
     padding: 8,

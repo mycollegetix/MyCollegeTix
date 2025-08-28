@@ -150,7 +150,7 @@ export default function EnhancedRegisterScreen() {
           }
 
           // Just increment attempts for logging purposes (no timeout)
-          setVerificationAttempts(prev => prev + 1);
+          setVerificationAttempts((prev) => prev + 1);
         } catch (error) {
           console.log("❌ Verification check error:", error);
         }
@@ -408,14 +408,25 @@ export default function EnhancedRegisterScreen() {
           // User needs email verification
           console.log("📧 User needs to verify email before access");
 
-          // Store credentials for polling (ONLY for new registrations)
-          setUserCredentials({ email, password });
-          setIsWaitingForVerification(true);
-          setVerificationAttempts(0);
-          setIsNewRegistration(true); // Mark as new registration requiring verification
+          // Show verification email popup first
+          Alert.alert(
+            "Check Your Email! 📧",
+            `A verification email has been sent to your email address.\n\nPlease check for an email from mycollegetix Security or noreply@mycollegetix.com and click the verification link.\n\nWe'll automatically log you in once verified!`,
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  // Store credentials for polling (ONLY for new registrations)
+                  setUserCredentials({ email, password });
+                  setIsWaitingForVerification(true);
+                  setVerificationAttempts(0);
+                  setIsNewRegistration(true); // Mark as new registration requiring verification
 
-          // No popup - just start polling immediately
-          console.log("🔄 Starting automatic verification polling...");
+                  console.log("🔄 Starting automatic verification polling...");
+                },
+              },
+            ]
+          );
         }
       }
     } catch (error: any) {

@@ -6,6 +6,7 @@ import {
   TablesInsert,
   Tables,
 } from "../types/database.types";
+import { ipTrackingService } from "./ipTrackingService";
 
 type Ticket = Tables<"tickets">;
 type TicketInsert = TablesInsert<"tickets">;
@@ -344,6 +345,17 @@ export class TicketService {
 
       if (error) throw error;
 
+      // Track IP address for ticket creation (important action)
+      ipTrackingService.trackOnAction(user.id, 'ticket_created').then((result) => {
+        if (result.success) {
+          console.log('🌐 Ticket creation IP tracking successful:', result.ip);
+        } else {
+          console.log('⏰ Ticket creation IP tracking skipped:', result.reason);
+        }
+      }).catch((error) => {
+        console.log('❌ Ticket creation IP tracking error:', error);
+      });
+
       return { data, error: null };
     } catch (error) {
       console.error("Error creating ticket:", error);
@@ -426,6 +438,17 @@ export class TicketService {
       if (purchaseError) {
         throw purchaseError;
       }
+
+      // Track IP address for ticket purchase (important action)
+      ipTrackingService.trackOnAction(user.id, 'ticket_purchased').then((result) => {
+        if (result.success) {
+          console.log('🌐 Ticket purchase IP tracking successful:', result.ip);
+        } else {
+          console.log('⏰ Ticket purchase IP tracking skipped:', result.reason);
+        }
+      }).catch((error) => {
+        console.log('❌ Ticket purchase IP tracking error:', error);
+      });
 
       return { data: { id: ticketId }, error: null };
     } catch (error: any) {

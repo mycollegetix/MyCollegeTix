@@ -146,15 +146,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setProfile(fullProfile);
 
-        // Track user IP address and device info (async, don't wait)
-        ipTrackingService.trackUserIP(userId).then((result) => {
+        // Track user IP address on login/profile load with smart throttling
+        ipTrackingService.trackUserIP(userId, { trigger: 'login' }).then((result) => {
           if (result.success) {
-            console.log("🌐 IP tracking successful:", result.ip);
+            console.log("🌐 Login IP tracking successful:", result.ip, result.reason);
           } else {
-            console.log("⚠️ IP tracking failed:", result.error);
+            console.log("⏰ Login IP tracking skipped:", result.reason);
           }
         }).catch((error) => {
-          console.log("❌ IP tracking error:", error);
+          console.log("❌ Login IP tracking error:", error);
         });
       }
     } catch (error) {
