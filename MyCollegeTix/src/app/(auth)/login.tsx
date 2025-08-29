@@ -30,11 +30,11 @@ export default function LoginScreen() {
   const [forgotPasswordVisible, setForgotPasswordVisible] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [isResetLoading, setIsResetLoading] = useState(false);
-  const [resendVerificationVisible, setResendVerificationVisible] = useState(false);
+  const [resendVerificationVisible, setResendVerificationVisible] =
+    useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
   const [isResendLoading, setIsResendLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
-
 
   const { signIn } = useAuth();
 
@@ -62,7 +62,7 @@ export default function LoginScreen() {
           setLoginError(
             "Please check your email and confirm your account before signing in."
           );
-          
+
           // Auto-open verification modal with user's email
           setTimeout(() => {
             Alert.alert(
@@ -87,13 +87,15 @@ export default function LoginScreen() {
           setLoginError(
             "Too many login attempts. Please wait a moment and try again."
           );
-        } else if (error.message.includes("email_not_confirmed") || 
-                   error.message.includes("not confirmed") || 
-                   error.message.includes("unverified")) {
+        } else if (
+          error.message.includes("email_not_confirmed") ||
+          error.message.includes("not confirmed") ||
+          error.message.includes("unverified")
+        ) {
           setLoginError(
             "Please check your email and confirm your account before signing in."
           );
-          
+
           // Auto-open verification modal with user's email
           setTimeout(() => {
             Alert.alert(
@@ -143,19 +145,28 @@ export default function LoginScreen() {
 
     setIsResendLoading(true);
     try {
-      console.log("📧 Requesting verification resend for email:", verificationEmail);
+      console.log(
+        "📧 Requesting verification resend for email:",
+        verificationEmail
+      );
 
       // Call secure server-side function instead of direct database queries
-      const { data, error } = await supabase.functions.invoke('resend-verification', {
-        body: { email: verificationEmail }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "resend-verification",
+        {
+          body: { email: verificationEmail },
+        }
+      );
 
       if (error) {
-        console.error("❌ Resend verification failed:", error.message || "Unknown error");
-        
+        console.error(
+          "❌ Resend verification failed:",
+          error.message || "Unknown error"
+        );
+
         // Handle different HTTP status codes
         const statusCode = error.context?.status;
-        
+
         if (statusCode === 404) {
           // User not found
           Alert.alert(
@@ -189,25 +200,28 @@ export default function LoginScreen() {
           );
           return;
         }
-        
+
         // Try to extract error message from the response data
-        if (data && typeof data === 'object') {
-          const errorResponse = data as { success: boolean; message: string; action?: string };
+        if (data && typeof data === "object") {
+          const errorResponse = data as {
+            success: boolean;
+            message: string;
+            action?: string;
+          };
           if (errorResponse.message) {
-            
             let title = "Error";
             switch (errorResponse.action) {
-              case 'already_verified':
+              case "already_verified":
                 title = "Already Verified";
                 break;
-              case 'not_found':
+              case "not_found":
                 title = "Account Not Found";
                 break;
-              case 'rate_limited':
+              case "rate_limited":
                 title = "Rate Limited";
                 break;
             }
-            
+
             Alert.alert(title, errorResponse.message, [
               {
                 text: "OK",
@@ -220,7 +234,7 @@ export default function LoginScreen() {
             return;
           }
         }
-        
+
         // Generic error handling
         Alert.alert(
           "Error",
@@ -240,77 +254,16 @@ export default function LoginScreen() {
 
       console.log("✅ Verification email processing completed");
 
-      const response = data as { success: boolean; message: string; action?: string };
+      const response = data as {
+        success: boolean;
+        message: string;
+        action?: string;
+      };
 
       if (response.success) {
         // Success - verification email sent
         console.log("✅ Verification email sent successfully");
-        Alert.alert(
-          "Verification Email Sent! ✅",
-          response.message,
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                setResendVerificationVisible(false);
-                setVerificationEmail("");
-              },
-            },
-          ]
-        );
-      } else {
-        // Handle different error scenarios based on action type
-        console.log("❌ Function returned error:", response.message);
-        
-        let title = "Error";
-        let message = response.message;
-
-        switch (response.action) {
-          case 'already_verified':
-            title = "Already Verified";
-            break;
-          case 'not_found':
-            title = "Account Not Found";
-            break;
-          case 'rate_limited':
-            title = "Rate Limited";
-            break;
-          default:
-            title = "Error";
-            break;
-        }
-
-        Alert.alert(
-          title,
-          message,
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                setResendVerificationVisible(false);
-                setVerificationEmail("");
-              },
-            },
-          ]
-        );
-      }
-
-    } catch (error: any) {
-      console.error("💥 Unexpected resend verification error:", error);
-      
-      // Handle network and other errors
-      let errorMessage = "An unexpected error occurred. Please try again.";
-      
-      if (error.message?.includes('fetch')) {
-        errorMessage = "Network error. Please check your connection and try again.";
-      } else if (error.message?.includes('timeout')) {
-        errorMessage = "Request timeout. Please try again.";
-      }
-
-      Alert.alert(
-        "Error",
-        errorMessage,
-        [
+        Alert.alert("Verification Email Sent! ✅", response.message, [
           {
             text: "OK",
             onPress: () => {
@@ -318,8 +271,61 @@ export default function LoginScreen() {
               setVerificationEmail("");
             },
           },
-        ]
-      );
+        ]);
+      } else {
+        // Handle different error scenarios based on action type
+        console.log("❌ Function returned error:", response.message);
+
+        let title = "Error";
+        let message = response.message;
+
+        switch (response.action) {
+          case "already_verified":
+            title = "Already Verified";
+            break;
+          case "not_found":
+            title = "Account Not Found";
+            break;
+          case "rate_limited":
+            title = "Rate Limited";
+            break;
+          default:
+            title = "Error";
+            break;
+        }
+
+        Alert.alert(title, message, [
+          {
+            text: "OK",
+            onPress: () => {
+              setResendVerificationVisible(false);
+              setVerificationEmail("");
+            },
+          },
+        ]);
+      }
+    } catch (error: any) {
+      console.error("💥 Unexpected resend verification error:", error);
+
+      // Handle network and other errors
+      let errorMessage = "An unexpected error occurred. Please try again.";
+
+      if (error.message?.includes("fetch")) {
+        errorMessage =
+          "Network error. Please check your connection and try again.";
+      } else if (error.message?.includes("timeout")) {
+        errorMessage = "Request timeout. Please try again.";
+      }
+
+      Alert.alert("Error", errorMessage, [
+        {
+          text: "OK",
+          onPress: () => {
+            setResendVerificationVisible(false);
+            setVerificationEmail("");
+          },
+        },
+      ]);
     } finally {
       setIsResendLoading(false);
     }
@@ -386,7 +392,6 @@ export default function LoginScreen() {
     }
   };
 
-
   const StatCard = ({ number, label }: { number: string; label: string }) => (
     <BlurView intensity={20} style={styles.statCard}>
       <Text style={styles.statNumber}>{number}</Text>
@@ -428,7 +433,8 @@ export default function LoginScreen() {
 
             <Text style={styles.welcomeTitle}>Welcome</Text>
             <Text style={styles.welcomeSubtitle}>
-              Sign in to access your tickets and discover amazing Spartan events
+              Login to access your campus marketplace for buying and selling
+              tickets
             </Text>
           </View>
 
@@ -523,7 +529,9 @@ export default function LoginScreen() {
                 <TouchableOpacity
                   onPress={() => setResendVerificationVisible(true)}
                 >
-                  <Text style={styles.resendVerification}>Resend Verification Email</Text>
+                  <Text style={styles.resendVerification}>
+                    Resend Verification Email
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setForgotPasswordVisible(true)}
@@ -681,7 +689,11 @@ export default function LoginScreen() {
             <View style={styles.modal}>
               <View style={styles.modalHeader}>
                 <View style={styles.modalIcon}>
-                  <Ionicons name="mail-unread-outline" size={32} color="#18453b" />
+                  <Ionicons
+                    name="mail-unread-outline"
+                    size={32}
+                    color="#18453b"
+                  />
                 </View>
                 <Text style={styles.modalTitle}>Resend Verification Email</Text>
                 <Text style={styles.modalSubtitle}>
@@ -718,7 +730,8 @@ export default function LoginScreen() {
                     color="#6b7280"
                   />
                   <Text style={styles.infoText}>
-                    We'll check if your account exists and send a verification email if needed.
+                    We'll check if your account exists and send a verification
+                    email if needed.
                   </Text>
                 </View>
               </View>
@@ -752,7 +765,9 @@ export default function LoginScreen() {
                         <View style={styles.spinner} />
                       </View>
                     ) : (
-                      <Text style={styles.buttonText}>Send Verification Email</Text>
+                      <Text style={styles.buttonText}>
+                        Send Verification Email
+                      </Text>
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
@@ -1130,5 +1145,4 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
   },
-
 });

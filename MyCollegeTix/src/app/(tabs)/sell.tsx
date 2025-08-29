@@ -40,7 +40,11 @@ const sports = [
   { name: "Hockey", icon: "hockey-puck", iconSet: "MaterialCommunityIcons" },
   { name: "Baseball", icon: "baseball-outline" },
   { name: "Tennis", icon: "tennisball-outline" },
-  { name: "Track and Field", icon: "run-fast", iconSet: "MaterialCommunityIcons" },
+  {
+    name: "Track and Field",
+    icon: "run-fast",
+    iconSet: "MaterialCommunityIcons",
+  },
   { name: "Cross Country", icon: "run", iconSet: "MaterialCommunityIcons" },
   { name: "Golf", icon: "golf-outline" },
 ];
@@ -123,13 +127,19 @@ export default function SellScreen() {
       ...prev,
       description:
         prev.description ||
-        `Ticket for ${event.title} - ${formatEventDate(event.event_date, event.game_time)}`,
+        `Ticket for ${event.title} - ${formatEventDate(
+          event.event_date,
+          event.game_time
+        )}`,
     }));
   };
 
   // Use shared utility function for consistent date/time formatting
   const formatEventDate = (dateString: string, gameTime?: string | null) => {
-    return formatEventDateTime(dateString, gameTime, { dateStyle: 'medium', separator: ' • ' });
+    return formatEventDateTime(dateString, gameTime, {
+      dateStyle: "medium",
+      separator: " • ",
+    });
   };
 
   const updateFormData = (key: keyof FormData, value: string | boolean) => {
@@ -333,7 +343,9 @@ export default function SellScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
-        keyboardDismissMode={Platform.OS === 'android' ? 'on-drag' : 'interactive'}
+        keyboardDismissMode={
+          Platform.OS === "android" ? "on-drag" : "interactive"
+        }
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollContent}
       >
@@ -405,7 +417,10 @@ export default function SellScreen() {
                           { color: theme.primary },
                         ]}
                       >
-                        {formatEventDate(selectedEvent.event_date, selectedEvent.game_time)}
+                        {formatEventDate(
+                          selectedEvent.event_date,
+                          selectedEvent.game_time
+                        )}
                       </Text>
                       <Text style={styles.selectedEventLocation}>
                         {selectedEvent.venue || selectedEvent.location}
@@ -463,7 +478,7 @@ export default function SellScreen() {
                 Ticket Type
               </Text>
               <Text style={styles.sectionSubtitle}>
-                Specify if this is a student season ticket
+                Specify if this is a student ticket
               </Text>
 
               <TouchableOpacity
@@ -492,7 +507,7 @@ export default function SellScreen() {
                   <Text
                     style={[styles.seasonTicketTitle, { color: theme.primary }]}
                   >
-                    Season or Student Ticket
+                    Student Ticket
                   </Text>
                   <Text style={styles.seasonTicketSubtitle}>
                     Specify if buyer might need to show student ID
@@ -775,7 +790,7 @@ export default function SellScreen() {
                 showsVerticalScrollIndicator={false}
                 scrollEventThrottle={16}
                 keyboardShouldPersistTaps="handled"
-                removeClippedSubviews={Platform.OS === 'android'}
+                removeClippedSubviews={Platform.OS === "android"}
                 contentContainerStyle={styles.modalEventsList}
               />
             ) : (
