@@ -513,7 +513,10 @@ export default function EventManagement() {
   const EventCard = ({ event }: { event: Event }) => {
     const isSelected = selectedEvents.has(event.id);
     const eventDate = new Date(event.event_date);
-    const isExpired = eventDate < new Date();
+    // Event expires at 11:59 PM on the event day, not immediately when date passes
+    const endOfEventDay = new Date(eventDate);
+    endOfEventDay.setHours(23, 59, 59, 999);
+    const isExpired = endOfEventDay < new Date();
 
     return (
       <TouchableOpacity
@@ -725,7 +728,11 @@ export default function EventManagement() {
       const eventDate = new Date(updatedEvent.event_date);
       const now = new Date();
       
-      if (eventDate < now && updatedEvent.status !== 'completed' && updatedEvent.status !== 'cancelled') {
+      // Set expiry to 11:59 PM on the event day instead of immediately when date passes
+      const endOfEventDay = new Date(eventDate);
+      endOfEventDay.setHours(23, 59, 59, 999);
+      
+      if (endOfEventDay < now && updatedEvent.status !== 'completed' && updatedEvent.status !== 'cancelled') {
         Alert.alert(
           'Event Updated & Auto-Expired', 
           'The event was successfully updated. Since the event date is in the past, it has been automatically marked as completed.',
