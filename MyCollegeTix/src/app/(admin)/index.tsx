@@ -140,20 +140,6 @@ export default function AdminDashboard() {
     });
   };
 
-  const handleDatabaseReset = () => {
-    AdminService.showResetConfirmation(async () => {
-      setIsRefreshing(true);
-      const result = await AdminService.resetDatabaseToInitialState();
-      
-      if (result.success) {
-        Alert.alert("Success", "Database has been reset successfully!");
-        fetchAdminStats(true);
-      } else {
-        Alert.alert("Error", result.error || "Failed to reset database");
-        setIsRefreshing(false);
-      }
-    });
-  };
 
   const StatCard = ({
     title,
@@ -302,13 +288,6 @@ export default function AdminDashboard() {
               icon="analytics"
               color="#16a34a"
               onPress={() => router.push("/(admin)/analytics")}
-            />
-            <QuickActionCard
-              title="Reset Database"
-              description="Clear old data and reset to initial state"
-              icon="refresh-circle"
-              color="#dc2626"
-              onPress={handleDatabaseReset}
             />
           </View>
         </View>
