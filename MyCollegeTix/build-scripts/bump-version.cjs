@@ -20,6 +20,9 @@
 const fs = require('fs');
 const path = require('path');
 
+// Get project root directory (one level up from build-scripts)
+const PROJECT_ROOT = path.join(__dirname, '..');
+
 function incrementVersion(version, type = 'patch') {
   const parts = version.split('.').map(Number);
   
@@ -43,7 +46,7 @@ function incrementVersion(version, type = 'patch') {
 }
 
 function updatePackageJson(newVersion) {
-  const packagePath = path.join(__dirname, 'package.json');
+  const packagePath = path.join(PROJECT_ROOT, 'package.json');
   const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
   
   packageJson.version = newVersion;
@@ -53,7 +56,7 @@ function updatePackageJson(newVersion) {
 }
 
 function updateAppJson(newVersion) {
-  const appJsonPath = path.join(__dirname, 'app.json');
+  const appJsonPath = path.join(PROJECT_ROOT, 'app.json');
   const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
   
   // Update main version
@@ -78,7 +81,7 @@ function updateAppJson(newVersion) {
 }
 
 function updateInfoPlist(newVersion, newBuildNumber) {
-  const infoPlistPath = path.join(__dirname, 'ios', 'MyCollegeTix', 'Info.plist');
+  const infoPlistPath = path.join(PROJECT_ROOT, 'ios', 'MyCollegeTix', 'Info.plist');
   
   if (!fs.existsSync(infoPlistPath)) {
     console.log(`⚠️ Info.plist not found at ${infoPlistPath}`);
@@ -116,7 +119,7 @@ function main() {
   
   try {
     // Read current version from app.json (Expo project)
-    const appJsonPath = path.join(__dirname, 'app.json');
+    const appJsonPath = path.join(PROJECT_ROOT, 'app.json');
     const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
     const currentVersion = appJson.expo.version;
     
@@ -131,7 +134,7 @@ function main() {
     updateAppJson(newVersion);
     
     // Also update Info.plist with the new iOS build number from app.json
-    const updatedAppJsonPath = path.join(__dirname, 'app.json');
+    const updatedAppJsonPath = path.join(PROJECT_ROOT, 'app.json');
     const updatedAppJson = JSON.parse(fs.readFileSync(updatedAppJsonPath, 'utf8'));
     const iosBuildNumber = updatedAppJson.expo.ios?.buildNumber || '1.0';
     updateInfoPlist(newVersion, iosBuildNumber);

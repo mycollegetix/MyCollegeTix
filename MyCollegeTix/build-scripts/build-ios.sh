@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Change to project root directory
+cd "$(dirname "$0")/.."
+
 echo "🍎 Starting iOS build process..."
 
 # Get current build number from iOS Info.plist and increment it

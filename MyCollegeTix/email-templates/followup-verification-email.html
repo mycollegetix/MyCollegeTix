@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Still Need to Verify Your Email - MyCollegeTix</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f5f5f5;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 500px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        padding: 40px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .logo {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .logo h1 {
+        color: #18453b;
+        font-size: 24px;
+        margin: 0;
+      }
+
+      .message {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .message h2 {
+        color: #18453b;
+        font-size: 20px;
+        margin-bottom: 10px;
+      }
+
+      .message p {
+        color: #666;
+        font-size: 16px;
+        margin-bottom: 15px;
+      }
+
+      .alert-box {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 5px;
+        padding: 15px;
+        margin: 20px 0;
+        color: #856404;
+      }
+
+      .confirm-button {
+        text-align: center;
+        margin: 30px 0;
+      }
+
+      .confirm-button a {
+        display: inline-block;
+        background: #18453b;
+        color: white;
+        text-decoration: none;
+        padding: 15px 30px;
+        border-radius: 5px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .confirm-button a:hover {
+        background: #2a6b5a;
+      }
+
+      .troubleshooting {
+        background: #f8f9fa;
+        border-radius: 5px;
+        padding: 20px;
+        margin: 20px 0;
+        border-left: 4px solid #18453b;
+      }
+
+      .troubleshooting h3 {
+        color: #18453b;
+        font-size: 16px;
+        margin: 0 0 15px 0;
+      }
+
+      .troubleshooting ul {
+        margin: 10px 0;
+        padding-left: 20px;
+      }
+
+      .troubleshooting li {
+        margin: 5px 0;
+        font-size: 14px;
+        color: #666;
+      }
+
+      .college-specific {
+        background: #e3f2fd;
+        border: 1px solid #bbdefb;
+        border-radius: 5px;
+        padding: 15px;
+        margin: 15px 0;
+        font-size: 14px;
+      }
+
+      .college-specific strong {
+        color: #1976d2;
+      }
+
+      .fallback {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 5px;
+        border-left: 4px solid #18453b;
+      }
+
+      .fallback p {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        color: #666;
+      }
+
+      .url-text {
+        word-break: break-all;
+        font-family: monospace;
+        background: #e9ecef;
+        padding: 10px;
+        border-radius: 3px;
+        font-size: 12px;
+        color: #495057;
+      }
+
+      .footer {
+        text-align: center;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+        font-size: 12px;
+        color: #999;
+      }
+
+      .support-link {
+        color: #18453b;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">
+        <h1>MyCollegeTix</h1>
+      </div>
+
+      <div class="message">
+        <h2>We Notice You Haven't Verified Your Email Yet</h2>
+        <p>
+          You signed up for MyCollegeTix a few days ago, but we haven't seen you
+          verify your email address yet. Let's get that sorted out!
+        </p>
+      </div>
+
+      <div class="alert-box">
+        <strong>Having trouble finding our emails?</strong>
+        University email systems sometimes filter our messages. Check the
+        troubleshooting steps below.
+      </div>
+
+      <div class="confirm-button">
+        <a
+          href="{{ .ConfirmationURL }}&redirect_to=https://www.mycollegetix.com/open-app.html"
+        >
+          Verify My Email Now
+        </a>
+      </div>
+      <div class="troubleshooting">
+        <h4>📧 Verification Email link expired?</h4>
+        <ul>
+          <li>
+            <strong
+              >Check the login screen of our app and resend a verification
+              email</strong
+            >
+            - Our verification emails expire after 1 hour
+          </li>
+        </ul>
+      </div>
+      <div class="troubleshooting">
+        <h3>📧 Email Not Showing Up? Try These Steps:</h3>
+        <ul>
+          <li>
+            <strong>Check your spam/junk folder</strong> - Our emails sometimes
+            end up there
+          </li>
+          <li>
+            <strong>Search for "MyCollegeTix"</strong> in your email to find our
+            messages
+          </li>
+          <li>
+            <strong>Check your university's spam summary</strong> - Some schools
+            send daily reports of blocked emails
+          </li>
+          <li>
+            <strong>Add us to your contacts</strong> - Add
+            noreply@mycollegetix.com to prevent future filtering
+          </li>
+        </ul>
+      </div>
+
+      <div class="college-specific">
+        <strong>MSU Students:</strong> Check your daily spam summary email from
+        IT. Our verification emails sometimes get caught in MSU's new mail
+        protection system. You can also contact support@egr.msu.edu to allowlist
+        our domain. <br /><br />
+        <strong>U-M Students:</strong> Our emails might be in your Gmail spam
+        folder. You can also use the U-M Block Status Check tool to see if our
+        domain is being filtered.
+      </div>
+
+      <div class="fallback">
+        <p><strong>Button not working?</strong></p>
+        <p>Copy and paste this link into your browser:</p>
+        <div class="url-text">
+          {{ .ConfirmationURL
+          }}&redirect_to=https://www.mycollegetix.com/open-app.html
+        </div>
+      </div>
+
+      <div class="message">
+        <p>
+          <strong>Still having trouble?</strong>
+          <a href="mailto:support@mycollegetix.com" class="support-link"
+            >Email our support team</a
+          >
+          and we'll help you get verified manually.
+        </p>
+      </div>
+
+      <div class="footer">
+        <p>© 2025 MyCollegeTix. All rights reserved.</p>
+        <p>This link will expire in 24 hours.</p>
+      </div>
+    </div>
+  </body>
+</html>

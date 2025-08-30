@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Change to project root directory
+cd "$(dirname "$0")/.."
+
 echo "🔧 Fixing Android build while preserving keystore..."
 
 # Clean prebuild to update manifest and apply signing plugin
@@ -29,4 +32,4 @@ cd android && ./gradlew clean && cd ..
 
 echo "✅ Android build fixed! Your keystore is preserved."
 echo "🔒 Release signing configuration verified."
-echo "📦 Now run: ./build-android.sh"
+echo "📦 Now run: ./build-scripts/build-android.sh"

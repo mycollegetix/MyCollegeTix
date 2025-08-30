@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Change to project root directory
+cd "$(dirname "$0")/.."
+
 echo "🧹 Git Cleanup Script"
 echo "===================="
 echo "This script will clean up your Git repo to prevent future corruption issues."
