@@ -389,7 +389,13 @@ export default function ChatListScreen() {
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === "android" ? "on-drag" : "interactive"}
             removeClippedSubviews={Platform.OS === 'android'}
+            nestedScrollEnabled={Platform.OS === 'android'}
+            initialNumToRender={Platform.OS === 'android' ? 8 : 10}
+            maxToRenderPerBatch={Platform.OS === 'android' ? 6 : 10}
+            updateCellsBatchingPeriod={Platform.OS === 'android' ? 100 : 50}
+            windowSize={Platform.OS === 'android' ? 6 : 10}
             refreshControl={
               <RefreshControl
                 refreshing={loading}

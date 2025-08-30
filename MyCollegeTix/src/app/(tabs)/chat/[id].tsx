@@ -94,19 +94,30 @@ export default function ChatConversationScreen() {
     setMessages(messages);
   }, [messages]);
 
-  // Keyboard handling - simplified for both platforms
+  // Enhanced keyboard handling for both platforms
   useEffect(() => {
     const keyboardDidShow = () => {
-      // Auto-scroll to bottom when keyboard shows
+      // Auto-scroll to bottom when keyboard shows - longer delay for Android
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      }, Platform.OS === 'android' ? 150 : 100);
+    };
+
+    const keyboardDidHide = () => {
+      // On Android, ensure proper positioning when keyboard hides
+      if (Platform.OS === 'android') {
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
     };
 
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', keyboardDidShow);
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', keyboardDidHide);
 
     return () => {
       keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
     };
   }, []);
 
@@ -517,9 +528,9 @@ export default function ChatConversationScreen() {
       )}
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.chatContainer}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         {/* Messages */}
         <View style={styles.messagesContainer}>
@@ -536,8 +547,14 @@ export default function ChatConversationScreen() {
               showsVerticalScrollIndicator={false}
               scrollEventThrottle={16}
               keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="interactive"
+              keyboardDismissMode={Platform.OS === "android" ? "on-drag" : "interactive"}
               removeClippedSubviews={Platform.OS === 'android'}
+              nestedScrollEnabled={Platform.OS === 'android'}
+              initialNumToRender={Platform.OS === 'android' ? 15 : 10}
+              maxToRenderPerBatch={Platform.OS === 'android' ? 8 : 10}
+              updateCellsBatchingPeriod={Platform.OS === 'android' ? 100 : 50}
+              windowSize={Platform.OS === 'android' ? 8 : 10}
+              getItemLayout={Platform.OS === 'android' ? undefined : undefined}
               maintainVisibleContentPosition={{
                 minIndexForVisible: 0,
                 autoscrollToTopThreshold: 10,
@@ -635,10 +652,10 @@ export default function ChatConversationScreen() {
                 maxLength={1000}
                 placeholderTextColor="#9ca3af"
                 onFocus={() => {
-                  // Ensure we scroll to bottom when focusing input
+                  // Platform-specific scroll timing when focusing input
                   setTimeout(() => {
                     flatListRef.current?.scrollToEnd({ animated: true });
-                  }, 300);
+                  }, Platform.OS === 'android' ? 400 : 300);
                 }}
               />
 
@@ -952,6 +969,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingBottom: Platform.OS === "ios" ? 34 : 16,
+    backgroundColor: Platform.OS === "android" ? "#f8fafc" : "transparent",
   },
   inputBlur: {
     borderRadius: 20,
