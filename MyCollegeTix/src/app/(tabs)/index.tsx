@@ -289,7 +289,7 @@ export default function BrowseScreen() {
       seat: ticket.seat_number || "N/A",
       location: ticket.location,
       seller: ticket.seller,
-      isSeasonTicket: ticket.is_season_ticket,
+      ticketType: ticket.ticket_type,
       collegeMatchup: ticket.collegeMatchup,
     };
   };
@@ -321,8 +321,9 @@ export default function BrowseScreen() {
           row={item.row_number || "N/A"}
           seat={item.seat_number || "N/A"}
           onPress={() => handleTicketPress(item)}
-          isSeasonTicket={item.is_season_ticket}
+          ticketType={item.ticket_type}
           collegeMatchup={formattedTicket.collegeMatchup}
+          isSeasonPass={item.event?.is_season_pass}
         />
       </View>
     );
@@ -706,8 +707,9 @@ const EnhancedTicketCard = ({
   row,
   seat,
   onPress,
-  isSeasonTicket,
+  ticketType,
   collegeMatchup,
+  isSeasonPass,
 }: {
   sport: string;
   event: string;
@@ -717,8 +719,9 @@ const EnhancedTicketCard = ({
   row: string;
   seat: string;
   onPress?: () => void;
-  isSeasonTicket?: boolean;
+  ticketType?: 'general_admission' | 'student';
   collegeMatchup?: string | null;
+  isSeasonPass?: boolean;
 }) => {
   const theme = useTheme();
 
@@ -734,11 +737,18 @@ const EnhancedTicketCard = ({
           <View style={[styles.sportBadge, { backgroundColor: theme.primary }]}>
             <Text style={styles.sportBadgeText}>{sport}</Text>
           </View>
-          {isSeasonTicket && (
+          {isSeasonPass && (
             <View
               style={[styles.seasonBadge, { backgroundColor: theme.secondary }]}
             >
               <Text style={styles.seasonBadgeText}>SEASON</Text>
+            </View>
+          )}
+          {ticketType === 'general_admission' && (
+            <View
+              style={[styles.generalBadge, { backgroundColor: '#10b981' }]}
+            >
+              <Text style={styles.generalBadgeText}>GENERAL</Text>
             </View>
           )}
         </View>
@@ -1041,6 +1051,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   seasonBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  generalBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  generalBadgeText: {
     color: "white",
     fontSize: 12,
     fontWeight: "600",

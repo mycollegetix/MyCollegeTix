@@ -62,6 +62,7 @@ const EditEventModal = ({
     is_home_game: boolean;
     status: Event['status'];
     description: string;
+    is_season_pass: boolean;
   };
   updateFormField: (field: string, value: string | boolean) => void;
 }) => (
@@ -220,6 +221,47 @@ const EditEventModal = ({
             />
           </View>
           
+          {/* Season Pass Toggle */}
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Event Type</Text>
+            <TouchableOpacity
+              style={[
+                styles.seasonPassToggle,
+                editForm.is_season_pass && styles.seasonPassToggleActive
+              ]}
+              onPress={() => updateFormField('is_season_pass', !editForm.is_season_pass)}
+            >
+              <View style={styles.seasonPassToggleContent}>
+                <Ionicons
+                  name="trophy-outline"
+                  size={20}
+                  color={editForm.is_season_pass ? "#18453b" : "#9ca3af"}
+                />
+                <View style={styles.seasonPassToggleText}>
+                  <Text style={[styles.seasonPassToggleTitle, editForm.is_season_pass && styles.seasonPassToggleTitleActive]}>
+                    Season Pass Event
+                  </Text>
+                  <Text style={styles.seasonPassToggleSubtitle}>
+                    Enable ticket type selection for sellers
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={[
+                  styles.toggleSwitch,
+                  editForm.is_season_pass && styles.toggleSwitchActive
+                ]}
+              >
+                <View
+                  style={[
+                    styles.toggleSwitchThumb,
+                    editForm.is_season_pass && styles.toggleSwitchThumbActive
+                  ]}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+          
           <View style={styles.modalButtons}>
             <TouchableOpacity
               style={styles.cancelBtn}
@@ -270,7 +312,8 @@ export default function EventManagement() {
     opponent: '',
     is_home_game: true,
     status: 'scraped' as Event['status'],
-    description: ''
+    description: '',
+    is_season_pass: false
   });
 
   useEffect(() => {
@@ -545,7 +588,14 @@ export default function EventManagement() {
             <Text style={styles.eventTitle} numberOfLines={2}>
               {event.title}
             </Text>
-            <StatusBadge status={event.status} />
+            <View style={styles.badgeContainer}>
+              <StatusBadge status={event.status} />
+              {event.is_season_pass && (
+                <View style={[styles.seasonBadge, { backgroundColor: '#FFD700' }]}>
+                  <Text style={styles.seasonBadgeText}>SEASON</Text>
+                </View>
+              )}
+            </View>
           </View>
           {selectMode && (
             <TouchableOpacity
@@ -673,7 +723,8 @@ export default function EventManagement() {
       opponent: event.opponent || '',
       is_home_game: event.is_home_game ?? true,
       status: event.status,
-      description: event.description || ''
+      description: event.description || '',
+      is_season_pass: event.is_season_pass ?? false
     });
     setEditModalVisible(true);
   };
@@ -707,6 +758,7 @@ export default function EventManagement() {
           is_home_game: editForm.is_home_game,
           status: editForm.status,
           description: editForm.description,
+          is_season_pass: editForm.is_season_pass,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingEvent.id);
@@ -1261,6 +1313,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+  badgeContainer: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  seasonBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  seasonBadgeText: {
+    color: '#1F2937',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   checkbox: {
     width: 24,
     height: 24,
@@ -1493,5 +1560,62 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Season Pass Toggle Styles
+  seasonPassToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+  },
+  seasonPassToggleActive: {
+    borderColor: '#18453b',
+    backgroundColor: '#F0FDF4',
+  },
+  seasonPassToggleContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  seasonPassToggleText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  seasonPassToggleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 2,
+  },
+  seasonPassToggleTitleActive: {
+    color: '#18453b',
+  },
+  seasonPassToggleSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  toggleSwitch: {
+    width: 48,
+    height: 28,
+    backgroundColor: '#D1D5DB',
+    borderRadius: 14,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleSwitchActive: {
+    backgroundColor: '#18453b',
+  },
+  toggleSwitchThumb: {
+    width: 24,
+    height: 24,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  toggleSwitchThumbActive: {
+    alignSelf: 'flex-end',
   },
 });

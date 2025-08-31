@@ -320,6 +320,7 @@ export type Database = {
           college_id: string | null;
           home_college_id: string | null;
           away_college_id: string | null;
+          is_season_pass: boolean;
         };
         Insert: {
           away_team?: string | null;
@@ -349,6 +350,7 @@ export type Database = {
           college_id?: string | null;
           home_college_id?: string | null;
           away_college_id?: string | null;
+          is_season_pass?: boolean;
         };
         Update: {
           away_team?: string | null;
@@ -378,6 +380,7 @@ export type Database = {
           college_id?: string | null;
           home_college_id?: string | null;
           away_college_id?: string | null;
+          is_season_pass?: boolean;
         };
         Relationships: [
           {
@@ -687,6 +690,7 @@ export type Database = {
           status: string;
           title: string;
           is_season_ticket: boolean;
+          ticket_type: 'general_admission' | 'student';
           home_college_id: string | null;
           away_college_id: string | null;
         };
@@ -708,6 +712,7 @@ export type Database = {
           status?: string;
           title: string;
           is_season_ticket?: boolean;
+          ticket_type?: 'general_admission' | 'student'; // defaults to 'student'
           home_college_id?: string | null;
           away_college_id?: string | null;
         };
@@ -729,6 +734,7 @@ export type Database = {
           status?: string;
           title?: string;
           is_season_ticket?: boolean;
+          ticket_type?: 'general_admission' | 'student'; // defaults to 'student'
           home_college_id?: string | null;
           away_college_id?: string | null;
         };

@@ -54,6 +54,11 @@ interface OrderItem {
   home_college_id?: string;
   away_college_id?: string;
   type: "purchase" | "listing";
+  ticket_type?: 'general_admission' | 'student';
+  event?: {
+    id: string;
+    is_season_pass: boolean;
+  };
 }
 
 interface EditFormData {
@@ -161,7 +166,12 @@ export default function OrdersScreen() {
             seat_number,
             status,
             home_college_id,
-            away_college_id
+            away_college_id,
+            ticket_type,
+            event:events!tickets_event_id_fkey (
+              id,
+              is_season_pass
+            )
           )
         `
         )
@@ -191,6 +201,8 @@ export default function OrdersScreen() {
           order_id: order.id,
           home_college_id: order.ticket.home_college_id,
           away_college_id: order.ticket.away_college_id,
+          ticket_type: order.ticket.ticket_type,
+          event: order.ticket.event,
           type: "purchase" as const,
         }));
     } catch (error) {
@@ -219,7 +231,12 @@ export default function OrdersScreen() {
         status,
         created_at,
         home_college_id,
-        away_college_id
+        away_college_id,
+        ticket_type,
+        event:events!tickets_event_id_fkey (
+          id,
+          is_season_pass
+        )
       `
         )
         .eq("seller_id", user!.id)
@@ -245,6 +262,8 @@ export default function OrdersScreen() {
         created_at: ticket.created_at,
         home_college_id: ticket.home_college_id,
         away_college_id: ticket.away_college_id,
+        ticket_type: ticket.ticket_type,
+        event: ticket.event,
         type: "listing" as const,
       }));
     } catch (error) {
@@ -480,6 +499,22 @@ export default function OrdersScreen() {
             >
               <Text style={styles.sportBadgeText}>{item.sport || "Event"}</Text>
             </View>
+            {/* Season badge for season pass events */}
+            {item.event?.is_season_pass && (
+              <View
+                style={[styles.seasonBadge, { backgroundColor: theme.secondary }]}
+              >
+                <Text style={styles.seasonBadgeText}>SEASON</Text>
+              </View>
+            )}
+            {/* General badge for general admission tickets */}
+            {item.ticket_type === 'general_admission' && (
+              <View
+                style={[styles.generalBadge, { backgroundColor: '#10b981' }]}
+              >
+                <Text style={styles.generalBadgeText}>GENERAL</Text>
+              </View>
+            )}
           </View>
           <View
             style={[
@@ -1202,6 +1237,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   sportBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  seasonBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  seasonBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  generalBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  generalBadgeText: {
     color: "white",
     fontSize: 12,
     fontWeight: "600",

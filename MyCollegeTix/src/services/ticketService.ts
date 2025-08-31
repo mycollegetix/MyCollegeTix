@@ -52,6 +52,11 @@ export class TicketService {
           email,
           college_id
         ),
+        event:events!tickets_event_id_fkey (
+          id,
+          title,
+          is_season_pass
+        ),
         home_college:colleges!tickets_home_college_id_fkey (
           id,
           name,
@@ -83,9 +88,9 @@ export class TicketService {
         query = query.ilike("sport", `%${sport}%`);
       }
 
-      // Filter by season tickets only
+      // Filter by student tickets only (formerly season tickets)
       if (onlySeasonTickets) {
-        query = query.eq("is_season_ticket", true);
+        query = query.eq("ticket_type", "student");
       }
 
       // FIXED: Search filter - single line, no newlines
@@ -129,9 +134,9 @@ export class TicketService {
       // Apply season pass prioritization - only when filtering by specific sport (not "All Sports")
       if (sport && sport !== "All Sports") {
         tickets = tickets.sort((a, b) => {
-          // Check if event title contains "season pass" (matches EventService logic)
-          const aIsSeasonPass = a.title.toLowerCase().includes('season pass');
-          const bIsSeasonPass = b.title.toLowerCase().includes('season pass');
+          // Check if event is marked as season pass
+          const aIsSeasonPass = a.event?.is_season_pass;
+          const bIsSeasonPass = b.event?.is_season_pass;
 
           // If one is season pass and the other isn't, season pass goes first
           if (aIsSeasonPass && !bIsSeasonPass) return -1;
@@ -195,7 +200,8 @@ export class TicketService {
             away_college_id,
             is_home_game,
             home_team,
-            away_team
+            away_team,
+            is_season_pass
           ),
           home_college:colleges!tickets_home_college_id_fkey (
             id,
@@ -261,7 +267,8 @@ export class TicketService {
             away_college_id,
             is_home_game,
             home_team,
-            away_team
+            away_team,
+            is_season_pass
           ),
           home_college:colleges!tickets_home_college_id_fkey (
             id,
@@ -299,7 +306,7 @@ export class TicketService {
     seat_number: string;
     price: number;
     description?: string;
-    is_season_ticket?: boolean;
+    ticket_type?: 'general_admission' | 'student';
   }): Promise<{ data: Ticket | null; error: any }> {
     try {
       const {
@@ -338,7 +345,7 @@ export class TicketService {
           row_number: ticketData.row_number,
           seat_number: ticketData.seat_number,
           seller_id: user.id,
-          is_season_ticket: ticketData.is_season_ticket || false,
+          ticket_type: ticketData.ticket_type || 'student',
         })
         .select()
         .single();

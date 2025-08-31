@@ -45,10 +45,8 @@ export class EventService {
       events = events.sort((a, b) => {
         // Only prioritize season passes when filtering by a specific sport (not "All Sports")
         if (sport && sport !== "All Sports") {
-          const aIsSeasonPass = a.title.toLowerCase().includes('season pass') || 
-                               a.category?.toLowerCase().includes('season pass');
-          const bIsSeasonPass = b.title.toLowerCase().includes('season pass') || 
-                               b.category?.toLowerCase().includes('season pass');
+          const aIsSeasonPass = a.is_season_pass;
+          const bIsSeasonPass = b.is_season_pass;
 
           // If one is season pass and the other isn't, season pass goes first
           if (aIsSeasonPass && !bIsSeasonPass) return -1;
@@ -142,10 +140,8 @@ export class EventService {
       events = events.sort((a, b) => {
         // Only prioritize season passes when filtering by a specific sport (not "All Sports")
         if (sport && sport !== "All Sports") {
-          const aIsSeasonPass = a.title.toLowerCase().includes('season pass') || 
-                               a.category?.toLowerCase().includes('season pass');
-          const bIsSeasonPass = b.title.toLowerCase().includes('season pass') || 
-                               b.category?.toLowerCase().includes('season pass');
+          const aIsSeasonPass = a.is_season_pass;
+          const bIsSeasonPass = b.is_season_pass;
 
           // If one is season pass and the other isn't, season pass goes first
           if (aIsSeasonPass && !bIsSeasonPass) return -1;
