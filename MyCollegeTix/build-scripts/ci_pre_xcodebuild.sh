@@ -3,6 +3,9 @@
 # Pre-build script for Xcode Cloud
 # This script runs before xcodebuild to install CocoaPods dependencies
 
+# Change to project root directory
+cd "$(dirname "$0")/.."
+
 echo "🔧 Installing CocoaPods dependencies..."
 echo "Current directory: $(pwd)"
 echo "Workspace: $CI_WORKSPACE"
