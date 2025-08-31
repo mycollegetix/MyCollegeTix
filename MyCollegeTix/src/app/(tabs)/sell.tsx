@@ -55,7 +55,7 @@ interface FormData {
   seat_number: string;
   price: string;
   description: string;
-  ticket_type: 'general_admission' | 'student';
+  ticket_type: "general_admission" | "student";
 }
 
 export default function SellScreen() {
@@ -76,7 +76,7 @@ export default function SellScreen() {
     seat_number: "",
     price: "",
     description: "",
-    ticket_type: 'student', // Default to student
+    ticket_type: "student", // Default to student
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -119,7 +119,12 @@ export default function SellScreen() {
   };
 
   const handleEventSelect = (event: Event) => {
-    console.log('🎫 Selected event:', event.title, 'is_season_pass:', event.is_season_pass);
+    console.log(
+      "🎫 Selected event:",
+      event.title,
+      "is_season_pass:",
+      event.is_season_pass
+    );
     setSelectedEvent(event);
     setShowEventModal(false);
 
@@ -169,7 +174,7 @@ export default function SellScreen() {
       seat_number: "",
       price: "",
       description: "",
-      ticket_type: 'student', // Default to student
+      ticket_type: "student", // Default to student
     });
   };
 
@@ -319,10 +324,17 @@ export default function SellScreen() {
             <View
               style={[
                 styles.eventItemSeasonBadge,
-                { backgroundColor: theme.secondary }
+                { backgroundColor: theme.secondary },
               ]}
             >
-              <Text style={[styles.eventItemSeasonBadgeText, { color: theme.primary }]}>SEASON</Text>
+              <Text
+                style={[
+                  styles.eventItemSeasonBadgeText,
+                  { color: theme.primary },
+                ]}
+              >
+                SEASON
+              </Text>
             </View>
           )}
         </View>
@@ -489,10 +501,24 @@ export default function SellScreen() {
             {selectedEvent?.is_season_pass && (
               <View style={styles.seasonBadgeContainer}>
                 <View
-                  style={[styles.seasonEventBadge, { backgroundColor: theme.secondary }]}
+                  style={[
+                    styles.seasonEventBadge,
+                    { backgroundColor: theme.secondary },
+                  ]}
                 >
-                  <Ionicons name="trophy-outline" size={16} color={theme.primary} />
-                  <Text style={[styles.seasonEventBadgeText, { color: theme.primary }]}>SEASON PASS EVENT</Text>
+                  <Ionicons
+                    name="trophy-outline"
+                    size={16}
+                    color={theme.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.seasonEventBadgeText,
+                      { color: theme.primary },
+                    ]}
+                  >
+                    SEASON PASS EVENT
+                  </Text>
                 </View>
               </View>
             )}
@@ -504,21 +530,27 @@ export default function SellScreen() {
                   Ticket Access
                 </Text>
                 <Text style={styles.sectionSubtitle}>
-                  All tickets default to student access. Check below if general public can buy.
+                  All tickets default to student access. Check below if general
+                  public can buy.
                 </Text>
 
                 <TouchableOpacity
                   style={[
                     styles.generalAdmissionToggle,
                     { borderColor: `${theme.primary}30` },
-                    formData.ticket_type === 'general_admission' && {
+                    formData.ticket_type === "general_admission" && {
                       borderColor: theme.primary,
                       backgroundColor: `${theme.primary}10`,
                     },
                   ]}
-                  onPress={() => updateFormData('ticket_type', 
-                    formData.ticket_type === 'general_admission' ? 'student' : 'general_admission'
-                  )}
+                  onPress={() =>
+                    updateFormData(
+                      "ticket_type",
+                      formData.ticket_type === "general_admission"
+                        ? "student"
+                        : "general_admission"
+                    )
+                  }
                 >
                   <View style={styles.generalAdmissionContent}>
                     <View style={styles.generalAdmissionIcon}>
@@ -526,18 +558,23 @@ export default function SellScreen() {
                         name="people-outline"
                         size={20}
                         color={
-                          formData.ticket_type === 'general_admission' ? theme.primary : "#9ca3af"
+                          formData.ticket_type === "general_admission"
+                            ? theme.primary
+                            : "#9ca3af"
                         }
                       />
                     </View>
                     <View style={styles.generalAdmissionText}>
                       <Text
-                        style={[styles.generalAdmissionTitle, { color: theme.primary }]}
+                        style={[
+                          styles.generalAdmissionTitle,
+                          { color: theme.primary },
+                        ]}
                       >
                         General Admission Ticket
                       </Text>
                       <Text style={styles.generalAdmissionSubtitle}>
-                        Allow non-students to purchase this ticket
+                        Specify if ticket is not in student section
                       </Text>
                     </View>
                   </View>
@@ -545,13 +582,13 @@ export default function SellScreen() {
                     style={[
                       styles.checkbox,
                       { borderColor: `${theme.primary}30` },
-                      formData.ticket_type === 'general_admission' && {
+                      formData.ticket_type === "general_admission" && {
                         backgroundColor: theme.primary,
                         borderColor: theme.primary,
                       },
                     ]}
                   >
-                    {formData.ticket_type === 'general_admission' && (
+                    {formData.ticket_type === "general_admission" && (
                       <Ionicons name="checkmark" size={16} color="white" />
                     )}
                   </View>
@@ -748,8 +785,16 @@ export default function SellScreen() {
                     <Ionicons name="checkmark-circle" size={20} color="white" />
                     <Text style={styles.submitButtonText}>
                       {selectedEvent?.is_season_pass
-                        ? `List ${formData.ticket_type === 'general_admission' ? 'General Admission' : 'Student'} Season Pass`
-                        : `List ${formData.ticket_type === 'general_admission' ? 'General Admission' : 'Student'} Ticket`}
+                        ? `List ${
+                            formData.ticket_type === "general_admission"
+                              ? "General Admission"
+                              : "Student"
+                          } Season Pass`
+                        : `List ${
+                            formData.ticket_type === "general_admission"
+                              ? "General Admission"
+                              : "Student"
+                          } Ticket`}
                     </Text>
                   </>
                 )}
@@ -1075,11 +1120,11 @@ const styles = StyleSheet.create({
   // Season Badge Styles
   seasonBadgeContainer: {
     marginBottom: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   seasonEventBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -1333,14 +1378,14 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   eventItemBadges: {
-    flexDirection: 'column',
+    flexDirection: "column",
     gap: 6,
   },
   eventItemSeasonBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   eventItemSeasonBadgeText: {
     fontSize: 11,
