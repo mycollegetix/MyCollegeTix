@@ -26,6 +26,8 @@ import WatchlistSection from "@/src/components/WatchlistSection";
 import { TicketTransferButton } from "@/src/components/TicketTransferButton";
 import { WatchlistService } from "@/src/services/watchlistService";
 import { supabase } from "@/src/lib/supabase";
+import TicketSaleModal, { TicketSaleData } from "@/src/components/TicketSaleModal";
+import { TicketSaleService } from "@/src/services/ticketSaleService";
 
 type OrderType = "buying" | "selling" | "watchlist";
 
@@ -78,6 +80,15 @@ export default function OrdersScreen() {
     description: "",
   });
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Sale modal state
+  const [saleModalVisible, setSaleModalVisible] = useState(false);
+  const [selectedTicketForSale, setSelectedTicketForSale] = useState<OrderItem | null>(null);
+  const [savingSale, setSavingSale] = useState(false);
+
+  // Sold tickets dropdown state
+  const [soldTicketsExpanded, setSoldTicketsExpanded] = useState(false);
+  const [cancelledTicketsExpanded, setCancelledTicketsExpanded] = useState(false);
 
   const buyingStats = getTabStats("buying");
   const sellingStats = getTabStats("selling");
@@ -242,6 +253,25 @@ export default function OrdersScreen() {
     }
   };
 
+  // Helper function to separate and sort tickets
+  const getActiveListings = (allListings: OrderItem[]) => {
+    return allListings
+      .filter(ticket => ticket.status === 'available')
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()); // oldest first
+  };
+
+  const getSoldTickets = (allListings: OrderItem[]) => {
+    return allListings
+      .filter(ticket => ticket.status === 'sold')
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); // newest first
+  };
+
+  const getCancelledTickets = (allListings: OrderItem[]) => {
+    return allListings
+      .filter(ticket => ticket.status === 'cancelled')
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); // newest first
+  };
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadData();
@@ -305,39 +335,53 @@ export default function OrdersScreen() {
     return { count: orders.length, total };
   }
 
-  // Mark ticket as sold
-  const handleMarkAsSold = async (ticketId: string, ticketTitle: string) => {
-    Alert.alert(
-      "Mark as Sold",
-      `Mark "${ticketTitle}" as sold? This action cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Mark as Sold",
-          style: "default",
-          onPress: async () => {
-            try {
-              const { error } = await TicketService.updateTicket(ticketId, {
-                status: "sold",
-              });
+  // Mark ticket as sold - show sale modal
+  const handleMarkAsSold = (ticket: OrderItem) => {
+    setSelectedTicketForSale(ticket);
+    setSaleModalVisible(true);
+  };
 
-              if (error) {
-                throw error;
-              }
+  // Handle sale confirmation from modal
+  const handleConfirmSale = async (saleData: TicketSaleData) => {
+    if (!selectedTicketForSale || !user) return;
 
-              Alert.alert("Success", "Ticket marked as sold successfully");
-              loadData(); // Refresh the data
-            } catch (error) {
-              console.error("Error marking ticket as sold:", error);
-              Alert.alert(
-                "Error",
-                "Failed to mark ticket as sold. Please try again."
-              );
-            }
-          },
-        },
-      ]
-    );
+    setSavingSale(true);
+    try {
+      // Record the sale information
+      const saleResult = await TicketSaleService.recordTicketSale(
+        selectedTicketForSale.id,
+        user.id,
+        profile?.full_name || profile?.username || 'Unknown Seller',
+        selectedTicketForSale.price,
+        saleData
+      );
+
+      if (!saleResult.success) {
+        throw new Error(saleResult.error || 'Failed to record sale');
+      }
+
+      // Update ticket status to sold
+      const { error } = await TicketService.updateTicket(selectedTicketForSale.id, {
+        status: "sold",
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      Alert.alert("Success", "Ticket marked as sold successfully!");
+      loadData(); // Refresh the data
+      setSaleModalVisible(false);
+      setSelectedTicketForSale(null);
+    } catch (error) {
+      console.error("Error marking ticket as sold:", error);
+      Alert.alert(
+        "Error",
+        "Failed to mark ticket as sold. Please try again."
+      );
+    } finally {
+      setSavingSale(false);
+    }
   };
 
   // Open edit modal
@@ -512,7 +556,7 @@ export default function OrdersScreen() {
               style={[styles.actionButton, styles.soldButton]}
               onPress={(e) => {
                 e.stopPropagation();
-                handleMarkAsSold(item.id, item.title);
+                handleMarkAsSold(item);
               }}
             >
               <Ionicons name="checkmark" size={16} color="white" />
@@ -568,6 +612,11 @@ export default function OrdersScreen() {
   };
 
   const currentData = activeTab === "buying" ? purchases : listings;
+  
+  // For selling tab, separate active, sold, and cancelled tickets
+  const activeListings = activeTab === "selling" ? getActiveListings(listings) : [];
+  const soldTickets = activeTab === "selling" ? getSoldTickets(listings) : [];
+  const cancelledTickets = activeTab === "selling" ? getCancelledTickets(listings) : [];
 
   // Show loading or error state if user/profile not ready
   if (!user || !profile?.college_id) {
@@ -698,7 +747,9 @@ export default function OrdersScreen() {
                   {currentData.length}{" "}
                   listing{currentData.length !== 1 ? "s" : ""} found
                 </Text>
-                <Text style={styles.currentSort}>Sorted by most recent</Text>
+                <Text style={styles.currentSort}>
+                  {activeTab === "selling" ? "Active listings sorted by oldest first" : "Sorted by most recent"}
+                </Text>
               </View>
 
               {loading ? (
@@ -706,7 +757,130 @@ export default function OrdersScreen() {
                   <ActivityIndicator size="large" color={theme.primary} />
                   <Text style={styles.loadingText}>Loading your orders...</Text>
                 </BlurView>
+              ) : activeTab === "selling" ? (
+                // Special rendering for selling tab with sections
+                <>
+                  {/* Active Listings Section */}
+                  {activeListings.length > 0 && (
+                    <>
+                      <View style={styles.sectionHeader}>
+                        <Ionicons name="storefront" size={20} color={theme.primary} />
+                        <Text style={styles.sectionTitle}>Active Listings</Text>
+                        <Text style={styles.sectionCount}>({activeListings.length})</Text>
+                      </View>
+                      <FlatList
+                        data={activeListings}
+                        renderItem={renderOrder}
+                        keyExtractor={(item) => `active-${item.id}`}
+                        scrollEnabled={false}
+                        showsVerticalScrollIndicator={false}
+                        nestedScrollEnabled={true}
+                        removeClippedSubviews={Platform.OS === 'android'}
+                        keyboardShouldPersistTaps="handled"
+                      />
+                    </>
+                  )}
+
+                  {/* Sold Tickets Section */}
+                  {soldTickets.length > 0 && (
+                    <>
+                      <TouchableOpacity 
+                        style={styles.soldTicketsHeader}
+                        onPress={() => setSoldTicketsExpanded(!soldTicketsExpanded)}
+                      >
+                        <View style={styles.soldTicketsHeaderContent}>
+                          <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
+                          <Text style={styles.soldTicketsTitle}>Sold Tickets</Text>
+                          <Text style={styles.soldTicketsCount}>({soldTickets.length})</Text>
+                        </View>
+                        <Ionicons 
+                          name={soldTicketsExpanded ? "chevron-up" : "chevron-down"} 
+                          size={20} 
+                          color="#6b7280" 
+                        />
+                      </TouchableOpacity>
+                      
+                      {soldTicketsExpanded && (
+                        <FlatList
+                          data={soldTickets}
+                          renderItem={renderOrder}
+                          keyExtractor={(item) => `sold-${item.id}`}
+                          scrollEnabled={false}
+                          showsVerticalScrollIndicator={false}
+                          nestedScrollEnabled={true}
+                          removeClippedSubviews={Platform.OS === 'android'}
+                          keyboardShouldPersistTaps="handled"
+                        />
+                      )}
+                    </>
+                  )}
+
+                  {/* Cancelled Tickets Section */}
+                  {cancelledTickets.length > 0 && (
+                    <>
+                      <TouchableOpacity 
+                        style={styles.cancelledTicketsHeader}
+                        onPress={() => setCancelledTicketsExpanded(!cancelledTicketsExpanded)}
+                      >
+                        <View style={styles.cancelledTicketsHeaderContent}>
+                          <Ionicons name="close-circle" size={20} color="#dc2626" />
+                          <Text style={styles.cancelledTicketsTitle}>Cancelled Tickets</Text>
+                          <Text style={styles.cancelledTicketsCount}>({cancelledTickets.length})</Text>
+                        </View>
+                        <Ionicons 
+                          name={cancelledTicketsExpanded ? "chevron-up" : "chevron-down"} 
+                          size={20} 
+                          color="#6b7280" 
+                        />
+                      </TouchableOpacity>
+                      
+                      {cancelledTicketsExpanded && (
+                        <FlatList
+                          data={cancelledTickets}
+                          renderItem={renderOrder}
+                          keyExtractor={(item) => `cancelled-${item.id}`}
+                          scrollEnabled={false}
+                          showsVerticalScrollIndicator={false}
+                          nestedScrollEnabled={true}
+                          removeClippedSubviews={Platform.OS === 'android'}
+                          keyboardShouldPersistTaps="handled"
+                        />
+                      )}
+                    </>
+                  )}
+
+                  {/* Empty state for no listings */}
+                  {activeListings.length === 0 && soldTickets.length === 0 && cancelledTickets.length === 0 && (
+                    <BlurView intensity={20} style={styles.emptyState}>
+                      <View style={styles.emptyIconContainer}>
+                        <Ionicons
+                          name="storefront-outline"
+                          size={48}
+                          color="#6b7280"
+                        />
+                      </View>
+                      <Text style={styles.emptyStateTitle}>
+                        No listings yet
+                      </Text>
+                      <Text style={styles.emptyStateText}>
+                        Create your first ticket listing to start selling
+                      </Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.clearFiltersButton,
+                          { backgroundColor: theme.primary },
+                        ]}
+                        onPress={() => router.push("/(tabs)/sell")}
+                      >
+                        <Text style={styles.clearFiltersText}>
+                          List a Ticket
+                        </Text>
+                      </TouchableOpacity>
+                    </BlurView>
+                  )}
+                </>
               ) : currentData.length > 0 ? (
+                // Original rendering for buying tab
                 <FlatList
                   data={currentData}
                   renderItem={renderOrder}
@@ -718,29 +892,30 @@ export default function OrdersScreen() {
                   keyboardShouldPersistTaps="handled"
                 />
               ) : (
+                // Empty state for buying tab
                 <BlurView intensity={20} style={styles.emptyState}>
                   <View style={styles.emptyIconContainer}>
                     <Ionicons
-                      name="storefront-outline"
+                      name="receipt-outline"
                       size={48}
                       color="#6b7280"
                     />
                   </View>
                   <Text style={styles.emptyStateTitle}>
-                    No listings yet
+                    No purchases yet
                   </Text>
                   <Text style={styles.emptyStateText}>
-                    Create your first ticket listing to start selling
+                    Browse tickets to make your first purchase
                   </Text>
                   <TouchableOpacity
                     style={[
                       styles.clearFiltersButton,
                       { backgroundColor: theme.primary },
                     ]}
-                    onPress={() => router.push("/(tabs)/sell")}
+                    onPress={() => router.push("/(tabs)/")}
                   >
                     <Text style={styles.clearFiltersText}>
-                      List a Ticket
+                      Browse Tickets
                     </Text>
                   </TouchableOpacity>
                 </BlurView>
@@ -825,6 +1000,26 @@ export default function OrdersScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Sale Modal */}
+      {selectedTicketForSale && (
+        <TicketSaleModal
+          visible={saleModalVisible}
+          onClose={() => {
+            setSaleModalVisible(false);
+            setSelectedTicketForSale(null);
+          }}
+          onConfirmSale={handleConfirmSale}
+          ticket={{
+            id: selectedTicketForSale.id,
+            title: selectedTicketForSale.title,
+            price: selectedTicketForSale.price,
+          }}
+          isLoading={savingSale}
+          primaryColor={profile?.college?.primary_color || '#18453b'}
+          secondaryColor={profile?.college?.secondary_color || '#ffd700'}
+        />
+      )}
     </View>
   );
 }
@@ -1248,5 +1443,91 @@ const styles = StyleSheet.create({
   },
   transferButton: {
     alignSelf: "stretch",
+  },
+  // Section header styles
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f8fafc',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#e5e7eb',
+    marginTop: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginLeft: 8,
+    flex: 1,
+  },
+  sectionCount: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  // Sold tickets dropdown styles
+  soldTicketsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f0f9ff',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#e0f2fe',
+    marginTop: 8,
+  },
+  soldTicketsHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  soldTicketsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#16a34a',
+    marginLeft: 8,
+    flex: 1,
+  },
+  soldTicketsCount: {
+    fontSize: 14,
+    color: '#059669',
+    fontWeight: '500',
+    marginRight: 8,
+  },
+  // Cancelled tickets dropdown styles
+  cancelledTicketsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fef2f2',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#fecaca',
+    marginTop: 8,
+  },
+  cancelledTicketsHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  cancelledTicketsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#dc2626',
+    marginLeft: 8,
+    flex: 1,
+  },
+  cancelledTicketsCount: {
+    fontSize: 14,
+    color: '#b91c1c',
+    fontWeight: '500',
+    marginRight: 8,
   },
 });
