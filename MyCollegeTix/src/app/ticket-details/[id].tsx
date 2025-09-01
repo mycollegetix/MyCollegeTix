@@ -22,6 +22,7 @@ import { useTheme } from "@/src/providers/ThemeProvider";
 import WatchlistButton from "@/src/components/WatchlistButton";
 import { TicketTransferButton } from "@/src/components/TicketTransferButton";
 import { formatEventDateSeparate } from "@/src/utils/dateUtils";
+import { supabase } from "@/src/lib/supabase";
 
 const { width, height } = Dimensions.get("window");
 
@@ -34,12 +35,32 @@ export default function TicketDetailsScreen() {
 
   const [ticket, setTicket] = useState<TicketWithSeller | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPurchasedByUser, setIsPurchasedByUser] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadTicket();
+      checkIfPurchased();
     }
   }, [id]);
+
+  const checkIfPurchased = async () => {
+    if (!id || !user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('ticket_sales')
+        .select('id')
+        .eq('ticket_id', id)
+        .eq('buyer_id', user.id)
+        .single();
+        
+      setIsPurchasedByUser(!!data && !error);
+    } catch (error) {
+      // No purchase found, which is fine
+      setIsPurchasedByUser(false);
+    }
+  };
 
   const loadTicket = async () => {
     if (!id) return;
@@ -305,8 +326,8 @@ export default function TicketDetailsScreen() {
             </Text>
           </View>
 
-          {/* Watchlist Section - Only show for other users' tickets */}
-          {!isOwnTicket && (
+          {/* Watchlist Section - Only show for other users' tickets that they haven't purchased */}
+          {!isOwnTicket && !isPurchasedByUser && (
             <View style={styles.watchlistSection}>
               <WatchlistButton
                 ticketId={ticket.id}
@@ -419,7 +440,7 @@ export default function TicketDetailsScreen() {
       </ScrollView>
 
       {/* Bottom Action Buttons */}
-      {!isOwnTicket && isAvailable && (
+      {!isOwnTicket && !isPurchasedByUser && isAvailable && (
         <BlurView intensity={90} style={styles.bottomBar}>
           <View style={styles.actionButtonsContainer}>
             {/* Message Seller Button */}
@@ -447,8 +468,8 @@ export default function TicketDetailsScreen() {
         </BlurView>
       )}
 
-      {/* Alternative: Only show watchlist when ticket is not available for purchase */}
-      {!isOwnTicket && !isAvailable && (
+      {/* Alternative: Only show watchlist when ticket is not available for purchase and not purchased by user */}
+      {!isOwnTicket && !isPurchasedByUser && !isAvailable && (
         <BlurView intensity={90} style={styles.bottomBar}>
           <WatchlistButton
             ticketId={ticket.id}

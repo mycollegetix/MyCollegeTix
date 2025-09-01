@@ -7,13 +7,13 @@ export interface TicketSale {
   updated_at: string;
   ticket_id: string;
   seller_id: string;
-  seller_name: string;
-  buyer_id?: string;
+  seller_name: string | null;
+  buyer_id: string | null;
   buyer_name: string;
   sale_price: number;
-  payment_method?: string;
-  additional_notes?: string;
-  original_asking_price?: number;
+  payment_method: string | null;
+  additional_notes: string | null;
+  original_asking_price: number | null;
 }
 
 export class TicketSaleService {
@@ -58,6 +58,38 @@ export class TicketSaleService {
       if (error) {
         console.error('Error recording ticket sale:', error);
         return { success: false, error: error.message };
+      }
+
+      // If seller provided a rating for the buyer, submit it
+      if (saleData.buyerId && saleData.buyerRating && saleData.buyerRating > 0) {
+        try {
+          const ratingData = {
+            rater_id: sellerId,
+            rated_user_id: saleData.buyerId,
+            ticket_sale_id: data.id,
+            transaction_type: 'selling' as 'buying' | 'selling', // Seller is rating buyer
+            rating: saleData.buyerRating,
+            review_text: saleData.buyerReview?.trim() || null,
+            communication_rating: saleData.communicationRating || null,
+            reliability_rating: saleData.reliabilityRating || null,
+            transaction_smoothness: saleData.transactionSmoothness || null,
+          };
+
+          const { error: ratingError } = await supabase
+            .from('user_ratings')
+            .insert([ratingData]);
+
+          if (ratingError) {
+            console.error('Error submitting seller rating:', ratingError);
+            // Don't fail the entire sale if rating submission fails
+            console.warn('Sale recorded successfully but rating submission failed');
+          } else {
+            console.log('✅ Seller rating submitted successfully');
+          }
+        } catch (ratingError) {
+          console.error('Unexpected error submitting rating:', ratingError);
+          // Continue - don't fail the sale for rating issues
+        }
       }
 
       return { success: true, data };

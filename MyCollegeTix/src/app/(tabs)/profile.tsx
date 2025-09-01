@@ -22,6 +22,7 @@ import { supabase } from "@/src/lib/supabase";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 import { AccountService } from "@/src/services/accountService";
 import { LegalDocumentStatus } from "@/src/components/LegalDocumentStatus";
+import UserProfileCard from "@/src/components/UserProfileCard";
 import Constants from "expo-constants";
 
 const { width, height } = Dimensions.get("window");
@@ -399,6 +400,32 @@ export default function ProfileScreen() {
                       </View>
                     )}
                   </View>
+                </View>
+
+                {/* Trust & Reputation Section */}
+                <View style={styles.premiumSection}>
+                  <View style={styles.sectionHeader}>
+                    <View style={[styles.sectionIconContainer, { backgroundColor: `${theme.secondary}12` }]}>
+                      <Ionicons name="star" size={24} color={theme.secondary} />
+                    </View>
+                    <View style={styles.sectionHeaderContent}>
+                      <Text style={[styles.premiumSectionTitle, { color: theme.secondary }]}>
+                        Trust & Reputation
+                      </Text>
+                      <Text style={styles.premiumSectionSubtitle}>
+                        Your community standing and transaction history
+                      </Text>
+                    </View>
+                  </View>
+
+                  <UserProfileCard
+                    userId={user?.id || ''}
+                    username={profile?.username || ''}
+                    fullName={profile?.full_name || 'User'}
+                    collegeName={profile?.college?.name}
+                    showFullProfile={true}
+                    style={styles.trustProfileCard}
+                  />
                 </View>
 
                 {/* Quick Actions Section */}
@@ -1702,5 +1729,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "white",
     letterSpacing: -0.1,
+  },
+  trustProfileCard: {
+    marginHorizontal: 0,
+    backgroundColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });

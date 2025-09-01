@@ -182,14 +182,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         throw new Error(errorMessage);
       }
 
-      // ✅ OPTIMIZED: Only refresh if it's a new conversation
-      const existingConversation = conversations.find(c => c.id === result.data!.id);
-      if (!existingConversation) {
-        console.log("🔄 ChatProvider: New conversation created, refreshing...");
-        await loadConversations();
-      } else {
-        console.log("✅ ChatProvider: Using existing conversation (no refresh needed)");
-      }
+      // ✅ OPTIMIZED: Always refresh to get the latest conversation data
+      console.log("🔄 ChatProvider: Refreshing conversations for conversation:", result.data.id);
+      await loadConversations();
 
       return result.data.id;
     } catch (error) {

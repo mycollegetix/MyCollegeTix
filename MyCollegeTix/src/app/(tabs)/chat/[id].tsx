@@ -70,12 +70,10 @@ export default function ChatConversationScreen() {
           console.log("✅ No unread messages, skipping mark as read");
         }
 
-        // Only load messages if we haven't loaded them yet
-        if (!hasLoadedMessages) {
-          console.log("📨 Loading messages for conversation");
-          await loadMessages(conversationId);
-          setHasLoadedMessages(true);
-        }
+        // Always load messages when switching conversations
+        console.log("📨 Loading messages for conversation");
+        await loadMessages(conversationId);
+        setHasLoadedMessages(true);
       } else {
         console.log("❌ Conversation not found in loaded conversations");
       }
@@ -136,10 +134,17 @@ export default function ChatConversationScreen() {
     checkBlockStatus();
   }, [currentConversation]);
 
-  // Effect for loading conversation data
+  // Effect for loading conversation data - triggered whenever id changes or conversations update
   useEffect(() => {
-    if (id && conversations.length > 0) {
-      loadConversationData(id);
+    if (id) {
+      console.log("🔄 Conversation ID changed to:", id);
+      // Reset state when conversation changes
+      setHasLoadedMessages(false);
+      setMessages([]);
+      
+      if (conversations.length > 0) {
+        loadConversationData(id);
+      }
     }
 
     // Cleanup function

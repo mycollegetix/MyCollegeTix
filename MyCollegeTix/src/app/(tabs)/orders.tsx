@@ -31,7 +31,7 @@ import TicketSaleModal, {
 } from "@/src/components/TicketSaleModal";
 import { TicketSaleService } from "@/src/services/ticketSaleService";
 
-type OrderType = "buying" | "selling" | "watchlist";
+type OrderType = "selling" | "bought" | "watchlist";
 
 interface StatusConfig {
   color: string;
@@ -66,6 +66,9 @@ interface OrderItem {
     sale_date: string;
     sale_price: number;
   };
+  // Additional fields for purchases
+  seller_name?: string;
+  payment_method?: string;
 }
 
 interface EditFormData {
@@ -104,7 +107,7 @@ export default function OrdersScreen() {
   const [cancelledTicketsExpanded, setCancelledTicketsExpanded] =
     useState(false);
 
-  const buyingStats = getTabStats("buying");
+  const boughtStats = getTabStats("bought");
   const sellingStats = getTabStats("selling");
   const watchlistStats = { count: watchlistCount, total: 0 };
 
@@ -153,67 +156,128 @@ export default function OrdersScreen() {
 
   const loadUserPurchases = async (): Promise<OrderItem[]> => {
     try {
+      if (!user?.id) {
+        return [];
+      }
+
+      // Load purchases from ticket_sales table where user is the buyer
+      console.log(`🔍 Looking for purchases for user: ${user.id}`);
+      
+      // First, let's see what's in ticket_sales and why the join is failing
+      const { data: salesOnly, error: salesError } = await supabase
+        .from("ticket_sales")
+        .select("id, ticket_id, buyer_id, sale_price, created_at")
+        .eq("buyer_id", user.id);
+        
+      console.log("🔍 Raw ticket_sales data:", salesOnly);
+      
+      // Now check if those ticket IDs exist in the tickets table
+      if (salesOnly && salesOnly.length > 0) {
+        const ticketIds = salesOnly.map(sale => sale.ticket_id);
+        const { data: ticketsCheck } = await supabase
+          .from("tickets")
+          .select("id, title, status")
+          .in("id", ticketIds);
+        console.log("🔍 Corresponding tickets:", ticketsCheck);
+      }
+      
       const { data, error } = await supabase
-        .from("orders")
-        .select(
-          `
+        .from("ticket_sales")
+        .select(`
           id,
-          amount,
-          status,
           created_at,
-          completed_at,
-          ticket:tickets (
+          sale_price,
+          buyer_id,
+          buyer_name,
+          seller_id,
+          seller_name,
+          payment_method,
+          additional_notes,
+          ticket_id,
+          tickets (
             id,
             title,
             description,
-            price,
             event_date,
             location,
             sport,
             section,
             row_number,
             seat_number,
+            ticket_type,
             status,
             home_college_id,
             away_college_id,
-            ticket_type,
-            event:events!tickets_event_id_fkey (
+            event:events (
               id,
               is_season_pass
             )
           )
-        `
-        )
-        .eq("buyer_id", user!.id)
+        `)
+        .eq("buyer_id", user.id)
         .order("created_at", { ascending: false });
+
+      console.log(`📊 Found ${data?.length || 0} ticket_sales records for buyer_id: ${user.id}`);
+      
+      // Let's also check all ticket_sales for debugging
+      const { data: allSales } = await supabase
+        .from("ticket_sales")
+        .select("id, buyer_id, buyer_name, seller_id, seller_name")
+        .limit(10);
+      console.log("🔍 Sample ticket_sales records:", allSales);
 
       if (error) {
         console.error("Error loading purchases:", error);
         return [];
       }
 
-      return (data || [])
-        .filter((order: any) => order.ticket)
-        .map((order: any) => ({
-          id: order.ticket.id,
-          title: order.ticket.title,
-          description: order.ticket.description,
-          price: order.amount || order.ticket.price,
-          event_date: order.ticket.event_date,
-          location: order.ticket.location,
-          sport: order.ticket.sport,
-          section: order.ticket.section,
-          row_number: order.ticket.row_number,
-          seat_number: order.ticket.seat_number,
-          status: order.status,
-          created_at: order.created_at,
-          order_id: order.id,
-          home_college_id: order.ticket.home_college_id,
-          away_college_id: order.ticket.away_college_id,
-          ticket_type: order.ticket.ticket_type,
-          event: order.ticket.event,
+      // Transform ticket_sales data to OrderItem format
+      const purchases = data?.map((sale): OrderItem => {
+        // Handle cases where the original ticket was deleted after sale
+        if (!sale.tickets) {
+          return {
+            id: sale.id, // Use sale ID as fallback
+            title: "Purchased Ticket (Details Unavailable)",
+            description: `Purchased from ${sale.seller_name || 'Unknown Seller'}`,
+            price: sale.sale_price,
+            event_date: sale.created_at, // Use sale date as fallback
+            location: "Location Unavailable",
+            status: 'purchased',
+            created_at: sale.created_at,
+            order_id: sale.id,
+            type: "purchase" as const,
+            seller_name: sale.seller_name || undefined,
+            payment_method: sale.payment_method || undefined,
+          };
+        }
+
+        // Normal case with ticket details
+        return {
+          id: sale.tickets.id,
+          title: sale.tickets.title,
+          description: sale.tickets.description,
+          price: sale.sale_price,
+          event_date: sale.tickets.event_date,
+          location: sale.tickets.location,
+          sport: sale.tickets.sport || undefined,
+          section: sale.tickets.section || undefined,
+          row_number: sale.tickets.row_number || undefined,
+          seat_number: sale.tickets.seat_number || undefined,
+          status: 'purchased',
+          created_at: sale.created_at,
+          order_id: sale.id,
+          home_college_id: sale.tickets.home_college_id || undefined,
+          away_college_id: sale.tickets.away_college_id || undefined,
           type: "purchase" as const,
-        }));
+          ticket_type: sale.tickets.ticket_type || undefined,
+          event: sale.tickets.event || undefined,
+          seller_name: sale.seller_name || undefined,
+          payment_method: sale.payment_method || undefined,
+        };
+      }) || [];
+
+      console.log(`✅ Loaded ${purchases.length} purchases from ticket_sales`);
+      return purchases;
     } catch (error) {
       console.error("Error in loadUserPurchases:", error);
       return [];
@@ -330,8 +394,8 @@ export default function OrdersScreen() {
   const handleTabChange = useCallback(
     (tab: OrderType) => {
       setActiveTab(tab);
-      // Refresh data when switching to buying or selling tabs
-      if (tab === "buying" || tab === "selling") {
+      // Refresh data when switching to bought or selling tabs
+      if (tab === "bought" || tab === "selling") {
         onRefresh();
       }
     },
@@ -364,6 +428,12 @@ export default function OrdersScreen() {
           icon: "checkmark-circle-outline",
           text: "Completed",
         };
+      case "purchased":
+        return {
+          color: "#3b82f6",
+          icon: "receipt",
+          text: "Purchased",
+        };
       case "pending":
         return {
           color: theme.secondary,
@@ -383,7 +453,7 @@ export default function OrdersScreen() {
     if (tab === "watchlist") {
       return watchlistStats;
     }
-    const orders = tab === "buying" ? purchases : listings;
+    const orders = tab === "bought" ? purchases : listings;
     const total = orders.reduce((sum, order) => sum + order.price, 0);
     return { count: orders.length, total };
   }
@@ -640,6 +710,29 @@ export default function OrdersScreen() {
           </View>
         )}
 
+        {/* Purchase Information for purchased tickets */}
+        {item.status === "purchased" && item.type === "purchase" && (
+          <View style={styles.purchaseInfoSection}>
+            <View style={styles.purchaseInfoHeader}>
+              <Ionicons name="receipt" size={16} color="#3b82f6" />
+              <Text style={styles.purchaseInfoTitle}>Your Purchase</Text>
+            </View>
+            <View style={styles.purchaseInfoContent}>
+              {item.seller_name && (
+                <Text style={styles.sellerName}>Purchased from: {item.seller_name}</Text>
+              )}
+              <Text style={styles.purchaseDate}>
+                Purchased {formatSaleDate(item.created_at)}
+              </Text>
+              {item.payment_method && (
+                <Text style={styles.paymentMethod}>
+                  Payment: {item.payment_method}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Actions for listings */}
         {activeTab === "selling" && item.status === "available" && (
           <View style={styles.orderActions}>
@@ -722,7 +815,7 @@ export default function OrdersScreen() {
     );
   };
 
-  const currentData = activeTab === "buying" ? purchases : listings;
+  const currentData = activeTab === "bought" ? purchases : listings;
 
   // For selling tab, separate active, sold, and cancelled tickets
   const activeListings =
@@ -814,7 +907,7 @@ export default function OrdersScreen() {
 
         {/* Tab Navigation */}
         <View style={styles.tabSection}>
-          {(["selling", "watchlist"] as OrderType[]).map((tab) => {
+          {(["selling", "bought", "watchlist"] as OrderType[]).map((tab) => {
             const stats = getTabStats(tab);
             return (
               <TouchableOpacity
@@ -829,6 +922,8 @@ export default function OrdersScreen() {
                   name={
                     tab === "selling"
                       ? "storefront-outline"
+                      : tab === "bought"
+                      ? "receipt-outline"
                       : "bookmark-outline"
                   }
                   size={20}
@@ -840,7 +935,12 @@ export default function OrdersScreen() {
                     activeTab === tab && styles.activeTabText,
                   ]}
                 >
-                  {tab === "selling" ? "Selling" : "Watchlist"} ({stats.count})
+                  {tab === "selling"
+                    ? "Selling"
+                    : tab === "bought"
+                    ? "Bought"
+                    : "Watchlist"}{" "}
+                  ({stats.count})
                 </Text>
               </TouchableOpacity>
             );
@@ -1730,6 +1830,43 @@ const styles = StyleSheet.create({
   salePrice: {
     fontSize: 14,
     color: "#16a34a",
+    fontWeight: "500",
+    fontStyle: "italic",
+  },
+  // Purchase information styles
+  purchaseInfoSection: {
+    borderTopWidth: 1,
+    borderTopColor: "#dbeafe",
+    backgroundColor: "#eff6ff",
+    padding: 12,
+  },
+  purchaseInfoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 6,
+  },
+  purchaseInfoTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#3b82f6",
+  },
+  purchaseInfoContent: {
+    gap: 4,
+  },
+  sellerName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1e40af",
+  },
+  purchaseDate: {
+    fontSize: 14,
+    color: "#3b82f6",
+    fontWeight: "500",
+  },
+  paymentMethod: {
+    fontSize: 14,
+    color: "#3b82f6",
     fontWeight: "500",
     fontStyle: "italic",
   },
