@@ -34,7 +34,11 @@ const sports = [
   { name: "Volleyball", icon: "tennisball-outline" },
   { name: "Baseball", icon: "baseball-outline" },
   { name: "Tennis", icon: "tennisball-outline" },
-  { name: "Track and Field", icon: "run-fast", iconSet: "MaterialCommunityIcons" },
+  {
+    name: "Track and Field",
+    icon: "run-fast",
+    iconSet: "MaterialCommunityIcons",
+  },
   { name: "Cross Country", icon: "run", iconSet: "MaterialCommunityIcons" },
   { name: "Golf", icon: "golf-outline" },
 ];
@@ -68,7 +72,7 @@ export default function BrowseScreen() {
       console.log("⚠️ User not loaded yet, skipping ticket load");
       return;
     }
-    
+
     if (!profile?.college_id) {
       console.log("⚠️ College not loaded yet, skipping ticket load");
       return;
@@ -301,7 +305,8 @@ export default function BrowseScreen() {
     if (lowerTitle.includes("hockey")) return "Hockey";
     if (lowerTitle.includes("soccer")) return "Soccer";
     if (lowerTitle.includes("volleyball")) return "Volleyball";
-    if (lowerTitle.includes("track") || lowerTitle.includes("field")) return "Track and Field";
+    if (lowerTitle.includes("track") || lowerTitle.includes("field"))
+      return "Track and Field";
     if (lowerTitle.includes("cross country")) return "Cross Country";
     if (lowerTitle.includes("golf")) return "Golf";
     return "Sports";
@@ -350,9 +355,7 @@ export default function BrowseScreen() {
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.secondary} />
-          <Text style={styles.loadingText}>
-            Loading user information...
-          </Text>
+          <Text style={styles.loadingText}>Loading user information...</Text>
         </View>
       </View>
     );
@@ -371,7 +374,10 @@ export default function BrowseScreen() {
             Please complete your profile setup
           </Text>
           <TouchableOpacity
-            style={[styles.clearFiltersButton, { backgroundColor: theme.secondary, marginTop: 16 }]}
+            style={[
+              styles.clearFiltersButton,
+              { backgroundColor: theme.secondary, marginTop: 16 },
+            ]}
             onPress={() => router.push("/(tabs)/profile" as any)}
           >
             <Text style={styles.clearFiltersText}>Go to Profile</Text>
@@ -391,9 +397,7 @@ export default function BrowseScreen() {
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.secondary} />
-          <Text style={styles.loadingText}>
-            Loading your profile...
-          </Text>
+          <Text style={styles.loadingText}>Loading your profile...</Text>
         </View>
       </View>
     );
@@ -424,7 +428,9 @@ export default function BrowseScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
-        keyboardDismissMode={Platform.OS === 'android' ? 'on-drag' : 'interactive'}
+        keyboardDismissMode={
+          Platform.OS === "android" ? "on-drag" : "interactive"
+        }
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -438,22 +444,33 @@ export default function BrowseScreen() {
             onPress={() => {
               console.log("🔔 Notification button pressed");
               // Add small delay for Android to prevent timing issues
-              setTimeout(() => {
-                try {
-                  console.log("🔔 Attempting to navigate to notifications...");
-                  router.push("/notifications" as any);
-                } catch (error) {
-                  console.error("❌ Navigation error:", error);
+              setTimeout(
+                () => {
                   try {
-                    // Fallback navigation method for Android
-                    console.log("🔔 Trying fallback navigation...");
-                    router.replace("/notifications" as any);
-                  } catch (fallbackError) {
-                    console.error("❌ Fallback navigation also failed:", fallbackError);
-                    Alert.alert("Error", "Unable to open notifications. Please try again.");
+                    console.log(
+                      "🔔 Attempting to navigate to notifications..."
+                    );
+                    router.push("/notifications" as any);
+                  } catch (error) {
+                    console.error("❌ Navigation error:", error);
+                    try {
+                      // Fallback navigation method for Android
+                      console.log("🔔 Trying fallback navigation...");
+                      router.replace("/notifications" as any);
+                    } catch (fallbackError) {
+                      console.error(
+                        "❌ Fallback navigation also failed:",
+                        fallbackError
+                      );
+                      Alert.alert(
+                        "Error",
+                        "Unable to open notifications. Please try again."
+                      );
+                    }
                   }
-                }
-              }, Platform.OS === 'android' ? 100 : 0);
+                },
+                Platform.OS === "android" ? 100 : 0
+              );
             }}
           >
             <NotificationBadge
@@ -602,7 +619,7 @@ export default function BrowseScreen() {
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
               nestedScrollEnabled={true}
-              removeClippedSubviews={Platform.OS === 'android'}
+              removeClippedSubviews={Platform.OS === "android"}
               keyboardShouldPersistTaps="handled"
               onEndReached={loadMore}
               onEndReachedThreshold={0.5}
@@ -719,7 +736,7 @@ const EnhancedTicketCard = ({
   row: string;
   seat: string;
   onPress?: () => void;
-  ticketType?: 'general_admission' | 'student';
+  ticketType?: "general_admission" | "student";
   collegeMatchup?: string | null;
   isSeasonPass?: boolean;
 }) => {
@@ -744,10 +761,8 @@ const EnhancedTicketCard = ({
               <Text style={styles.seasonBadgeText}>SEASON</Text>
             </View>
           )}
-          {ticketType === 'general_admission' && (
-            <View
-              style={[styles.generalBadge, { backgroundColor: '#10b981' }]}
-            >
+          {ticketType === "general_admission" && (
+            <View style={[styles.generalBadge, { backgroundColor: "#10b981" }]}>
               <Text style={styles.generalBadgeText}>GENERAL</Text>
             </View>
           )}
