@@ -24,6 +24,7 @@ import { TicketWithSeller } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
+import { WatchlistService } from "@/src/services/watchlistService";
 
 const sports = [
   { name: "All Sports", icon: "grid-outline" },
@@ -49,6 +50,33 @@ const sortOptions = [
   { label: "Date: Soonest", value: "event_date" },
   { label: "Recently Added", value: "created_at" },
 ];
+
+// Custom hook for watchlist status
+const useWatchlistStatus = (ticketId: string) => {
+  const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        setLoading(true);
+        const { data } = await WatchlistService.isInWatchlist(ticketId);
+        setIsInWatchlist(data);
+      } catch (error) {
+        console.error("Error checking watchlist status:", error);
+        setIsInWatchlist(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (ticketId) {
+      checkStatus();
+    }
+  }, [ticketId]);
+
+  return { isInWatchlist, loading };
+};
 
 export default function BrowseScreen() {
   const router = useRouter();
@@ -329,6 +357,7 @@ export default function BrowseScreen() {
           ticketType={item.ticket_type}
           collegeMatchup={formattedTicket.collegeMatchup}
           isSeasonPass={item.event?.is_season_pass}
+          ticketId={item.id}
         />
       </View>
     );
@@ -727,6 +756,7 @@ const EnhancedTicketCard = ({
   ticketType,
   collegeMatchup,
   isSeasonPass,
+  ticketId,
 }: {
   sport: string;
   event: string;
@@ -739,8 +769,10 @@ const EnhancedTicketCard = ({
   ticketType?: "general_admission" | "student";
   collegeMatchup?: string | null;
   isSeasonPass?: boolean;
+  ticketId: string;
 }) => {
   const theme = useTheme();
+  const { isInWatchlist } = useWatchlistStatus(ticketId);
 
   return (
     <TouchableOpacity
@@ -764,6 +796,11 @@ const EnhancedTicketCard = ({
           {ticketType === "general_admission" && (
             <View style={[styles.generalBadge, { backgroundColor: "#10b981" }]}>
               <Text style={styles.generalBadgeText}>GENERAL</Text>
+            </View>
+          )}
+          {isInWatchlist && (
+            <View style={[styles.watchlistBadge, { backgroundColor: "#f59e0b" }]}>
+              <Ionicons name="bookmark" size={12} color="white" />
             </View>
           )}
         </View>
@@ -1081,6 +1118,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     textTransform: "uppercase",
+  },
+  watchlistBadge: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
   },
   collegeBadge: {
     flexDirection: "row",
