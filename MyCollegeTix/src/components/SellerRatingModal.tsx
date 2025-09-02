@@ -111,8 +111,14 @@ export default function SellerRatingModal({
               <Text style={styles.sectionTitle}>Rating for</Text>
               <Text style={styles.sellerName}>{ticket.seller_name}</Text>
               <Text style={styles.sectionSubtitle}>
-                Help other buyers by sharing your experience with this seller
+                Please rate your experience to help build trust in our community
               </Text>
+              <View style={styles.requiredNotice}>
+                <Ionicons name="information-circle" size={16} color="#f59e0b" />
+                <Text style={styles.requiredText}>
+                  Rating is required to complete the transaction
+                </Text>
+              </View>
             </View>
 
             {/* Star Rating Section */}
@@ -400,5 +406,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "white",
+  },
+  requiredNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#f59e0b",
+    gap: 6,
+  },
+  requiredText: {
+    fontSize: 12,
+    color: "#92400e",
+    fontWeight: "500",
   },
 });

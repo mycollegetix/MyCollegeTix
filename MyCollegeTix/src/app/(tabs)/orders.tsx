@@ -131,6 +131,22 @@ export default function OrdersScreen() {
     }
   }, [user]);
 
+  // Check for pending ratings when the component mounts or when data changes
+  useEffect(() => {
+    checkForPendingRatings();
+  }, [purchases]);
+
+  const checkForPendingRatings = () => {
+    // Find the first ticket that needs a seller rating
+    const ticketNeedingRating = purchases.find(ticket => ticket.needsSellerRating);
+    
+    if (ticketNeedingRating && !sellerRatingModalVisible) {
+      // Automatically show the rating modal for the first pending rating
+      setSelectedTicketForRating(ticketNeedingRating);
+      setSellerRatingModalVisible(true);
+    }
+  };
+
   const loadData = async () => {
     if (!user) return;
 
@@ -470,6 +486,13 @@ export default function OrdersScreen() {
       if (tab === "bought" || tab === "selling") {
         onRefresh();
       }
+      
+      // Check for pending ratings when switching to bought tab
+      if (tab === "bought") {
+        setTimeout(() => {
+          checkForPendingRatings();
+        }, 1000); // Give time for data to load
+      }
     },
     [onRefresh]
   );
@@ -567,9 +590,16 @@ export default function OrdersScreen() {
       }
 
       Alert.alert("Success", "Rating submitted successfully!");
-      loadData(); // Refresh the data to remove the rating button
       setSellerRatingModalVisible(false);
       setSelectedTicketForRating(null);
+      
+      // Refresh the data to remove the rating button and check for more pending ratings
+      await loadData();
+      
+      // After refreshing data, check if there are more ratings needed
+      setTimeout(() => {
+        checkForPendingRatings();
+      }, 500);
     } catch (error) {
       console.error("Error submitting seller rating:", error);
       Alert.alert("Error", "Failed to submit rating. Please try again.");
@@ -1402,6 +1432,11 @@ export default function OrdersScreen() {
           onClose={() => {
             setSellerRatingModalVisible(false);
             setSelectedTicketForRating(null);
+            
+            // Check for more pending ratings after closing without rating
+            setTimeout(() => {
+              checkForPendingRatings();
+            }, 300);
           }}
           onConfirmRating={handleConfirmSellerRating}
           ticket={{
