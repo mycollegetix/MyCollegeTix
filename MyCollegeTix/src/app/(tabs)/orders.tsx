@@ -29,6 +29,9 @@ import { supabase } from "@/src/lib/supabase";
 import TicketSaleModal, {
   TicketSaleData,
 } from "@/src/components/TicketSaleModal";
+import SellerRatingModal, {
+  SellerRatingData,
+} from "@/src/components/SellerRatingModal";
 import { TicketSaleService } from "@/src/services/ticketSaleService";
 
 type OrderType = "selling" | "bought" | "watchlist";
@@ -68,7 +71,11 @@ interface OrderItem {
   };
   // Additional fields for purchases
   seller_name?: string;
+  seller_id?: string;
   payment_method?: string;
+  // Rating information
+  needsSellerRating?: boolean;
+  ratingCount?: number;
 }
 
 interface EditFormData {
@@ -101,6 +108,13 @@ export default function OrdersScreen() {
   const [selectedTicketForSale, setSelectedTicketForSale] =
     useState<OrderItem | null>(null);
   const [savingSale, setSavingSale] = useState(false);
+
+  // Seller rating modal state
+  const [sellerRatingModalVisible, setSellerRatingModalVisible] =
+    useState(false);
+  const [selectedTicketForRating, setSelectedTicketForRating] =
+    useState<OrderItem | null>(null);
+  const [savingRating, setSavingRating] = useState(false);
 
   // Sold tickets dropdown state
   const [soldTicketsExpanded, setSoldTicketsExpanded] = useState(false);
@@ -162,28 +176,29 @@ export default function OrdersScreen() {
 
       // Load purchases from ticket_sales table where user is the buyer
       console.log(`🔍 Looking for purchases for user: ${user.id}`);
-      
+
       // First, let's see what's in ticket_sales and why the join is failing
       const { data: salesOnly, error: salesError } = await supabase
         .from("ticket_sales")
         .select("id, ticket_id, buyer_id, sale_price, created_at")
         .eq("buyer_id", user.id);
-        
+
       console.log("🔍 Raw ticket_sales data:", salesOnly);
-      
+
       // Now check if those ticket IDs exist in the tickets table
       if (salesOnly && salesOnly.length > 0) {
-        const ticketIds = salesOnly.map(sale => sale.ticket_id);
+        const ticketIds = salesOnly.map((sale) => sale.ticket_id);
         const { data: ticketsCheck } = await supabase
           .from("tickets")
           .select("id, title, status")
           .in("id", ticketIds);
         console.log("🔍 Corresponding tickets:", ticketsCheck);
       }
-      
+
       const { data, error } = await supabase
         .from("ticket_sales")
-        .select(`
+        .select(
+          `
           id,
           created_at,
           sale_price,
@@ -213,12 +228,60 @@ export default function OrdersScreen() {
               is_season_pass
             )
           )
-        `)
+        `
+        )
         .eq("buyer_id", user.id)
         .order("created_at", { ascending: false });
 
-      console.log(`📊 Found ${data?.length || 0} ticket_sales records for buyer_id: ${user.id}`);
-      
+      // For each purchase, check rating status
+      const purchasesWithRatingInfo = await Promise.all(
+        (data || []).map(async (sale) => {
+          // Count total ratings for this ticket sale
+          const { data: ratingsData, error: ratingsError } = await supabase
+            .from("user_ratings")
+            .select("id, rater_id, rated_user_id")
+            .eq("ticket_sale_id", sale.id);
+
+          if (ratingsError) {
+            console.error(
+              "Error loading ratings for sale:",
+              sale.id,
+              ratingsError
+            );
+            return { ...sale, ratingCount: 0, needsSellerRating: false };
+          }
+
+          const totalRatings = ratingsData?.length || 0;
+
+          // Check if buyer (current user) has already rated the seller
+          const buyerRatedSeller =
+            ratingsData?.some(
+              (rating) =>
+                rating.rater_id === user.id &&
+                rating.rated_user_id === sale.seller_id
+            ) || false;
+
+          // Buyer needs to rate seller if:
+          // - There's at least one rating (seller rated buyer)
+          // - But buyer hasn't rated seller yet
+          // - And total ratings is less than 2
+          const needsSellerRating =
+            totalRatings > 0 && !buyerRatedSeller && totalRatings < 2;
+
+          return {
+            ...sale,
+            ratingCount: totalRatings,
+            needsSellerRating,
+          };
+        })
+      );
+
+      console.log(
+        `📊 Found ${data?.length || 0} ticket_sales records for buyer_id: ${
+          user.id
+        }`
+      );
+
       // Let's also check all ticket_sales for debugging
       const { data: allSales } = await supabase
         .from("ticket_sales")
@@ -232,49 +295,58 @@ export default function OrdersScreen() {
       }
 
       // Transform ticket_sales data to OrderItem format
-      const purchases = data?.map((sale): OrderItem => {
-        // Handle cases where the original ticket was deleted after sale
-        if (!sale.tickets) {
+      const purchases =
+        purchasesWithRatingInfo?.map((sale): OrderItem => {
+          // Handle cases where the original ticket was deleted after sale
+          if (!sale.tickets) {
+            return {
+              id: sale.id, // Use sale ID as fallback
+              title: "Purchased Ticket (Details Unavailable)",
+              description: `Purchased from ${
+                sale.seller_name || "Unknown Seller"
+              }`,
+              price: sale.sale_price,
+              event_date: sale.created_at, // Use sale date as fallback
+              location: "Location Unavailable",
+              status: "purchased",
+              created_at: sale.created_at,
+              order_id: sale.id,
+              type: "purchase" as const,
+              seller_name: sale.seller_name || undefined,
+              seller_id: sale.seller_id || undefined,
+              payment_method: sale.payment_method || undefined,
+              needsSellerRating: sale.needsSellerRating,
+              ratingCount: sale.ratingCount,
+            };
+          }
+
+          // Normal case with ticket details
           return {
-            id: sale.id, // Use sale ID as fallback
-            title: "Purchased Ticket (Details Unavailable)",
-            description: `Purchased from ${sale.seller_name || 'Unknown Seller'}`,
+            id: sale.tickets.id,
+            title: sale.tickets.title,
+            description: sale.tickets.description,
             price: sale.sale_price,
-            event_date: sale.created_at, // Use sale date as fallback
-            location: "Location Unavailable",
-            status: 'purchased',
+            event_date: sale.tickets.event_date,
+            location: sale.tickets.location,
+            sport: sale.tickets.sport || undefined,
+            section: sale.tickets.section || undefined,
+            row_number: sale.tickets.row_number || undefined,
+            seat_number: sale.tickets.seat_number || undefined,
+            status: "purchased",
             created_at: sale.created_at,
             order_id: sale.id,
+            home_college_id: sale.tickets.home_college_id || undefined,
+            away_college_id: sale.tickets.away_college_id || undefined,
             type: "purchase" as const,
+            ticket_type: sale.tickets.ticket_type || undefined,
+            event: sale.tickets.event || undefined,
             seller_name: sale.seller_name || undefined,
+            seller_id: sale.seller_id || undefined,
             payment_method: sale.payment_method || undefined,
+            needsSellerRating: sale.needsSellerRating,
+            ratingCount: sale.ratingCount,
           };
-        }
-
-        // Normal case with ticket details
-        return {
-          id: sale.tickets.id,
-          title: sale.tickets.title,
-          description: sale.tickets.description,
-          price: sale.sale_price,
-          event_date: sale.tickets.event_date,
-          location: sale.tickets.location,
-          sport: sale.tickets.sport || undefined,
-          section: sale.tickets.section || undefined,
-          row_number: sale.tickets.row_number || undefined,
-          seat_number: sale.tickets.seat_number || undefined,
-          status: 'purchased',
-          created_at: sale.created_at,
-          order_id: sale.id,
-          home_college_id: sale.tickets.home_college_id || undefined,
-          away_college_id: sale.tickets.away_college_id || undefined,
-          type: "purchase" as const,
-          ticket_type: sale.tickets.ticket_type || undefined,
-          event: sale.tickets.event || undefined,
-          seller_name: sale.seller_name || undefined,
-          payment_method: sale.payment_method || undefined,
-        };
-      }) || [];
+        }) || [];
 
       console.log(`✅ Loaded ${purchases.length} purchases from ticket_sales`);
       return purchases;
@@ -462,6 +534,48 @@ export default function OrdersScreen() {
   const handleMarkAsSold = (ticket: OrderItem) => {
     setSelectedTicketForSale(ticket);
     setSaleModalVisible(true);
+  };
+
+  // Rate seller - show seller rating modal
+  const handleRateSeller = (ticket: OrderItem) => {
+    setSelectedTicketForRating(ticket);
+    setSellerRatingModalVisible(true);
+  };
+
+  // Handle seller rating submission
+  const handleConfirmSellerRating = async (ratingData: SellerRatingData) => {
+    if (!selectedTicketForRating || !user) return;
+
+    setSavingRating(true);
+    try {
+      // Submit rating to database
+      const ratingPayload = {
+        rater_id: user.id,
+        rated_user_id: selectedTicketForRating.seller_id!,
+        ticket_sale_id: selectedTicketForRating.order_id!,
+        transaction_type: "buying" as const,
+        rating: ratingData.rating,
+        review_text: ratingData.review || null,
+      };
+
+      const { error } = await supabase
+        .from("user_ratings")
+        .insert(ratingPayload);
+
+      if (error) {
+        throw error;
+      }
+
+      Alert.alert("Success", "Rating submitted successfully!");
+      loadData(); // Refresh the data to remove the rating button
+      setSellerRatingModalVisible(false);
+      setSelectedTicketForRating(null);
+    } catch (error) {
+      console.error("Error submitting seller rating:", error);
+      Alert.alert("Error", "Failed to submit rating. Please try again.");
+    } finally {
+      setSavingRating(false);
+    }
   };
 
   // Handle sale confirmation from modal
@@ -719,7 +833,9 @@ export default function OrdersScreen() {
             </View>
             <View style={styles.purchaseInfoContent}>
               {item.seller_name && (
-                <Text style={styles.sellerName}>Purchased from: {item.seller_name}</Text>
+                <Text style={styles.sellerName}>
+                  Purchased from: {item.seller_name}
+                </Text>
               )}
               <Text style={styles.purchaseDate}>
                 Purchased {formatSaleDate(item.created_at)}
@@ -730,6 +846,20 @@ export default function OrdersScreen() {
                 </Text>
               )}
             </View>
+
+            {/* Rate Seller Button */}
+            {item.needsSellerRating && (
+              <TouchableOpacity
+                style={styles.rateSellerButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleRateSeller(item);
+                }}
+              >
+                <Ionicons name="star" size={16} color="#fbbf24" />
+                <Text style={styles.rateSellerButtonText}>Rate Seller</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -1260,6 +1390,27 @@ export default function OrdersScreen() {
             price: selectedTicketForSale.price,
           }}
           isLoading={savingSale}
+          primaryColor={profile?.college?.primary_color || "#18453b"}
+          secondaryColor={profile?.college?.secondary_color || "#ffd700"}
+        />
+      )}
+
+      {/* Seller Rating Modal */}
+      {selectedTicketForRating && (
+        <SellerRatingModal
+          visible={sellerRatingModalVisible}
+          onClose={() => {
+            setSellerRatingModalVisible(false);
+            setSelectedTicketForRating(null);
+          }}
+          onConfirmRating={handleConfirmSellerRating}
+          ticket={{
+            id: selectedTicketForRating.id,
+            title: selectedTicketForRating.title,
+            seller_name:
+              selectedTicketForRating.seller_name || "Unknown Seller",
+          }}
+          isLoading={savingRating}
           primaryColor={profile?.college?.primary_color || "#18453b"}
           secondaryColor={profile?.college?.secondary_color || "#ffd700"}
         />
@@ -1869,5 +2020,24 @@ const styles = StyleSheet.create({
     color: "#3b82f6",
     fontWeight: "500",
     fontStyle: "italic",
+  },
+  // Rate Seller Button Styles
+  rateSellerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#f59e0b",
+    gap: 4,
+  },
+  rateSellerButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#92400e",
   },
 });
