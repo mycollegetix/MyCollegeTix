@@ -1,5 +1,5 @@
 // src/app/(tabs)/chat/index.tsx - FIXED with proper theme usage and no linear gradients
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   StyleSheet,
   FlatList,
@@ -11,6 +11,7 @@ import {
   StatusBar,
   SectionList,
   Platform,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -27,6 +28,15 @@ interface ConversationSection {
   key: string;
 }
 
+type ConversationFilter = "all" | "buyer" | "seller";
+
+interface FilterOption {
+  value: ConversationFilter;
+  label: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
+
 export default function ChatListScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -39,6 +49,86 @@ export default function ChatListScreen() {
     markAsRead,
   } = useChat();
 
+  // Filter state - Enhanced with segmented control
+  const [currentFilter, setCurrentFilter] = useState<ConversationFilter>("all");
+  const slideAnimation = useRef(new Animated.Value(0)).current;
+  const fadeAnimation = useRef(new Animated.Value(1)).current;
+
+  // Initialize animation position based on current filter
+  useEffect(() => {
+    const index = filterOptions.findIndex(option => option.value === currentFilter);
+    slideAnimation.setValue(index);
+  }, []);
+
+  // Enhanced filter options with shorter labels for segmented control
+  const filterOptions: FilterOption[] = [
+    {
+      value: "all",
+      label: "All",
+      description: "Show all conversations",
+      icon: "chatbubbles-outline",
+    },
+    {
+      value: "buyer",
+      label: "Buying",
+      description: "Conversations where I'm inquiring about tickets",
+      icon: "person-outline",
+    },
+    {
+      value: "seller",
+      label: "Selling",
+      description: "Conversations where I'm selling tickets",
+      icon: "storefront-outline",
+    },
+  ];
+
+  // Helper function to determine user role in conversation
+  const getUserRoleInConversation = (
+    conversation: ConversationWithDetails
+  ): "buyer" | "seller" | "unknown" => {
+    if (!user?.id || !conversation.ticket) return "unknown";
+
+    if (conversation.ticket.seller_id === user.id) {
+      return "seller"; // Current user owns the ticket
+    } else if (
+      conversation.participant_1_id === user.id ||
+      conversation.participant_2_id === user.id
+    ) {
+      return "buyer"; // Current user is inquiring about the ticket
+    }
+
+    return "unknown";
+  };
+
+  // Enhanced animation functions for segmented control
+  const selectFilter = (filter: ConversationFilter, index: number) => {
+    if (filter === currentFilter) return;
+
+    // Fade out content briefly for smooth transition
+    Animated.sequence([
+      Animated.timing(fadeAnimation, {
+        toValue: 0.7,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnimation, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Slide indicator to new position
+    Animated.spring(slideAnimation, {
+      toValue: index,
+      tension: 120,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+
+    setCurrentFilter(filter);
+  };
+
   // ✅ OPTIMIZED: Load conversations only once on mount
   useEffect(() => {
     loadConversations();
@@ -47,12 +137,42 @@ export default function ChatListScreen() {
   // ✅ REMOVED: useFocusEffect that was causing infinite loops
   // Real-time subscriptions will handle updates automatically
 
-  // ✅ ORGANIZE: Separate conversations into sections
+  // Calculate counts for each filter option
+  const filterCounts = useMemo(() => {
+    const counts = {
+      all: conversations.length,
+      buyer: 0,
+      seller: 0,
+    };
+
+    conversations.forEach((conversation) => {
+      const userRole = getUserRoleInConversation(conversation);
+      if (userRole === "buyer") counts.buyer++;
+      if (userRole === "seller") counts.seller++;
+    });
+
+    return counts;
+  }, [conversations, user?.id]);
+
+  // Filter conversations based on current filter
+  const filteredConversations = useMemo(() => {
+    if (currentFilter === "all") {
+      return conversations;
+    }
+
+    return conversations.filter((conversation) => {
+      const userRole = getUserRoleInConversation(conversation);
+      return userRole === currentFilter;
+    });
+  }, [conversations, currentFilter, user?.id]);
+
+  // ✅ ORGANIZE: Separate conversations into sections with filtering
   const conversationSections = useMemo((): ConversationSection[] => {
+    
     const activeConversations: ConversationWithDetails[] = [];
     const expiredConversations: ConversationWithDetails[] = [];
 
-    conversations.forEach((conv) => {
+    filteredConversations.forEach((conv) => {
       if (conv.archived || conv.is_expired) {
         expiredConversations.push(conv);
       } else {
@@ -79,7 +199,7 @@ export default function ChatListScreen() {
     }
 
     return sections;
-  }, [conversations]);
+  }, [filteredConversations]);
 
   const getOtherParticipant = (conversation: ConversationWithDetails) => {
     return conversation.participant_1_id === user?.id
@@ -108,6 +228,146 @@ export default function ChatListScreen() {
     setCurrentConversation(conversation);
     (router.push as any)(`/(tabs)/chat/${conversation.id}`);
   };
+
+
+  // Enhanced segmented control filter component
+  const renderEnhancedFilter = () => {
+    const screenWidth = Dimensions.get('window').width;
+    const containerPadding = 40; // 20px on each side
+    const controlPadding = 12; // 6px on each side inside control
+    const availableWidth = screenWidth - containerPadding - controlPadding;
+    const segmentWidth = availableWidth / filterOptions.length;
+    
+    return (
+      <View style={styles.enhancedFilterContainer}>
+        <BlurView intensity={25} style={styles.segmentedControlBlur}>
+          <View style={styles.segmentedControl}>
+            {/* Animated sliding background indicator */}
+            <Animated.View
+              style={[
+                styles.segmentIndicator,
+                {
+                  width: segmentWidth,
+                  backgroundColor: theme.primary,
+                  transform: [
+                    {
+                      translateX: slideAnimation.interpolate({
+                        inputRange: [0, 1, 2],
+                        outputRange: [0, segmentWidth, segmentWidth * 2],
+                        extrapolate: 'clamp',
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+            
+            {/* Filter segments */}
+            {filterOptions.map((option, index) => {
+              const isActive = currentFilter === option.value;
+              const count = filterCounts[option.value as keyof typeof filterCounts];
+              
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.segmentButton,
+                    { width: segmentWidth },
+                  ]}
+                  onPress={() => selectFilter(option.value, index)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${option.label} conversations, ${count} total`}
+                  accessibilityState={{ selected: isActive }}
+                >
+                  <Animated.View
+                    style={[
+                      styles.segmentContent,
+                      { opacity: fadeAnimation }
+                    ]}
+                  >
+                    {/* Icon with subtle animation */}
+                    <Animated.View
+                      style={[
+                        styles.segmentIconContainer,
+                        {
+                          backgroundColor: isActive 
+                            ? 'rgba(255, 255, 255, 0.35)' 
+                            : 'rgba(30, 41, 59, 0.08)',
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={option.icon}
+                        size={16}
+                        color={isActive ? 'white' : '#1e293b'}
+                      />
+                    </Animated.View>
+                    
+                    {/* Label with dynamic styling */}
+                    <Text
+                      style={[
+                        styles.segmentLabel,
+                        {
+                          color: isActive ? 'white' : '#1e293b',
+                          fontWeight: isActive ? '800' : '700',
+                        },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                    
+                    {/* Animated count badge */}
+                    {count > 0 && (
+                      <Animated.View
+                        style={[
+                          styles.segmentBadge,
+                          {
+                            backgroundColor: isActive 
+                              ? 'rgba(255, 255, 255, 0.3)' 
+                              : theme.secondary,
+                            borderColor: isActive 
+                              ? 'rgba(255, 255, 255, 0.5)' 
+                              : 'rgba(30, 41, 59, 0.1)',
+                            transform: [
+                              {
+                                scale: fadeAnimation.interpolate({
+                                  inputRange: [0.7, 1],
+                                  outputRange: [0.9, 1],
+                                  extrapolate: 'clamp',
+                                }),
+                              },
+                            ],
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.segmentBadgeText,
+                            {
+                              color: isActive ? 'white' : '#1e293b',
+                            },
+                          ]}
+                        >
+                          {count > 99 ? '99+' : count}
+                        </Text>
+                      </Animated.View>
+                    )}
+                  </Animated.View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </BlurView>
+        
+        {/* Subtle description text */}
+        <Text style={[styles.filterDescription, { color: theme.text }]}>
+          {filterOptions.find(opt => opt.value === currentFilter)?.description}
+        </Text>
+      </View>
+    );
+  };
+
 
   const renderSectionHeader = ({
     section,
@@ -373,6 +633,9 @@ export default function ChatListScreen() {
           </View>
         </BlurView>
       </View>
+
+      {/* Enhanced Segmented Filter Control */}
+      {renderEnhancedFilter()}
 
       {/* Conversations List */}
       <View style={styles.conversationsContainer}>
@@ -794,5 +1057,95 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
     fontWeight: "600",
+  },
+  // ✅ Enhanced Segmented Control Filter Styles
+  enhancedFilterContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    zIndex: 100,
+  },
+  segmentedControlBlur: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+    marginBottom: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    position: "relative",
+    padding: 6,
+    height: 64,
+    backgroundColor: "rgba(248, 250, 252, 0.8)",
+  },
+  segmentIndicator: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    bottom: 6,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  segmentButton: {
+    height: 52,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 16,
+    zIndex: 2,
+  },
+  segmentContent: {
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 3,
+    paddingHorizontal: 2,
+  },
+  segmentIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 2,
+  },
+  segmentLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.1,
+    textAlign: "center",
+    flexShrink: 1,
+  },
+  segmentBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 2,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  segmentBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 13,
+  },
+  filterDescription: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.8)",
+    textAlign: "center",
+    fontWeight: "500",
+    letterSpacing: 0.1,
   },
 });
