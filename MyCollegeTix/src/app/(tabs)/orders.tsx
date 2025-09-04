@@ -1,5 +1,5 @@
 // src/app/(tabs)/orders.tsx - Styled to match Browse Tab with Mark as Sold and Edit functionality
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   StyleSheet,
   ScrollView,
@@ -13,6 +13,8 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -35,6 +37,12 @@ import SellerRatingModal, {
 import { TicketSaleService } from "@/src/services/ticketSaleService";
 
 type OrderType = "selling" | "bought" | "watchlist";
+
+interface FilterOption {
+  value: OrderType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
 
 interface StatusConfig {
   color: string;
@@ -94,6 +102,10 @@ export default function OrdersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [watchlistCount, setWatchlistCount] = useState(0);
 
+  // Animation refs for tab switching
+  const slideAnimation = useRef(new Animated.Value(0)).current;
+  const fadeAnimation = useRef(new Animated.Value(1)).current;
+
   // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<OrderItem | null>(null);
@@ -121,6 +133,25 @@ export default function OrdersScreen() {
   const [cancelledTicketsExpanded, setCancelledTicketsExpanded] =
     useState(false);
 
+  // Filter options for segmented control
+  const filterOptions: FilterOption[] = [
+    {
+      value: "selling",
+      label: "Selling",
+      icon: "storefront-outline",
+    },
+    {
+      value: "bought",
+      label: "Bought",
+      icon: "receipt-outline",
+    },
+    {
+      value: "watchlist",
+      label: "Watchlist",
+      icon: "bookmark-outline",
+    },
+  ];
+
   const boughtStats = getTabStats("bought");
   const sellingStats = getTabStats("selling");
   const watchlistStats = { count: watchlistCount, total: 0 };
@@ -130,6 +161,12 @@ export default function OrdersScreen() {
       loadData();
     }
   }, [user]);
+
+  // Initialize animation position based on current filter
+  useEffect(() => {
+    const index = filterOptions.findIndex(option => option.value === activeTab);
+    slideAnimation.setValue(index);
+  }, []);
 
   // Check for pending ratings when the component mounts or when data changes
   useEffect(() => {
@@ -479,20 +516,51 @@ export default function OrdersScreen() {
     loadData();
   }, [user]);
 
+  // Enhanced animation functions for segmented control
+  const selectFilter = (filter: OrderType, index: number) => {
+    if (filter === activeTab) return;
+
+    // Fade out content briefly for smooth transition
+    Animated.sequence([
+      Animated.timing(fadeAnimation, {
+        toValue: 0.7,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnimation, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Slide indicator to new position
+    Animated.spring(slideAnimation, {
+      toValue: index,
+      tension: 120,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+
+    setActiveTab(filter);
+    
+    // Refresh data when switching to bought or selling tabs
+    if (filter === "bought" || filter === "selling") {
+      onRefresh();
+    }
+    
+    // Check for pending ratings when switching to bought tab
+    if (filter === "bought") {
+      setTimeout(() => {
+        checkForPendingRatings();
+      }, 1000); // Give time for data to load
+    }
+  };
+
   const handleTabChange = useCallback(
     (tab: OrderType) => {
-      setActiveTab(tab);
-      // Refresh data when switching to bought or selling tabs
-      if (tab === "bought" || tab === "selling") {
-        onRefresh();
-      }
-      
-      // Check for pending ratings when switching to bought tab
-      if (tab === "bought") {
-        setTimeout(() => {
-          checkForPendingRatings();
-        }, 1000); // Give time for data to load
-      }
+      const index = filterOptions.findIndex(option => option.value === tab);
+      selectFilter(tab, index);
     },
     [onRefresh]
   );
@@ -975,6 +1043,139 @@ export default function OrdersScreen() {
     );
   };
 
+  // Enhanced segmented control filter component
+  const renderEnhancedFilter = () => {
+    const screenWidth = Dimensions.get('window').width;
+    const containerPadding = 40; // 20px on each side
+    const controlPadding = 8; // 4px on each side inside control
+    const availableWidth = screenWidth - containerPadding - controlPadding;
+    const segmentWidth = availableWidth / filterOptions.length;
+    
+    return (
+      <View style={styles.enhancedFilterContainer}>
+        <BlurView intensity={25} style={styles.segmentedControlBlur}>
+          <View style={styles.segmentedControl}>
+            {/* Animated sliding background indicator */}
+            <Animated.View
+              style={[
+                styles.segmentIndicator,
+                {
+                  width: segmentWidth,
+                  backgroundColor: theme.primary,
+                  transform: [
+                    {
+                      translateX: slideAnimation.interpolate({
+                        inputRange: [0, 1, 2],
+                        outputRange: [0, segmentWidth, segmentWidth * 2],
+                        extrapolate: 'clamp',
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+            
+            {/* Filter segments */}
+            {filterOptions.map((option, index) => {
+              const isActive = activeTab === option.value;
+              const stats = getTabStats(option.value);
+              
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.segmentButton,
+                    { width: segmentWidth },
+                  ]}
+                  onPress={() => selectFilter(option.value, index)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${option.label} orders, ${stats.count} total`}
+                  accessibilityState={{ selected: isActive }}
+                >
+                  <Animated.View
+                    style={[
+                      styles.segmentContent,
+                      { opacity: fadeAnimation }
+                    ]}
+                  >
+                    {/* Icon with subtle animation */}
+                    <Animated.View
+                      style={[
+                        styles.segmentIconContainer,
+                        {
+                          backgroundColor: isActive 
+                            ? 'rgba(255, 255, 255, 0.35)' 
+                            : 'rgba(30, 41, 59, 0.08)',
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={option.icon}
+                        size={16}
+                        color={isActive ? 'white' : '#1e293b'}
+                      />
+                    </Animated.View>
+                    
+                    {/* Label with dynamic styling */}
+                    <Text
+                      style={[
+                        styles.segmentLabel,
+                        {
+                          color: isActive ? 'white' : '#1e293b',
+                          fontWeight: isActive ? '800' : '700',
+                        },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                    
+                    {/* Animated count badge */}
+                    {stats.count > 0 && (
+                      <Animated.View
+                        style={[
+                          styles.segmentBadge,
+                          {
+                            backgroundColor: isActive 
+                              ? 'rgba(255, 255, 255, 0.3)' 
+                              : theme.secondary,
+                            borderColor: isActive 
+                              ? 'rgba(255, 255, 255, 0.5)' 
+                              : 'rgba(30, 41, 59, 0.1)',
+                            transform: [
+                              {
+                                scale: fadeAnimation.interpolate({
+                                  inputRange: [0.7, 1],
+                                  outputRange: [0.9, 1],
+                                  extrapolate: 'clamp',
+                                }),
+                              },
+                            ],
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.segmentBadgeText,
+                            {
+                              color: isActive ? 'white' : '#1e293b',
+                            },
+                          ]}
+                        >
+                          {stats.count > 99 ? '99+' : stats.count}
+                        </Text>
+                      </Animated.View>
+                    )}
+                  </Animated.View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </BlurView>
+      </View>
+    );
+  };
+
   const currentData = activeTab === "bought" ? purchases : listings;
 
   // For selling tab, separate active, sold, and cancelled tickets
@@ -1065,47 +1266,8 @@ export default function OrdersScreen() {
           </Text>
         </View>
 
-        {/* Tab Navigation */}
-        <View style={styles.tabSection}>
-          {(["selling", "bought", "watchlist"] as OrderType[]).map((tab) => {
-            const stats = getTabStats(tab);
-            return (
-              <TouchableOpacity
-                key={tab}
-                style={[
-                  styles.tab,
-                  activeTab === tab && { backgroundColor: theme.primary },
-                ]}
-                onPress={() => handleTabChange(tab)}
-              >
-                <Ionicons
-                  name={
-                    tab === "selling"
-                      ? "storefront-outline"
-                      : tab === "bought"
-                      ? "receipt-outline"
-                      : "bookmark-outline"
-                  }
-                  size={20}
-                  color={activeTab === tab ? "white" : "#6b7280"}
-                />
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === tab && styles.activeTabText,
-                  ]}
-                >
-                  {tab === "selling"
-                    ? "Selling"
-                    : tab === "bought"
-                    ? "Bought"
-                    : "Watchlist"}{" "}
-                  ({stats.count})
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {/* Animated Tab Navigation */}
+        {renderEnhancedFilter()}
 
         {/* Content Section */}
         <View style={styles.contentSection}>
@@ -1545,36 +1707,88 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 16,
   },
-  tabSection: {
-    flexDirection: "row",
+  // Enhanced Segmented Control Filter Styles
+  enhancedFilterContainer: {
     marginHorizontal: 20,
     marginTop: -15,
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    marginBottom: 20,
+    zIndex: 100,
   },
-  tab: {
-    flex: 1,
+  segmentedControlBlur: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+  },
+  segmentedControl: {
     flexDirection: "row",
+    position: "relative",
+    padding: 4,
+    height: 56,
+    backgroundColor: "rgba(248, 250, 252, 0.8)",
+  },
+  segmentIndicator: {
+    position: "absolute",
+    top: 4,
+    left: 4,
+    bottom: 4,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  segmentButton: {
+    height: 48,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 12,
+    zIndex: 2,
+  },
+  segmentContent: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    flexDirection: "row",
+    gap: 3,
+    paddingHorizontal: 2,
+  },
+  segmentIconContainer: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 2,
+  },
+  segmentLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.1,
+    textAlign: "center",
+    flexShrink: 1,
+  },
+  segmentBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
     borderRadius: 8,
-    gap: 6,
+    minWidth: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 2,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
-  tabText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6b7280",
-  },
-  activeTabText: {
-    color: "white",
+  segmentBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 12,
   },
   contentSection: {
     backgroundColor: "white",

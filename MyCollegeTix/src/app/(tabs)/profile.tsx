@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   StyleSheet,
   TouchableOpacity,
@@ -10,6 +10,7 @@ import {
   Platform,
   View,
   Text,
+  Animated,
 } from "react-native";
 import { UserAvatar } from "@/src/components/UserAvatar";
 import { useTheme } from "@/src/providers/ThemeProvider";
@@ -27,18 +28,79 @@ import Constants from "expo-constants";
 
 const { width, height } = Dimensions.get("window");
 
+type SectionType = "profile" | "settings";
+
+interface FilterOption {
+  value: SectionType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
+
 export default function ProfileScreen() {
   const { signOut, profile, user, deleteAccount } = useAuth();
   const router = useRouter();
   const theme = useTheme();
 
-  const [activeSection, setActiveSection] = useState<"profile" | "settings">(
+  const [activeSection, setActiveSection] = useState<SectionType>(
     "profile"
   );
   const [isLoading, setIsLoading] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [dataSummary, setDataSummary] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Animation refs for tab switching
+  const slideAnimation = useRef(new Animated.Value(0)).current;
+  const fadeAnimation = useRef(new Animated.Value(1)).current;
+
+  // Filter options for segmented control
+  const filterOptions: FilterOption[] = [
+    {
+      value: "profile",
+      label: "Profile",
+      icon: "person-circle-outline",
+    },
+    {
+      value: "settings",
+      label: "Settings",
+      icon: "settings-outline",
+    },
+  ];
+
+  // Initialize animation position based on current filter
+  useEffect(() => {
+    const index = filterOptions.findIndex(option => option.value === activeSection);
+    slideAnimation.setValue(index);
+  }, []);
+
+  // Enhanced animation functions for segmented control
+  const selectFilter = (filter: SectionType, index: number) => {
+    if (filter === activeSection) return;
+
+    // Fade out content briefly for smooth transition
+    Animated.sequence([
+      Animated.timing(fadeAnimation, {
+        toValue: 0.7,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnimation, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Slide indicator to new position
+    Animated.spring(slideAnimation, {
+      toValue: index,
+      tension: 120,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+
+    setActiveSection(filter);
+  };
 
   // Check if user is admin
   const isAdmin = profile?.is_admin === true;
@@ -157,6 +219,101 @@ export default function ProfileScreen() {
     );
   };
 
+  // Enhanced segmented control filter component
+  const renderEnhancedFilter = () => {
+    const screenWidth = Dimensions.get('window').width;
+    const containerPadding = 40; // 20px on each side
+    const controlPadding = 12; // 6px on each side inside control
+    const availableWidth = screenWidth - containerPadding - controlPadding;
+    const segmentWidth = availableWidth / filterOptions.length;
+    
+    return (
+      <View style={styles.enhancedFilterContainer}>
+        <BlurView intensity={25} style={styles.segmentedControlBlur}>
+          <View style={styles.segmentedControl}>
+            {/* Animated sliding background indicator */}
+            <Animated.View
+              style={[
+                styles.segmentIndicator,
+                {
+                  width: segmentWidth,
+                  backgroundColor: theme.primary,
+                  transform: [
+                    {
+                      translateX: slideAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, segmentWidth],
+                        extrapolate: 'clamp',
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+            
+            {/* Filter segments */}
+            {filterOptions.map((option, index) => {
+              const isActive = activeSection === option.value;
+              
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.segmentButton,
+                    { width: segmentWidth },
+                  ]}
+                  onPress={() => selectFilter(option.value, index)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${option.label} section`}
+                  accessibilityState={{ selected: isActive }}
+                >
+                  <Animated.View
+                    style={[
+                      styles.segmentContent,
+                      { opacity: fadeAnimation }
+                    ]}
+                  >
+                    {/* Icon with subtle animation */}
+                    <Animated.View
+                      style={[
+                        styles.segmentIconContainer,
+                        {
+                          backgroundColor: isActive 
+                            ? 'rgba(255, 255, 255, 0.35)' 
+                            : 'rgba(30, 41, 59, 0.08)',
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={option.icon}
+                        size={16}
+                        color={isActive ? 'white' : '#1e293b'}
+                      />
+                    </Animated.View>
+                    
+                    {/* Label with dynamic styling */}
+                    <Text
+                      style={[
+                        styles.segmentLabel,
+                        {
+                          color: isActive ? 'white' : '#1e293b',
+                          fontWeight: isActive ? '800' : '700',
+                        },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Animated.View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </BlurView>
+      </View>
+    );
+  };
+
   const InfoCard = ({
     icon,
     label,
@@ -261,62 +418,13 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Tab Section */}
-          <View style={styles.tabSection}>
-            <View style={styles.tabContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.tab,
-                  activeSection === "profile" && {
-                    backgroundColor: theme.primary,
-                  },
-                ]}
-                onPress={() => setActiveSection("profile")}
-              >
-                <Ionicons
-                  name="person-circle-outline"
-                  size={20}
-                  color={activeSection === "profile" ? "white" : "#6b7280"}
-                />
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeSection === "profile" && styles.activeTabText,
-                  ]}
-                >
-                  Profile
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.tab,
-                  activeSection === "settings" && {
-                    backgroundColor: theme.primary,
-                  },
-                ]}
-                onPress={() => setActiveSection("settings")}
-              >
-                <Ionicons
-                  name="settings-outline"
-                  size={20}
-                  color={activeSection === "settings" ? "white" : "#6b7280"}
-                />
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeSection === "settings" && styles.activeTabText,
-                  ]}
-                >
-                  Settings
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          {/* Animated Tab Section */}
+          {renderEnhancedFilter()}
 
           {/* Content Section */}
           <View style={styles.contentSection}>
-            {activeSection === "profile" ? (
+            <Animated.View style={{ opacity: fadeAnimation }}>
+              {activeSection === "profile" ? (
               <View style={styles.profileContent}>
                 {/* Account Information Section */}
                 <View style={styles.premiumSection}>
@@ -564,11 +672,11 @@ export default function ProfileScreen() {
                   </View>
                 </View>
 
-                {/* Legal Documents */}
-                <LegalDocumentStatus />
-              </View>
-            ) : (
-              <View style={styles.settingsContent}>
+                  {/* Legal Documents */}
+                  <LegalDocumentStatus />
+                </View>
+              ) : (
+                <View style={styles.settingsContent}>
                 {/* Security Settings Section */}
                 <View style={styles.premiumSection}>
                   <View style={styles.sectionHeader}>
@@ -783,8 +891,9 @@ export default function ProfileScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
-              </View>
-            )}
+                </View>
+              )}
+            </Animated.View>
 
             {/* Sign Out Button */}
             <TouchableOpacity
@@ -1735,5 +1844,72 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     shadowOpacity: 0,
     elevation: 0,
+  },
+
+  // Enhanced Segmented Control Filter Styles
+  enhancedFilterContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    zIndex: 100,
+  },
+  segmentedControlBlur: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    position: "relative",
+    padding: 6,
+    height: 60,
+    backgroundColor: "rgba(248, 250, 252, 0.8)",
+  },
+  segmentIndicator: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    bottom: 6,
+    borderRadius: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  segmentButton: {
+    height: 48,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 14,
+    zIndex: 2,
+  },
+  segmentContent: {
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 4,
+  },
+  segmentIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 3,
+  },
+  segmentLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.1,
+    textAlign: "center",
+    flexShrink: 1,
   },
 });

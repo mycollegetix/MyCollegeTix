@@ -15,6 +15,7 @@ import {
   Platform,
 } from "react-native";
 import { TicketCard } from "@/src/components/TicketCard";
+import { EventFolder } from "@/src/components/EventFolder";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
@@ -25,6 +26,13 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 import { WatchlistService } from "@/src/services/watchlistService";
+import { 
+  groupTicketsByEvents, 
+  filterEventGroups, 
+  sortEventGroups,
+  EventGroup,
+  EventGroupingResult
+} from "@/src/utils/eventGroupingUtils";
 
 const sports = [
   { name: "All Sports", icon: "grid-outline" },
@@ -94,6 +102,15 @@ export default function BrowseScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  
+  // Event folder system state
+  const [eventGroups, setEventGroups] = useState<EventGroup[]>([]);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [groupingResult, setGroupingResult] = useState<EventGroupingResult>({ 
+    groups: [], 
+    totalTickets: 0, 
+    totalEvents: 0 
+  });
 
   const loadTickets = async (reset = false) => {
     if (!user?.id) {
@@ -117,7 +134,7 @@ export default function BrowseScreen() {
         sport: selectedSport,
         searchQuery: searchQuery.trim() || undefined,
         sortBy,
-        limit: 20,
+        limit: 100, // Increased limit for better grouping
         offset: currentOffset,
         excludeUserId: user.id,
         onlySeasonTickets: showSeasonTicketsOnly,
@@ -131,10 +148,8 @@ export default function BrowseScreen() {
 
       // Process tickets with college context
       const processedData = data.map((ticket) => {
-        // The collegeMatchup and isFromUserCollege are already added by the service
         return {
           ...ticket,
-          // These properties are already included by the service, but ensuring they exist
           collegeMatchup: ticket.collegeMatchup || getCollegeMatchup(ticket),
           isFromUserCollege:
             ticket.isFromUserCollege ||
@@ -151,13 +166,43 @@ export default function BrowseScreen() {
         setOffset((prev) => prev + processedData.length);
       }
 
-      setHasMore(data.length === 20);
+      setHasMore(data.length === 100);
+      
+      // Process tickets into event groups
+      processTicketsIntoGroups(reset ? processedData : [...tickets, ...processedData]);
     } catch (error) {
       console.error("Error loading tickets:", error);
       Alert.alert("Error", "Failed to load tickets. Please try again.");
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+  
+  // Process tickets into event groups
+  const processTicketsIntoGroups = (allTickets: TicketWithSeller[]) => {
+    // Group tickets by events
+    const result = groupTicketsByEvents(allTickets);
+    
+    // Sort groups based on current sort preference
+    const sortedGroups = sortEventGroups(result.groups, sortBy);
+    
+    // Apply search filtering if active
+    const { filteredGroups, expandedGroupIds } = filterEventGroups(
+      sortedGroups, 
+      searchQuery
+    );
+    
+    setGroupingResult({
+      groups: filteredGroups,
+      totalTickets: result.totalTickets,
+      totalEvents: result.totalEvents
+    });
+    setEventGroups(filteredGroups);
+    
+    // Auto-expand groups when searching
+    if (searchQuery.trim()) {
+      setExpandedGroups(expandedGroupIds);
     }
   };
 
@@ -187,12 +232,25 @@ export default function BrowseScreen() {
   useEffect(() => {
     if (user?.id && profile?.college_id) {
       const timeoutId = setTimeout(() => {
-        loadTickets(true);
-      }, 500);
+        if (tickets.length > 0) {
+          // If we have tickets, just reprocess them for instant search
+          processTicketsIntoGroups(tickets);
+        } else {
+          // Otherwise load fresh data
+          loadTickets(true);
+        }
+      }, 300);
 
       return () => clearTimeout(timeoutId);
     }
   }, [searchQuery, user?.id, profile?.college_id]);
+  
+  // Reprocess groups when sort changes
+  useEffect(() => {
+    if (tickets.length > 0) {
+      processTicketsIntoGroups(tickets);
+    }
+  }, [sortBy, showSeasonTicketsOnly]);
 
   const onRefresh = useCallback(() => {
     if (user?.id && profile?.college_id) {
@@ -340,26 +398,52 @@ export default function BrowseScreen() {
     return "Sports";
   };
 
-  const renderTicket = ({ item }: { item: TicketWithSeller }) => {
-    const formattedTicket = formatTicketForCard(item);
+  // Toggle event group expansion
+  const handleGroupToggle = (groupId: string) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
+      }
+      return newSet;
+    });
+  };
+  
+  // Render individual ticket within event folder
+  const renderTicketInFolder = (ticket: TicketWithSeller) => {
+    const formattedTicket = formatTicketForCard(ticket);
 
     return (
-      <View style={styles.ticketCardContainer}>
-        <EnhancedTicketCard
-          sport={formattedTicket.sport}
-          event={formattedTicket.event}
-          date={formattedTicket.date}
-          price={formattedTicket.price}
-          section={item.section || "N/A"}
-          row={item.row_number || "N/A"}
-          seat={item.seat_number || "N/A"}
-          onPress={() => handleTicketPress(item)}
-          ticketType={item.ticket_type}
-          collegeMatchup={formattedTicket.collegeMatchup}
-          isSeasonPass={item.event?.is_season_pass}
-          ticketId={item.id}
-        />
-      </View>
+      <EnhancedTicketCard
+        sport={formattedTicket.sport}
+        event={formattedTicket.event}
+        date={formattedTicket.date}
+        price={formattedTicket.price}
+        section={ticket.section || "N/A"}
+        row={ticket.row_number || "N/A"}
+        seat={ticket.seat_number || "N/A"}
+        onPress={() => handleTicketPress(ticket)}
+        ticketType={ticket.ticket_type}
+        collegeMatchup={formattedTicket.collegeMatchup}
+        isSeasonPass={ticket.event?.is_season_pass}
+        ticketId={ticket.id}
+      />
+    );
+  };
+  
+  // Render event folder
+  const renderEventFolder = ({ item }: { item: EventGroup }) => {
+    return (
+      <EventFolder
+        eventGroup={item}
+        isExpanded={expandedGroups.has(item.id)}
+        onToggle={handleGroupToggle}
+        onTicketPress={handleTicketPress}
+        renderTicket={renderTicketInFolder}
+        searchQuery={searchQuery}
+      />
     );
   };
 
@@ -627,23 +711,42 @@ export default function BrowseScreen() {
 
           {/* Results Header */}
           <View style={styles.resultsHeader}>
-            <Text style={[styles.resultsCount, { color: theme.primary }]}>
-              {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} found
-              {hasMore && !loading && " (scroll for more)"}
-            </Text>
-            <Text style={styles.currentSort}>
-              Sorted by:{" "}
-              {sortOptions.find((opt) => opt.value === sortBy)?.label}
-            </Text>
+            <View style={styles.resultsLeft}>
+              <Text style={[styles.resultsCount, { color: theme.primary }]}>
+                {groupingResult.totalEvents} event{groupingResult.totalEvents !== 1 ? "s" : ""} • {groupingResult.totalTickets} ticket{groupingResult.totalTickets !== 1 ? "s" : ""}
+                {hasMore && !loading && " (scroll for more)"}
+              </Text>
+              <Text style={styles.currentSort}>
+                Sorted by: {sortOptions.find((opt) => opt.value === sortBy)?.label}
+              </Text>
+            </View>
+            
+            {/* View Toggle */}
+            <TouchableOpacity
+              style={[styles.viewToggle, { borderColor: `${theme.primary}30` }]}
+              onPress={() => {
+                // Future: could add flat list view toggle
+                Alert.alert("Event View", "You're viewing tickets organized by events. This makes it easier to find tickets for specific games!");
+              }}
+            >
+              <Ionicons 
+                name="folder-open-outline" 
+                size={16} 
+                color={theme.primary} 
+              />
+              <Text style={[styles.viewToggleText, { color: theme.primary }]}>
+                Events
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Tickets List */}
+        {/* Event Folders List */}
         <View style={styles.ticketsSection}>
-          {tickets.length > 0 ? (
+          {eventGroups.length > 0 ? (
             <FlatList
-              data={tickets}
-              renderItem={renderTicket}
+              data={eventGroups}
+              renderItem={renderEventFolder}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
@@ -653,20 +756,24 @@ export default function BrowseScreen() {
               onEndReached={loadMore}
               onEndReachedThreshold={0.5}
               ListFooterComponent={renderFooter}
+              ItemSeparatorComponent={() => <View style={{ height: 0 }} />}
             />
           ) : (
             <BlurView intensity={20} style={styles.emptyState}>
               <View style={styles.emptyIconContainer}>
-                <Ionicons name="search-outline" size={48} color="#6b7280" />
+                {loading ? (
+                  <ActivityIndicator size="large" color={theme.primary} />
+                ) : (
+                  <Ionicons name="folder-open-outline" size={48} color="#6b7280" />
+                )}
               </View>
               <Text style={styles.emptyStateTitle}>
-                {loading ? "Loading tickets..." : "No tickets found"}
+                {loading ? "Loading events..." : "No events found"}
               </Text>
               {!loading && (
                 <>
                   <Text style={styles.emptyStateText}>
-                    Try adjusting your filters or search terms to find more
-                    tickets
+                    Try adjusting your filters or search terms to find events with available tickets
                   </Text>
                   <TouchableOpacity
                     style={[
@@ -677,6 +784,7 @@ export default function BrowseScreen() {
                       setSearchQuery("");
                       setSelectedSport("All Sports");
                       setShowSeasonTicketsOnly(false);
+                      setExpandedGroups(new Set());
                     }}
                   >
                     <Text style={styles.clearFiltersText}>Clear Filters</Text>
@@ -1041,18 +1149,36 @@ const styles = StyleSheet.create({
   resultsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: "#f1f5f9",
   },
+  resultsLeft: {
+    flex: 1,
+  },
   resultsCount: {
     fontSize: 14,
     fontWeight: "600",
+    marginBottom: 2,
   },
   currentSort: {
     fontSize: 12,
     color: "#6b7280",
+  },
+  viewToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  viewToggleText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   ticketsSection: {
     backgroundColor: "white",
