@@ -86,9 +86,9 @@ export default function TabLayout() {
           initialParams={{ primary: theme.primary, secondary: theme.secondary }}
         />
         <Tabs.Screen
-          name="orders"
+          name="tickets"
           options={{
-            title: "Orders",
+            title: "Tickets",
             tabBarIcon: ({ color }) => (
               <TabBarIcon name="list-alt" color={color} />
             ),

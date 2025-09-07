@@ -1,4 +1,4 @@
-// src/app/(tabs)/orders.tsx - Styled to match Browse Tab with Mark as Sold and Edit functionality
+// src/app/(tabs)/tickets.tsx - Styled to match Browse Tab with Mark as Sold and Edit functionality
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   StyleSheet,
@@ -91,7 +91,7 @@ interface EditFormData {
   description: string;
 }
 
-export default function OrdersScreen() {
+export default function TicketsScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { user, profile } = useAuth();
@@ -1259,7 +1259,7 @@ export default function OrdersScreen() {
               />
             </LinearGradient>
           </View>
-          <Text style={styles.headerTitle}>My Orders</Text>
+          <Text style={styles.headerTitle}>My Tickets</Text>
           <Text style={styles.headerSubtitle}>
             Track your purchases and sales for{" "}
             {profile.college?.name || "your college"} events

@@ -232,7 +232,7 @@ export default function SellScreen() {
           text: "Go to My Listings",
           onPress: () => {
             resetForm(); // Clear form
-            (router.push as any)("/(tabs)/orders");
+            (router.push as any)("/(tabs)/tickets");
           },
         },
       ]);
