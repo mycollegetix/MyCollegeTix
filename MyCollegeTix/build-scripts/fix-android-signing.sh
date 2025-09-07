@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Set JAVA_HOME to the correct Java 17 installation
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+echo "☕ Using Java: $JAVA_HOME"
+
 # Change to project root directory
 cd "$(dirname "$0")/.."
 
