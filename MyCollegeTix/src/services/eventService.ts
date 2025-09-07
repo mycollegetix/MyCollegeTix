@@ -72,6 +72,7 @@ export class EventService {
     includeAllColleges = false,
     onlyHomeGames = false,
     onlyAwayGames = false,
+    onlySeasonPass = false,
   }: {
     collegeId?: string;
     sport?: string;
@@ -79,6 +80,7 @@ export class EventService {
     includeAllColleges?: boolean;
     onlyHomeGames?: boolean;
     onlyAwayGames?: boolean;
+    onlySeasonPass?: boolean;
   } = {}): Promise<{ data: EventWithColleges[]; error: any }> {
     try {
       let query = supabase
@@ -123,6 +125,11 @@ export class EventService {
       // Filter by sport if specified
       if (sport && sport !== "All Sports") {
         query = query.ilike("sport", `%${sport}%`);
+      }
+
+      // Filter by season pass events only if specified
+      if (onlySeasonPass) {
+        query = query.eq("is_season_pass", true);
       }
 
       // Limit results

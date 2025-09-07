@@ -89,9 +89,21 @@ export class TicketService {
         query = query.ilike("sport", `%${sport}%`);
       }
 
-      // Filter by student tickets only (formerly season tickets)
+      // Filter by season pass events only
       if (onlySeasonTickets) {
-        query = query.eq("ticket_type", "student");
+        // First get all season pass event IDs
+        const { data: seasonEvents } = await supabase
+          .from("events")
+          .select("id")
+          .eq("is_season_pass", true);
+        
+        if (seasonEvents && seasonEvents.length > 0) {
+          const seasonEventIds = seasonEvents.map(e => e.id);
+          query = query.in("event_id", seasonEventIds);
+        } else {
+          // No season events exist, return empty result
+          return { data: [], error: null };
+        }
       }
 
       // FIXED: Search filter - single line, no newlines

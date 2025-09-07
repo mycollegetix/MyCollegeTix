@@ -129,11 +129,12 @@ export default function BrowseScreen() {
     setLoading(true);
 
     try {
-      // First, load all events for the college (same as sell screen)
+      // First, load events for the college (filter by season pass if season filter is active)
       const { data: events, error: eventsError } = await EventService.getEventsForCollege({
         sport: selectedSport !== "All Sports" ? selectedSport : undefined,
         limit: 100,
         collegeId: profile.college_id,
+        onlySeasonPass: showSeasonTicketsOnly, // Filter events by season pass when season filter is active
       });
 
       if (eventsError) {
