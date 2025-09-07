@@ -142,10 +142,13 @@ export default function SellScreen() {
 
   // Use shared utility function for consistent date/time formatting
   const formatEventDate = (dateString: string, gameTime?: string | null) => {
-    return formatEventDateTime(dateString, gameTime, {
+    const formatted = formatEventDateTime(dateString, gameTime, {
       dateStyle: "medium",
       separator: " • ",
     });
+    
+    
+    return formatted;
   };
 
   const updateFormData = (key: keyof FormData, value: string | boolean) => {
@@ -293,19 +296,19 @@ export default function SellScreen() {
       style={styles.eventItem}
       onPress={() => handleEventSelect(item)}
     >
-      <View style={styles.eventItemContent}>
-        <View style={styles.eventItemInfo}>
-          <Text style={styles.eventItemTitle}>{item.title}</Text>
-          <Text style={styles.eventItemDate}>
-            {formatEventDate(item.event_date, item.game_time)}
-          </Text>
-          <Text style={styles.eventItemLocation}>
-            {item.venue || item.location}
-          </Text>
-          {item.opponent && (
-            <Text style={styles.eventItemOpponent}>vs {item.opponent}</Text>
-          )}
-        </View>
+        <View style={styles.eventItemContent}>
+          <View style={styles.eventItemInfo}>
+            <Text style={styles.eventItemTitle}>{item.title}</Text>
+            <Text style={styles.eventItemDate}>
+              {formatEventDate(item.event_date, item.game_time)}
+            </Text>
+            <Text style={styles.eventItemLocation}>
+              {item.venue || item.location}
+            </Text>
+            {item.opponent && (
+              <Text style={styles.eventItemOpponent}>vs {item.opponent}</Text>
+            )}
+          </View>
         <View style={styles.eventItemBadges}>
           <View
             style={[

@@ -194,7 +194,7 @@ export const EventFolder: React.FC<EventFolderProps> = ({
             {/* Bottom Row - Event Title */}
             <View style={styles.bottomRow}>
               <View style={styles.iconContainer}>
-                {eventGroup.sportIcon.includes("run") ? (
+                {eventGroup.sportIcon?.includes("run") ? (
                   <MaterialCommunityIcons
                     name={eventGroup.sportIcon as any}
                     size={20}
@@ -202,7 +202,7 @@ export const EventFolder: React.FC<EventFolderProps> = ({
                   />
                 ) : (
                   <Ionicons
-                    name={eventGroup.sportIcon as any}
+                    name={(eventGroup.sportIcon || "calendar-outline") as any}
                     size={20}
                     color={theme.primary}
                   />
@@ -215,6 +215,9 @@ export const EventFolder: React.FC<EventFolderProps> = ({
                   numberOfLines={2}
                 >
                   {eventGroup.eventName}
+                </Text>
+                <Text style={[styles.eventDate, { color: `${theme.primary}80` }]}>
+                  {eventGroup.displayDate}
                 </Text>
               </View>
             </View>
@@ -332,6 +335,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     lineHeight: 22,
+  },
+  eventDate: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 2,
   },
   badgesContainer: {
     alignItems: "flex-end",

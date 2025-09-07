@@ -21,7 +21,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { TicketService } from "@/src/services/ticketService";
-import { TicketWithSeller } from "@/src/types/database.types";
+import { EventService } from "@/src/services/eventService";
+import { TicketWithSeller, Event } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
@@ -33,6 +34,7 @@ import {
   EventGroup,
   EventGroupingResult
 } from "@/src/utils/eventGroupingUtils";
+import { formatEventDateTime } from "@/src/utils/dateUtils";
 
 const sports = [
   { name: "All Sports", icon: "grid-outline" },
@@ -100,8 +102,7 @@ export default function BrowseScreen() {
   const [tickets, setTickets] = useState<TicketWithSeller[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  // Remove pagination since we load all events at once
   
   // Event folder system state
   const [eventGroups, setEventGroups] = useState<EventGroup[]>([]);
@@ -114,40 +115,52 @@ export default function BrowseScreen() {
 
   const loadTickets = async (reset = false) => {
     if (!user?.id) {
-      console.log("⚠️ User not loaded yet, skipping ticket load");
+      console.log("⚠️ User not loaded yet, skipping event load");
       return;
     }
 
     if (!profile?.college_id) {
-      console.log("⚠️ College not loaded yet, skipping ticket load");
+      console.log("⚠️ College not loaded yet, skipping event load");
       return;
     }
 
     if (loading && !reset) return;
 
     setLoading(true);
-    const currentOffset = reset ? 0 : offset;
 
     try {
-      const { data, error } = await TicketService.getTicketsForCollege({
+      // First, load all events for the college (same as sell screen)
+      const { data: events, error: eventsError } = await EventService.getEventsForCollege({
+        sport: selectedSport !== "All Sports" ? selectedSport : undefined,
+        limit: 100,
+        collegeId: profile.college_id,
+      });
+
+      if (eventsError) {
+        console.error("Error loading events:", eventsError);
+        Alert.alert("Error", "Failed to load events. Please try again.");
+        return;
+      }
+
+      // Then, load all tickets for this college to group by events
+      const { data: allTickets, error: ticketsError } = await TicketService.getTicketsForCollege({
         collegeId: profile.college_id,
         sport: selectedSport,
         searchQuery: searchQuery.trim() || undefined,
         sortBy,
-        limit: 100, // Increased limit for better grouping
-        offset: currentOffset,
+        limit: 1000, // Get all tickets to group properly
+        offset: 0,
         excludeUserId: user.id,
         onlySeasonTickets: showSeasonTicketsOnly,
       });
 
-      if (error) {
-        console.error("Error loading tickets:", error);
-        Alert.alert("Error", "Failed to load tickets. Please try again.");
-        return;
+      if (ticketsError) {
+        console.error("Error loading tickets:", ticketsError);
+        // Continue without tickets - just show events
       }
 
       // Process tickets with college context
-      const processedData = data.map((ticket) => {
+      const processedTickets = (allTickets || []).map((ticket) => {
         return {
           ...ticket,
           collegeMatchup: ticket.collegeMatchup || getCollegeMatchup(ticket),
@@ -158,34 +171,68 @@ export default function BrowseScreen() {
         };
       });
 
-      if (reset) {
-        setTickets(processedData);
-        setOffset(processedData.length);
-      } else {
-        setTickets((prev) => [...prev, ...processedData]);
-        setOffset((prev) => prev + processedData.length);
-      }
-
-      setHasMore(data.length === 100);
+      setTickets(processedTickets);
       
-      // Process tickets into event groups
-      processTicketsIntoGroups(reset ? processedData : [...tickets, ...processedData]);
+      // Process events and tickets into event groups
+      processEventsAndTicketsIntoGroups(events || [], processedTickets);
     } catch (error) {
-      console.error("Error loading tickets:", error);
-      Alert.alert("Error", "Failed to load tickets. Please try again.");
+      console.error("Error loading data:", error);
+      Alert.alert("Error", "Failed to load events. Please try again.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
   
-  // Process tickets into event groups
-  const processTicketsIntoGroups = (allTickets: TicketWithSeller[]) => {
-    // Group tickets by events
-    const result = groupTicketsByEvents(allTickets);
-    
+  // Process events and tickets into event groups
+  const processEventsAndTicketsIntoGroups = (allEvents: Event[], allTickets: TicketWithSeller[]) => {
+    // Create event groups from all events (similar to groupTicketsByEvents but starts with events)
+    const eventGroups: EventGroup[] = allEvents
+      .map(event => {
+        // Find tickets for this specific event
+        const eventTickets = allTickets.filter(ticket => 
+          ticket.event_id === event.id ||
+          (ticket.title?.toLowerCase().includes(event.title?.toLowerCase() || '') && 
+           ticket.sport?.toLowerCase() === event.sport?.toLowerCase())
+        );
+
+        // Format event date and time using the same utility as sell screen
+        const dateStr = formatEventDateTime(event.event_date, event.game_time, {
+          dateStyle: "medium",
+          separator: " • ",
+        });
+
+        
+        return {
+          id: event.id,
+          eventName: event.title || 'Unknown Event',
+          sport: event.sport,
+          eventDate: event.event_date,
+          location: event.location || 'Unknown Location',
+          homeTeam: event.home_team || null,
+          awayTeam: event.away_team || null,
+          collegeMatchup: event.home_team && event.away_team 
+            ? `${event.home_team} vs ${event.away_team}`
+            : null,
+          isSeasonPass: event.is_season_pass || false,
+          tickets: eventTickets,
+          ticketCount: eventTickets.length,
+          displayDate: dateStr,
+          displayTime: "",
+          sportIcon: getSportIcon(event.sport),
+        };
+      })
+      .filter(eventGroup => eventGroup.ticketCount > 0); // Only show events with tickets
+
+    console.log("🔍 Created event groups:", eventGroups.length);
+    console.log("🔍 Total events before filtering:", allEvents.length);
+    console.log("🔍 Events with tickets:", eventGroups.length);
+    if (eventGroups.length > 0) {
+      console.log("🔍 First event group sportIcon:", eventGroups[0].sportIcon);
+    }
+
     // Sort groups based on current sort preference
-    const sortedGroups = sortEventGroups(result.groups, sortBy);
+    const sortedGroups = sortEventGroups(eventGroups, sortBy);
     
     // Apply search filtering if active
     const { filteredGroups, expandedGroupIds } = filterEventGroups(
@@ -195,14 +242,44 @@ export default function BrowseScreen() {
     
     setGroupingResult({
       groups: filteredGroups,
-      totalTickets: result.totalTickets,
-      totalEvents: result.totalEvents
+      totalTickets: allTickets.length,
+      totalEvents: allEvents.length
     });
     setEventGroups(filteredGroups);
     
     // Auto-expand groups when searching
     if (searchQuery.trim()) {
       setExpandedGroups(expandedGroupIds);
+    }
+  };
+
+  // Add the getSportIcon helper function
+  const getSportIcon = (sport: string | null): string => {
+    if (!sport) return "calendar-outline";
+    
+    switch (sport.toLowerCase()) {
+      case "football":
+        return "american-football-outline";
+      case "basketball":
+        return "basketball-outline"; 
+      case "hockey":
+        return "hockey-puck";
+      case "soccer":
+        return "football-outline";
+      case "volleyball":
+        return "tennisball-outline";
+      case "baseball":
+        return "baseball-outline";
+      case "tennis":
+        return "tennisball-outline";
+      case "track and field":
+        return "run-fast";
+      case "cross country":
+        return "run";
+      case "golf":
+        return "golf-outline";
+      default:
+        return "calendar-outline";
     }
   };
 
@@ -232,23 +309,18 @@ export default function BrowseScreen() {
   useEffect(() => {
     if (user?.id && profile?.college_id) {
       const timeoutId = setTimeout(() => {
-        if (tickets.length > 0) {
-          // If we have tickets, just reprocess them for instant search
-          processTicketsIntoGroups(tickets);
-        } else {
-          // Otherwise load fresh data
-          loadTickets(true);
-        }
+        // Always load fresh data for search since we need both events and tickets
+        loadTickets(true);
       }, 300);
 
       return () => clearTimeout(timeoutId);
     }
   }, [searchQuery, user?.id, profile?.college_id]);
   
-  // Reprocess groups when sort changes
+  // Reload data when sort or season filter changes
   useEffect(() => {
-    if (tickets.length > 0) {
-      processTicketsIntoGroups(tickets);
+    if (user?.id && profile?.college_id) {
+      loadTickets(true);
     }
   }, [sortBy, showSeasonTicketsOnly]);
 
@@ -266,38 +338,7 @@ export default function BrowseScreen() {
     showSeasonTicketsOnly,
   ]);
 
-  const loadMore = () => {
-    if (hasMore && !loading && user?.id && profile?.college_id) {
-      loadTickets(false);
-    }
-  };
-
-  const getSportIcon = (sport: string) => {
-    switch (sport.toLowerCase()) {
-      case "football":
-        return "american-football-outline";
-      case "basketball":
-        return "basketball-outline";
-      case "hockey":
-        return "hockey-puck";
-      case "soccer":
-        return "football-outline";
-      case "volleyball":
-        return "tennisball-outline";
-      case "baseball":
-        return "baseball-outline";
-      case "tennis":
-        return "tennisball-outline";
-      case "track and field":
-        return "run-fast";
-      case "cross country":
-        return "run";
-      case "golf":
-        return "golf-outline";
-      default:
-        return "ticket-outline";
-    }
-  };
+  // Removed loadMore since we load all events at once
 
   const handleTicketPress = (ticket: TicketWithSeller) => {
     router.push(`/ticket-details/${ticket.id}`);
@@ -356,23 +397,19 @@ export default function BrowseScreen() {
   );
 
   const formatTicketForCard = (ticket: TicketWithSeller) => {
-    const eventDate = new Date(ticket.event_date);
-    const dateStr = eventDate.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
+    // Use the same date formatting as sell.tsx for consistency
+    // Get game_time from the associated event, not from ticket (tickets don't have game_time)
+    const dateStr = formatEventDateTime(ticket.event_date, ticket.event?.game_time, {
+      dateStyle: "medium", 
+      separator: " • ",
     });
-    const timeStr = eventDate.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+
 
     return {
       id: ticket.id,
       sport: getSportFromTitle(ticket.title),
       event: ticket.title,
-      date: `${dateStr} • ${timeStr}`,
+      date: dateStr,
       price: ticket.price,
       section: ticket.section || "N/A",
       row: ticket.row_number || "N/A",
@@ -714,7 +751,6 @@ export default function BrowseScreen() {
             <View style={styles.resultsLeft}>
               <Text style={[styles.resultsCount, { color: theme.primary }]}>
                 {groupingResult.totalEvents} event{groupingResult.totalEvents !== 1 ? "s" : ""} • {groupingResult.totalTickets} ticket{groupingResult.totalTickets !== 1 ? "s" : ""}
-                {hasMore && !loading && " (scroll for more)"}
               </Text>
               <Text style={styles.currentSort}>
                 Sorted by: {sortOptions.find((opt) => opt.value === sortBy)?.label}
@@ -753,8 +789,6 @@ export default function BrowseScreen() {
               nestedScrollEnabled={true}
               removeClippedSubviews={Platform.OS === "android"}
               keyboardShouldPersistTaps="handled"
-              onEndReached={loadMore}
-              onEndReachedThreshold={0.5}
               ListFooterComponent={renderFooter}
               ItemSeparatorComponent={() => <View style={{ height: 0 }} />}
             />

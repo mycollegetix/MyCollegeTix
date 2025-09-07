@@ -55,6 +55,7 @@ export class TicketService {
         event:events!tickets_event_id_fkey (
           id,
           title,
+          game_time,
           is_season_pass
         ),
         home_college:colleges!tickets_home_college_id_fkey (
@@ -192,6 +193,7 @@ export class TicketService {
             id,
             title,
             event_date,
+            game_time,
             location,
             venue,
             sport,
@@ -259,6 +261,7 @@ export class TicketService {
             id,
             title,
             event_date,
+            game_time,
             location,
             venue,
             sport,
