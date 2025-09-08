@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Animated,
   Dimensions,
   Alert,
   Modal,
@@ -31,6 +30,10 @@ export default function LoginScreen() {
   const [forgotPasswordVisible, setForgotPasswordVisible] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [isResetLoading, setIsResetLoading] = useState(false);
+  const [resendVerificationVisible, setResendVerificationVisible] =
+    useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [isResendLoading, setIsResendLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
   const { signIn } = useAuth();
@@ -59,10 +62,60 @@ export default function LoginScreen() {
           setLoginError(
             "Please check your email and confirm your account before signing in."
           );
+
+          // Auto-open verification modal with user's email
+          setTimeout(() => {
+            Alert.alert(
+              "Email Verification Required",
+              "Your account isn't verified yet. We'll help you resend the verification email so you can complete your registration.",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                },
+                {
+                  text: "Send Verification Email",
+                  onPress: () => {
+                    setVerificationEmail(email);
+                    setResendVerificationVisible(true);
+                  },
+                },
+              ]
+            );
+          }, 500); // Small delay to let login error show first
         } else if (error.message.includes("Too many requests")) {
           setLoginError(
             "Too many login attempts. Please wait a moment and try again."
           );
+        } else if (
+          error.message.includes("email_not_confirmed") ||
+          error.message.includes("not confirmed") ||
+          error.message.includes("unverified")
+        ) {
+          setLoginError(
+            "Please check your email and confirm your account before signing in."
+          );
+
+          // Auto-open verification modal with user's email
+          setTimeout(() => {
+            Alert.alert(
+              "Email Verification Required",
+              "Your account isn't verified yet. We'll help you resend the verification email so you can complete your registration.",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                },
+                {
+                  text: "Send Verification Email",
+                  onPress: () => {
+                    setVerificationEmail(email);
+                    setResendVerificationVisible(true);
+                  },
+                },
+              ]
+            );
+          }, 500);
         } else {
           setLoginError(
             "Login failed. Please check your credentials and try again."
@@ -74,6 +127,207 @@ export default function LoginScreen() {
       setLoginError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!verificationEmail) {
+      Alert.alert("Error", "Please enter your email address");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(verificationEmail)) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+
+    setIsResendLoading(true);
+    try {
+      console.log(
+        "📧 Requesting verification resend for email:",
+        verificationEmail
+      );
+
+      // Call secure server-side function instead of direct database queries
+      const { data, error } = await supabase.functions.invoke(
+        "resend-verification",
+        {
+          body: { email: verificationEmail },
+        }
+      );
+
+      if (error) {
+        console.error(
+          "❌ Resend verification failed:",
+          error.message || "Unknown error"
+        );
+
+        // Handle different HTTP status codes
+        const statusCode = error.context?.status;
+
+        if (statusCode === 404) {
+          // User not found
+          Alert.alert(
+            "Account Not Found",
+            "No account found with this email address. Please create a new account or check the email address.",
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  setResendVerificationVisible(false);
+                  setVerificationEmail("");
+                },
+              },
+            ]
+          );
+          return;
+        } else if (statusCode === 429) {
+          // Rate limited
+          Alert.alert(
+            "Rate Limited",
+            "Too many requests. Please wait a few minutes before trying again.",
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  setResendVerificationVisible(false);
+                  setVerificationEmail("");
+                },
+              },
+            ]
+          );
+          return;
+        }
+
+        // Try to extract error message from the response data
+        if (data && typeof data === "object") {
+          const errorResponse = data as {
+            success: boolean;
+            message: string;
+            action?: string;
+          };
+          if (errorResponse.message) {
+            let title = "Error";
+            switch (errorResponse.action) {
+              case "already_verified":
+                title = "Already Verified";
+                break;
+              case "not_found":
+                title = "Account Not Found";
+                break;
+              case "rate_limited":
+                title = "Rate Limited";
+                break;
+            }
+
+            Alert.alert(title, errorResponse.message, [
+              {
+                text: "OK",
+                onPress: () => {
+                  setResendVerificationVisible(false);
+                  setVerificationEmail("");
+                },
+              },
+            ]);
+            return;
+          }
+        }
+
+        // Generic error handling
+        Alert.alert(
+          "Error",
+          "Unable to process your request. Please check your connection and try again.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                setResendVerificationVisible(false);
+                setVerificationEmail("");
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      console.log("✅ Verification email processing completed");
+
+      const response = data as {
+        success: boolean;
+        message: string;
+        action?: string;
+      };
+
+      if (response.success) {
+        // Success - verification email sent
+        console.log("✅ Verification email sent successfully");
+        Alert.alert("Verification Email Sent! ✅", response.message, [
+          {
+            text: "OK",
+            onPress: () => {
+              setResendVerificationVisible(false);
+              setVerificationEmail("");
+            },
+          },
+        ]);
+      } else {
+        // Handle different error scenarios based on action type
+        console.log("❌ Function returned error:", response.message);
+
+        let title = "Error";
+        let message = response.message;
+
+        switch (response.action) {
+          case "already_verified":
+            title = "Already Verified";
+            break;
+          case "not_found":
+            title = "Account Not Found";
+            break;
+          case "rate_limited":
+            title = "Rate Limited";
+            break;
+          default:
+            title = "Error";
+            break;
+        }
+
+        Alert.alert(title, message, [
+          {
+            text: "OK",
+            onPress: () => {
+              setResendVerificationVisible(false);
+              setVerificationEmail("");
+            },
+          },
+        ]);
+      }
+    } catch (error: any) {
+      console.error("💥 Unexpected resend verification error:", error);
+
+      // Handle network and other errors
+      let errorMessage = "An unexpected error occurred. Please try again.";
+
+      if (error.message?.includes("fetch")) {
+        errorMessage =
+          "Network error. Please check your connection and try again.";
+      } else if (error.message?.includes("timeout")) {
+        errorMessage = "Request timeout. Please try again.";
+      }
+
+      Alert.alert("Error", errorMessage, [
+        {
+          text: "OK",
+          onPress: () => {
+            setResendVerificationVisible(false);
+            setVerificationEmail("");
+          },
+        },
+      ]);
+    } finally {
+      setIsResendLoading(false);
     }
   };
 
@@ -179,7 +433,8 @@ export default function LoginScreen() {
 
             <Text style={styles.welcomeTitle}>Welcome</Text>
             <Text style={styles.welcomeSubtitle}>
-              Sign in to access your tickets and discover amazing Spartan events
+              Login to access your campus marketplace for buying and selling
+              tickets
             </Text>
           </View>
 
@@ -271,6 +526,13 @@ export default function LoginScreen() {
 
               {/* Form Options */}
               <View style={styles.formOptions}>
+                <TouchableOpacity
+                  onPress={() => setResendVerificationVisible(true)}
+                >
+                  <Text style={styles.resendVerification}>
+                    Resend Verification Email
+                  </Text>
+                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setForgotPasswordVisible(true)}
                 >
@@ -406,6 +668,106 @@ export default function LoginScreen() {
                       </View>
                     ) : (
                       <Text style={styles.buttonText}>Send Reset Link</Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </BlurView>
+        </View>
+      </Modal>
+
+      {/* Resend Verification Email Modal */}
+      <Modal
+        visible={resendVerificationVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setResendVerificationVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={50} style={styles.modalBlur}>
+            <View style={styles.modal}>
+              <View style={styles.modalHeader}>
+                <View style={styles.modalIcon}>
+                  <Ionicons
+                    name="mail-unread-outline"
+                    size={32}
+                    color="#18453b"
+                  />
+                </View>
+                <Text style={styles.modalTitle}>Resend Verification Email</Text>
+                <Text style={styles.modalSubtitle}>
+                  Enter your email to resend the verification email
+                </Text>
+              </View>
+
+              <View style={styles.modalContent}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Email Address</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons
+                      name="mail-outline"
+                      size={20}
+                      color="#9ca3af"
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter your email address"
+                      value={verificationEmail}
+                      onChangeText={setVerificationEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      placeholderTextColor="#9ca3af"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.modalInfo}>
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={20}
+                    color="#6b7280"
+                  />
+                  <Text style={styles.infoText}>
+                    We'll check if your account exists and send a verification
+                    email if needed.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => {
+                    setResendVerificationVisible(false);
+                    setVerificationEmail("");
+                  }}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.resetButton,
+                    isResendLoading && styles.loadingButton,
+                  ]}
+                  onPress={handleResendVerification}
+                  disabled={isResendLoading}
+                >
+                  <LinearGradient
+                    colors={["#18453b", "#2a6b5a"]}
+                    style={styles.buttonGradient}
+                  >
+                    {isResendLoading ? (
+                      <View style={styles.loadingContainer}>
+                        <Text style={styles.buttonText}>Sending...</Text>
+                        <View style={styles.spinner} />
+                      </View>
+                    ) : (
+                      <Text style={styles.buttonText}>
+                        Send Verification Email
+                      </Text>
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
@@ -599,9 +961,14 @@ const styles = StyleSheet.create({
   },
   formOptions: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 24,
+  },
+  resendVerification: {
+    fontSize: 14,
+    color: "#18453b",
+    fontWeight: "500",
   },
   forgotPassword: {
     fontSize: 14,
@@ -621,16 +988,18 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   buttonGradient: {
-    paddingVertical: 18,
-    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   buttonText: {
     color: "white",
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: 0.5,
+    fontSize: 15,
+    fontWeight: "600",
+    letterSpacing: 0.3,
+    textAlign: "center",
   },
   loadingContainer: {
     flexDirection: "row",
@@ -761,13 +1130,14 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 14,
     backgroundColor: "#f3f4f6",
     borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: "#374151",
   },

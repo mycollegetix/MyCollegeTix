@@ -21,25 +21,28 @@ export const useScrollPerformance = () => {
     flatListProps: {
       scrollEventThrottle: 16,
       keyboardShouldPersistTaps: 'handled' as const,
+      keyboardDismissMode: isAndroid ? 'on-drag' as const : 'interactive' as const,
       removeClippedSubviews: isAndroid,
       showsVerticalScrollIndicator: false,
-      nestedScrollEnabled: true,
-      // Performance optimizations
-      getItemLayout: undefined, // Only use if you know exact item heights
-      maxToRenderPerBatch: isAndroid ? 5 : 10,
+      nestedScrollEnabled: isAndroid,
+      // Performance optimizations for Android
+      initialNumToRender: isAndroid ? 12 : 10,
+      maxToRenderPerBatch: isAndroid ? 8 : 10,
       updateCellsBatchingPeriod: isAndroid ? 100 : 50,
-      windowSize: isAndroid ? 5 : 10,
+      windowSize: isAndroid ? 8 : 10,
+      // Don't use getItemLayout unless you have fixed item heights
+      getItemLayout: undefined,
     },
     
     // KeyboardAvoidingView optimizations
     keyboardAvoidingViewProps: {
       behavior: Platform.select({ 
         ios: 'padding' as const, 
-        android: undefined 
+        android: undefined // Android uses adjustPan in manifest
       }),
       keyboardVerticalOffset: Platform.select({ 
-        ios: 90, 
-        android: 0 
+        ios: 0, // Reduced for better iOS behavior
+        android: 0 // Not needed with adjustPan
       }),
     },
     

@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { CollegeService } from "@/src/services/collegeService";
+import { AdminService } from "@/src/services/adminService";
 
 const { width } = Dimensions.get("window");
 
@@ -59,6 +60,7 @@ export default function AdminDashboard() {
     totalColleges: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchAdminStats();
@@ -66,9 +68,13 @@ export default function AdminDashboard() {
 
   // In your fetchAdminStats function, update the Promise.all to include colleges:
 
-  const fetchAdminStats = async () => {
+  const fetchAdminStats = async (isRefresh = false) => {
     try {
-      setIsLoading(true);
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
 
       // Fetch all stats in parallel
       const [
@@ -122,8 +128,18 @@ export default function AdminDashboard() {
       Alert.alert("Error", "Failed to load admin statistics");
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
+
+  const handleRefresh = () => {
+    AdminService.showRefreshConfirmation(() => {
+      AdminService.refreshAllData().then(() => {
+        fetchAdminStats(true);
+      });
+    });
+  };
+
 
   const StatCard = ({
     title,
@@ -176,6 +192,8 @@ export default function AdminDashboard() {
     <AdminLayout
       title="Admin Dashboard"
       subtitle={`Welcome back, ${user?.email}`}
+      onRefresh={handleRefresh}
+      isRefreshing={isRefreshing}
     >
       <ScrollView style={styles.container}>
         {/* Stats Grid */}

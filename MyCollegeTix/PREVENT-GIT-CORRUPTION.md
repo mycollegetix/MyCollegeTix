@@ -23,7 +23,7 @@ git status
 
 ### 3. **Use the safety commit script:**
 ```bash
-./safe-commit.sh "your commit message"
+./build-scripts/safe-commit.sh "your commit message"
 ```
 
 ### 4. **Before any npm install/remove:**
@@ -42,7 +42,7 @@ npm install  # or npm remove
 ## Recovery:
 If Git breaks again, run:
 ```bash
-./git-cleanup.sh
+./build-scripts/git-cleanup.sh
 ```
 
 ## The Root Cause:

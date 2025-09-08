@@ -39,7 +39,25 @@ export class EventService {
 
       if (error) throw error;
 
-      return { data: data || [], error: null };
+      let events = data || [];
+
+      // Apply priority sorting: Season Pass events at top only when filtering by specific sport
+      events = events.sort((a, b) => {
+        // Only prioritize season passes when filtering by a specific sport (not "All Sports")
+        if (sport && sport !== "All Sports") {
+          const aIsSeasonPass = a.is_season_pass;
+          const bIsSeasonPass = b.is_season_pass;
+
+          // If one is season pass and the other isn't, season pass goes first
+          if (aIsSeasonPass && !bIsSeasonPass) return -1;
+          if (!aIsSeasonPass && bIsSeasonPass) return 1;
+        }
+
+        // For all other cases, sort by date
+        return new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
+      });
+
+      return { data: events, error: null };
     } catch (error) {
       console.error("Error fetching events:", error);
       return { data: [], error };
@@ -54,6 +72,7 @@ export class EventService {
     includeAllColleges = false,
     onlyHomeGames = false,
     onlyAwayGames = false,
+    onlySeasonPass = false,
   }: {
     collegeId?: string;
     sport?: string;
@@ -61,6 +80,7 @@ export class EventService {
     includeAllColleges?: boolean;
     onlyHomeGames?: boolean;
     onlyAwayGames?: boolean;
+    onlySeasonPass?: boolean;
   } = {}): Promise<{ data: EventWithColleges[]; error: any }> {
     try {
       let query = supabase
@@ -107,6 +127,11 @@ export class EventService {
         query = query.ilike("sport", `%${sport}%`);
       }
 
+      // Filter by season pass events only if specified
+      if (onlySeasonPass) {
+        query = query.eq("is_season_pass", true);
+      }
+
       // Limit results
       if (limit) {
         query = query.limit(limit);
@@ -116,7 +141,25 @@ export class EventService {
 
       if (error) throw error;
 
-      return { data: data as EventWithColleges[], error: null };
+      let events = data as EventWithColleges[];
+
+      // Apply priority sorting: Season Pass events at top only when filtering by specific sport
+      events = events.sort((a, b) => {
+        // Only prioritize season passes when filtering by a specific sport (not "All Sports")
+        if (sport && sport !== "All Sports") {
+          const aIsSeasonPass = a.is_season_pass;
+          const bIsSeasonPass = b.is_season_pass;
+
+          // If one is season pass and the other isn't, season pass goes first
+          if (aIsSeasonPass && !bIsSeasonPass) return -1;
+          if (!aIsSeasonPass && bIsSeasonPass) return 1;
+        }
+
+        // For all other cases, sort by date
+        return new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
+      });
+
+      return { data: events, error: null };
     } catch (error) {
       console.error("Error fetching events for college:", error);
       return { data: [], error };

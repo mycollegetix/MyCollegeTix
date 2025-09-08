@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Change to project root directory
+cd "$(dirname "$0")/.."
+
 echo "🚀 Starting FAST Android build process..."
 
 # Get current versionCode and increment it

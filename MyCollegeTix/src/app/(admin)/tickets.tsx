@@ -20,13 +20,22 @@ import AdminLayout from "@/src/components/AdminLayout";
 type TicketWithDetails = Tables<"tickets"> & {
   seller: Tables<"profiles">;
   event?: Tables<"events"> | null;
+  home_college?: Tables<"colleges"> | null;
+  away_college?: Tables<"colleges"> | null;
 };
+
+type College = Tables<"colleges">;
 
 export default function TicketManagement() {
   const [tickets, setTickets] = useState<TicketWithDetails[]>([]);
   const [filteredTickets, setFilteredTickets] = useState<TicketWithDetails[]>(
     []
   );
+  const [groupedTickets, setGroupedTickets] = useState<{
+    [key: string]: TicketWithDetails[];
+  }>({});
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [openColleges, setOpenColleges] = useState<Set<string>>(new Set());
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
@@ -37,25 +46,36 @@ export default function TicketManagement() {
   }, []);
 
   useEffect(() => {
-    filterTickets();
-  }, [searchText, statusFilter, tickets]);
+    groupAndFilterTickets();
+  }, [searchText, statusFilter, tickets, colleges]);
 
   const fetchTickets = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      const { data: ticketData, error: ticketError } = await supabase
         .from("tickets")
         .select(
           `
           *,
           seller:profiles!tickets_seller_id_fkey(*),
-          event:events(*)
+          event:events(*),
+          home_college:colleges!tickets_home_college_id_fkey(*),
+          away_college:colleges!tickets_away_college_id_fkey(*)
         `
         )
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setTickets(data || []);
+      if (ticketError) throw ticketError;
+
+      const { data: collegeData, error: collegeError } = await supabase
+        .from("colleges")
+        .select("*")
+        .order("name");
+
+      if (collegeError) throw collegeError;
+
+      setTickets(ticketData || []);
+      setColleges(collegeData || []);
     } catch (error) {
       console.error("Error fetching tickets:", error);
       Alert.alert("Error", "Failed to load tickets");
@@ -64,7 +84,7 @@ export default function TicketManagement() {
     }
   };
 
-  const filterTickets = () => {
+  const groupAndFilterTickets = () => {
     let filtered = tickets;
 
     if (statusFilter !== "all") {
@@ -79,11 +99,51 @@ export default function TicketManagement() {
             .toLowerCase()
             .includes(searchText.toLowerCase()) ||
           ticket.sport?.toLowerCase().includes(searchText.toLowerCase()) ||
-          ticket.location.toLowerCase().includes(searchText.toLowerCase())
+          ticket.location.toLowerCase().includes(searchText.toLowerCase()) ||
+          ticket.home_college?.name
+            .toLowerCase()
+            .includes(searchText.toLowerCase()) ||
+          ticket.away_college?.name
+            .toLowerCase()
+            .includes(searchText.toLowerCase())
       );
     }
 
+    // Group tickets by college
+    const grouped = colleges.reduce((acc, college) => {
+      acc[college.id] = [];
+      return acc;
+    }, {} as { [key: string]: TicketWithDetails[] });
+
+    // Add a group for tickets with no college affiliation
+    grouped["none"] = [];
+
+    filtered.forEach((ticket) => {
+      if (ticket.home_college_id) {
+        if (grouped[ticket.home_college_id]) {
+          grouped[ticket.home_college_id].push(ticket);
+        }
+      } else if (ticket.away_college_id) {
+        if (grouped[ticket.away_college_id]) {
+          grouped[ticket.away_college_id].push(ticket);
+        }
+      } else {
+        grouped["none"].push(ticket);
+      }
+    });
+
+    setGroupedTickets(grouped);
     setFilteredTickets(filtered);
+  };
+
+  const toggleCollege = (collegeId: string) => {
+    const newOpenColleges = new Set(openColleges);
+    if (newOpenColleges.has(collegeId)) {
+      newOpenColleges.delete(collegeId);
+    } else {
+      newOpenColleges.add(collegeId);
+    }
+    setOpenColleges(newOpenColleges);
   };
 
   const updateTicketStatus = async (ticketId: string, newStatus: string) => {
@@ -163,6 +223,14 @@ export default function TicketManagement() {
             {new Date(ticket.event_date).toLocaleDateString()}
           </Text>
         </View>
+        {(ticket.home_college || ticket.away_college) && (
+          <View style={styles.infoRow}>
+            <Ionicons name="school" size={16} color="#6b7280" />
+            <Text style={styles.infoText}>
+              {ticket.home_college?.name} {ticket.away_college ? `vs ${ticket.away_college.name}` : ''}
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.ticketActions}>
@@ -198,7 +266,7 @@ export default function TicketManagement() {
   return (
     <AdminLayout
       title="Ticket Management"
-      subtitle={`${tickets.length} total tickets`}
+      subtitle={`${filteredTickets.length} of ${tickets.length} tickets`}
     >
       <View style={styles.container}>
         <View style={styles.filtersContainer}>
@@ -244,10 +312,60 @@ export default function TicketManagement() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
+          showsVerticalScrollIndicator={false}
         >
-          {filteredTickets.map((ticket) => (
-            <TicketCard key={ticket.id} ticket={ticket} />
-          ))}
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Loading tickets...</Text>
+            </View>
+          ) : Object.keys(groupedTickets).length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="ticket-outline" size={48} color="#9CA3AF" />
+              <Text style={styles.emptyTitle}>No tickets found</Text>
+              <Text style={styles.emptySubtitle}>
+                {searchText || statusFilter !== "all"
+                  ? "Try adjusting your filters"
+                  : "No tickets have been created yet"}
+              </Text>
+            </View>
+          ) : (
+            [...colleges, { id: "none", name: "No College Affiliation" }].map(
+              (college) => {
+                const collegeTickets = groupedTickets[college.id] || [];
+                if (collegeTickets.length === 0) return null;
+
+                const isOpen = openColleges.has(college.id);
+
+                return (
+                  <View key={college.id} style={styles.collegeSection}>
+                    <TouchableOpacity
+                      style={styles.collegeHeader}
+                      onPress={() => toggleCollege(college.id)}
+                    >
+                      <Text style={styles.collegeName}>{college.name}</Text>
+                      <View style={styles.collegeHeaderRight}>
+                        <Text style={styles.ticketCount}>
+                          {collegeTickets.length} tickets
+                        </Text>
+                        <Ionicons
+                          name={isOpen ? "chevron-down" : "chevron-forward"}
+                          size={20}
+                          color="#6B7280"
+                        />
+                      </View>
+                    </TouchableOpacity>
+                    {isOpen && (
+                      <View style={styles.ticketList}>
+                        {collegeTickets.map((ticket) => (
+                          <TicketCard key={ticket.id} ticket={ticket} />
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              }
+            )
+          )}
         </ScrollView>
       </View>
     </AdminLayout>
@@ -386,5 +504,63 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "white",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#6B7280",
+    marginTop: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#374151",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    paddingHorizontal: 40,
+  },
+  collegeSection: {
+    marginBottom: 12,
+  },
+  collegeHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#E5E7EB",
+    padding: 12,
+    borderRadius: 8,
+  },
+  collegeName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1F2937",
+  },
+  collegeHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  ticketCount: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  ticketList: {
+    paddingTop: 8,
   },
 });

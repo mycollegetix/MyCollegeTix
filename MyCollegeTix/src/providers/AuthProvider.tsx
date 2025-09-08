@@ -107,6 +107,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsFetchingProfile(true);
     console.log("👤 Loading profile for user:", userId);
 
+    // Set a timeout to prevent indefinite loading
+    const timeoutId = setTimeout(() => {
+      console.log("⚠️ Profile loading timeout, continuing without profile...");
+      setIsFetchingProfile(false);
+    }, 10000); // 10 second timeout
+
     try {
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
@@ -140,21 +146,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setProfile(fullProfile);
 
-        // Track user IP address and device info (async, don't wait)
-        ipTrackingService.trackUserIP(userId).then((result) => {
+        // Track user IP address on login/profile load with smart throttling
+        ipTrackingService.trackUserIP(userId, { trigger: 'login' }).then((result) => {
           if (result.success) {
-            console.log("🌐 IP tracking successful:", result.ip);
+            console.log("🌐 Login IP tracking successful:", result.ip, result.reason);
           } else {
-            console.log("⚠️ IP tracking failed:", result.error);
+            console.log("⏰ Login IP tracking skipped:", result.reason);
           }
         }).catch((error) => {
-          console.log("❌ IP tracking error:", error);
+          console.log("❌ Login IP tracking error:", error);
         });
       }
     } catch (error) {
       console.error("💥 Unexpected error loading profile:", error);
       // Continue operation rather than breaking auth
     } finally {
+      clearTimeout(timeoutId);
       setIsFetchingProfile(false);
     }
   };

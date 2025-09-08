@@ -4,6 +4,8 @@ import { Text, View } from "./Themed";
 import { PriceTag } from "./PriceTag";
 import Colors from "@/src/constants/Colors";
 import { useColorScheme } from "./useColorScheme";
+import StarRating from "./StarRating";
+import TrustedBadge from "./TrustedBadge";
 
 interface TicketCardProps {
   sport: string;
@@ -14,6 +16,11 @@ interface TicketCardProps {
   row: string;
   seat: string;
   onPress?: () => void;
+  // Seller trust information
+  sellerName?: string;
+  sellerTransactionCount?: number;
+  isTrustedSeller?: boolean;
+  showSellerInfo?: boolean;
 }
 
 export function TicketCard({
@@ -25,6 +32,10 @@ export function TicketCard({
   row,
   seat,
   onPress,
+  sellerName,
+  sellerTransactionCount,
+  isTrustedSeller = false,
+  showSellerInfo = false,
 }: TicketCardProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
@@ -49,6 +60,35 @@ export function TicketCard({
           </Text>
           <PriceTag price={price} size="medium" />
         </View>
+        
+        {/* Seller Info */}
+        {showSellerInfo && sellerName && (
+          <View style={[styles.sellerInfo, { borderTopColor: colors.border }]}>
+            <View style={styles.sellerDetails}>
+              <View style={styles.sellerNameRow}>
+                <Text style={[styles.sellerLabel, { color: colors.textSecondary }]}>
+                  Seller:
+                </Text>
+                <Text style={[styles.sellerName, { color: colors.text }]} numberOfLines={1}>
+                  {sellerName}
+                </Text>
+                {isTrustedSeller && (
+                  <TrustedBadge isTrusted={isTrustedSeller} size="small" />
+                )}
+              </View>
+              
+              {sellerTransactionCount !== undefined ? (
+                <Text style={[styles.transactionCount, { color: colors.textSecondary }]}>
+                  {sellerTransactionCount === 0 ? 'New seller' : `${sellerTransactionCount} transaction${sellerTransactionCount !== 1 ? 's' : ''}`}
+                </Text>
+              ) : (
+                <Text style={[styles.noRating, { color: colors.textSecondary }]}>
+                  New seller
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -104,5 +144,35 @@ const styles = StyleSheet.create({
     color: "#666",
     flex: 1,
     marginRight: 8,
+  },
+  sellerInfo: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  sellerDetails: {
+    gap: 6,
+  },
+  sellerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sellerLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  sellerName: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  transactionCount: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  noRating: {
+    fontSize: 12,
+    fontStyle: 'italic',
   },
 });

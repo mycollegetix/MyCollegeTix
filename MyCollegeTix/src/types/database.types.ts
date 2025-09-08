@@ -10,6 +10,44 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          id: string;
+          admin_id: string | null;
+          action: string;
+          table_name: string | null;
+          record_id: string | null;
+          details: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          admin_id?: string | null;
+          action: string;
+          table_name?: string | null;
+          record_id?: string | null;
+          details?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          admin_id?: string | null;
+          action?: string;
+          table_name?: string | null;
+          record_id?: string | null;
+          details?: Json | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "admin_audit_log_admin_id_fkey";
+            columns: ["admin_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       blocked_users: {
         Row: {
           id: string;
@@ -204,6 +242,7 @@ export type Database = {
           primary_color: string;
           secondary_color: string;
           is_active: boolean;
+          transfer_portal_url: string | null;
         };
         Insert: {
           id?: string;
@@ -217,6 +256,7 @@ export type Database = {
           primary_color?: string;
           secondary_color?: string;
           is_active?: boolean;
+          transfer_portal_url?: string | null;
         };
         Update: {
           id?: string;
@@ -230,6 +270,7 @@ export type Database = {
           primary_color?: string;
           secondary_color?: string;
           is_active?: boolean;
+          transfer_portal_url?: string | null;
         };
         Relationships: [];
       };
@@ -320,6 +361,7 @@ export type Database = {
           college_id: string | null;
           home_college_id: string | null;
           away_college_id: string | null;
+          is_season_pass: boolean;
         };
         Insert: {
           away_team?: string | null;
@@ -349,6 +391,7 @@ export type Database = {
           college_id?: string | null;
           home_college_id?: string | null;
           away_college_id?: string | null;
+          is_season_pass?: boolean;
         };
         Update: {
           away_team?: string | null;
@@ -378,6 +421,7 @@ export type Database = {
           college_id?: string | null;
           home_college_id?: string | null;
           away_college_id?: string | null;
+          is_season_pass?: boolean;
         };
         Relationships: [
           {
@@ -602,6 +646,8 @@ export type Database = {
           device_info: Json | null;
           location_data: Json | null;
           user_agent: string | null;
+          is_trusted: boolean;
+          trust_earned_at: string | null;
         };
         Insert: {
           avatar_url?: string | null;
@@ -619,6 +665,8 @@ export type Database = {
           device_info?: Json | null;
           location_data?: Json | null;
           user_agent?: string | null;
+          is_trusted?: boolean;
+          trust_earned_at?: string | null;
         };
         Update: {
           avatar_url?: string | null;
@@ -636,6 +684,8 @@ export type Database = {
           device_info?: Json | null;
           location_data?: Json | null;
           user_agent?: string | null;
+          is_trusted?: boolean;
+          trust_earned_at?: string | null;
         };
         Relationships: [
           {
@@ -687,6 +737,7 @@ export type Database = {
           status: string;
           title: string;
           is_season_ticket: boolean;
+          ticket_type: 'general_admission' | 'student';
           home_college_id: string | null;
           away_college_id: string | null;
         };
@@ -708,6 +759,7 @@ export type Database = {
           status?: string;
           title: string;
           is_season_ticket?: boolean;
+          ticket_type?: 'general_admission' | 'student'; // defaults to 'student'
           home_college_id?: string | null;
           away_college_id?: string | null;
         };
@@ -729,6 +781,7 @@ export type Database = {
           status?: string;
           title?: string;
           is_season_ticket?: boolean;
+          ticket_type?: 'general_admission' | 'student'; // defaults to 'student'
           home_college_id?: string | null;
           away_college_id?: string | null;
         };
@@ -943,6 +996,245 @@ export type Database = {
           created_at?: string;
         };
         Relationships: [];
+      };
+      ticket_sales: {
+        Row: {
+          id: string;
+          created_at: string;
+          updated_at: string;
+          ticket_id: string;
+          seller_id: string;
+          buyer_name: string;
+          sale_price: number;
+          payment_method: string | null;
+          additional_notes: string | null;
+          original_asking_price: number | null;
+          buyer_id: string | null;
+          seller_name: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          ticket_id: string;
+          seller_id: string;
+          buyer_name: string;
+          sale_price: number;
+          payment_method?: string | null;
+          additional_notes?: string | null;
+          original_asking_price?: number | null;
+          buyer_id?: string | null;
+          seller_name?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          ticket_id?: string;
+          seller_id?: string;
+          buyer_name?: string;
+          sale_price?: number;
+          payment_method?: string | null;
+          additional_notes?: string | null;
+          original_asking_price?: number | null;
+          buyer_id?: string | null;
+          seller_name?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ticket_sales_buyer_id_fkey";
+            columns: ["buyer_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ticket_sales_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "tickets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ticket_sales_seller_id_fkey";
+            columns: ["seller_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      user_ratings: {
+        Row: {
+          id: string;
+          created_at: string;
+          updated_at: string;
+          rater_id: string;
+          rated_user_id: string;
+          ticket_sale_id: string;
+          transaction_type: 'buying' | 'selling';
+          rating: number;
+          review_text: string | null;
+          communication_rating: number | null;
+          reliability_rating: number | null;
+          transaction_smoothness: number | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          rater_id: string;
+          rated_user_id: string;
+          ticket_sale_id: string;
+          transaction_type: 'buying' | 'selling';
+          rating: number;
+          review_text?: string | null;
+          communication_rating?: number | null;
+          reliability_rating?: number | null;
+          transaction_smoothness?: number | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          rater_id?: string;
+          rated_user_id?: string;
+          ticket_sale_id?: string;
+          transaction_type?: 'buying' | 'selling';
+          rating?: number;
+          review_text?: string | null;
+          communication_rating?: number | null;
+          reliability_rating?: number | null;
+          transaction_smoothness?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_ratings_rater_id_fkey";
+            columns: ["rater_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_ratings_rated_user_id_fkey";
+            columns: ["rated_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_ratings_ticket_sale_id_fkey";
+            columns: ["ticket_sale_id"];
+            isOneToOne: false;
+            referencedRelation: "ticket_sales";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      user_trust_status: {
+        Row: {
+          id: string;
+          user_id: string;
+          successful_purchases: number;
+          successful_sales: number;
+          total_transactions: number;
+          is_trusted: boolean;
+          trust_earned_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          successful_purchases?: number;
+          successful_sales?: number;
+          total_transactions?: number;
+          is_trusted?: boolean;
+          trust_earned_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          successful_purchases?: number;
+          successful_sales?: number;
+          total_transactions?: number;
+          is_trusted?: boolean;
+          trust_earned_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_trust_status_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      rating_prompts: {
+        Row: {
+          id: string;
+          created_at: string;
+          ticket_sale_id: string;
+          prompter_id: string;
+          ratee_id: string;
+          prompt_type: 'seller_rate_buyer' | 'buyer_rate_seller';
+          status: 'pending' | 'completed' | 'dismissed' | 'expired';
+          prompted_at: string | null;
+          completed_at: string | null;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          ticket_sale_id: string;
+          prompter_id: string;
+          ratee_id: string;
+          prompt_type: 'seller_rate_buyer' | 'buyer_rate_seller';
+          status?: 'pending' | 'completed' | 'dismissed' | 'expired';
+          prompted_at?: string | null;
+          completed_at?: string | null;
+          expires_at?: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          ticket_sale_id?: string;
+          prompter_id?: string;
+          ratee_id?: string;
+          prompt_type?: 'seller_rate_buyer' | 'buyer_rate_seller';
+          status?: 'pending' | 'completed' | 'dismissed' | 'expired';
+          prompted_at?: string | null;
+          completed_at?: string | null;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rating_prompts_ratee_id_fkey";
+            columns: ["ratee_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "rating_prompts_ticket_sale_id_fkey";
+            columns: ["ticket_sale_id"];
+            isOneToOne: false;
+            referencedRelation: "ticket_sales";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "rating_prompts_prompter_id_fkey";
+            columns: ["prompter_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
     };
     Views: {

@@ -20,7 +20,9 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useChat } from "@/src/providers/ChatProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import WatchlistButton from "@/src/components/WatchlistButton";
+import { TicketTransferButton } from "@/src/components/TicketTransferButton";
 import { formatEventDateSeparate } from "@/src/utils/dateUtils";
+import { supabase } from "@/src/lib/supabase";
 
 const { width, height } = Dimensions.get("window");
 
@@ -33,12 +35,32 @@ export default function TicketDetailsScreen() {
 
   const [ticket, setTicket] = useState<TicketWithSeller | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPurchasedByUser, setIsPurchasedByUser] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadTicket();
+      checkIfPurchased();
     }
   }, [id]);
+
+  const checkIfPurchased = async () => {
+    if (!id || !user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('ticket_sales')
+        .select('id')
+        .eq('ticket_id', id)
+        .eq('buyer_id', user.id)
+        .single();
+        
+      setIsPurchasedByUser(!!data && !error);
+    } catch (error) {
+      // No purchase found, which is fine
+      setIsPurchasedByUser(false);
+    }
+  };
 
   const loadTicket = async () => {
     if (!id) return;
@@ -304,8 +326,8 @@ export default function TicketDetailsScreen() {
             </Text>
           </View>
 
-          {/* Watchlist Section - Only show for other users' tickets */}
-          {!isOwnTicket && (
+          {/* Watchlist Section - Only show for other users' tickets that they haven't purchased */}
+          {!isOwnTicket && !isPurchasedByUser && (
             <View style={styles.watchlistSection}>
               <WatchlistButton
                 ticketId={ticket.id}
@@ -370,6 +392,41 @@ export default function TicketDetailsScreen() {
             </View>
           )}
 
+          {/* Transfer Portal Section - Only show for own available tickets */}
+          {isOwnTicket && ticket.status === 'available' && (ticket.home_college_id || ticket.away_college_id) && (
+            <View style={styles.transferSection}>
+              <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                Ticket Transfer Portal
+              </Text>
+              <View style={styles.transferCard}>
+                <View style={styles.transferInfo}>
+                  <Ionicons name="shield-checkmark" size={20} color={theme.primary} />
+                  <View style={styles.transferText}>
+                    <Text style={styles.transferTitle}>
+                      Official Transfer Portal
+                    </Text>
+                    <Text style={styles.transferDescription}>
+                      Use your college's official portal to securely transfer this ticket to a buyer
+                    </Text>
+                  </View>
+                </View>
+                <TicketTransferButton
+                  collegeId={ticket.home_college_id || ticket.away_college_id}
+                  ticketInfo={{
+                    title: ticket.title,
+                    eventDate: formatEventDateSeparate(ticket.event_date).fullDateTime,
+                    section: ticket.section,
+                    row: ticket.row_number,
+                    seat: ticket.seat_number,
+                  }}
+                  variant="secondary"
+                  size="medium"
+                  style={styles.transferButton}
+                />
+              </View>
+            </View>
+          )}
+
           {/* Price Section */}
           <View style={styles.priceSection}>
             <View style={styles.priceContainer}>
@@ -383,7 +440,7 @@ export default function TicketDetailsScreen() {
       </ScrollView>
 
       {/* Bottom Action Buttons */}
-      {!isOwnTicket && isAvailable && (
+      {!isOwnTicket && !isPurchasedByUser && isAvailable && (
         <BlurView intensity={90} style={styles.bottomBar}>
           <View style={styles.actionButtonsContainer}>
             {/* Message Seller Button */}
@@ -411,8 +468,8 @@ export default function TicketDetailsScreen() {
         </BlurView>
       )}
 
-      {/* Alternative: Only show watchlist when ticket is not available for purchase */}
-      {!isOwnTicket && !isAvailable && (
+      {/* Alternative: Only show watchlist when ticket is not available for purchase and not purchased by user */}
+      {!isOwnTicket && !isPurchasedByUser && !isAvailable && (
         <BlurView intensity={90} style={styles.bottomBar}>
           <WatchlistButton
             ticketId={ticket.id}
@@ -722,5 +779,39 @@ const styles = StyleSheet.create({
   fullWidthBottomButton: {
     borderRadius: 16,
     height: 56,
+  },
+  // Transfer Portal Styles
+  transferSection: {
+    marginBottom: 32,
+  },
+  transferCard: {
+    backgroundColor: "#f0f9ff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#bae6fd",
+  },
+  transferInfo: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 16,
+    gap: 12,
+  },
+  transferText: {
+    flex: 1,
+  },
+  transferTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0c4a6e",
+    marginBottom: 4,
+  },
+  transferDescription: {
+    fontSize: 14,
+    color: "#0369a1",
+    lineHeight: 20,
+  },
+  transferButton: {
+    alignSelf: "stretch",
   },
 });

@@ -12,6 +12,7 @@ import {
   Platform,
   Alert,
   StatusBar,
+  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -39,13 +40,14 @@ export default function ChatConversationScreen() {
     sendMessage,
     markAsRead,
     setCurrentConversation,
+    clearMessagesForNewConversation,
     conversations,
   } = useChat();
 
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
   const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
-  const [localMessages, setMessages] = useState<MessageWithSender[]>([]); // ✅ LOCAL STATE
+  const [isConversationSwitching, setIsConversationSwitching] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [isUserBlocked, setIsUserBlocked] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -69,12 +71,10 @@ export default function ChatConversationScreen() {
           console.log("✅ No unread messages, skipping mark as read");
         }
 
-        // Only load messages if we haven't loaded them yet
-        if (!hasLoadedMessages) {
-          console.log("📨 Loading messages for conversation");
-          await loadMessages(conversationId);
-          setHasLoadedMessages(true);
-        }
+        // Always load messages when switching conversations
+        console.log("📨 Loading messages for conversation");
+        await loadMessages(conversationId);
+        setHasLoadedMessages(true);
       } else {
         console.log("❌ Conversation not found in loaded conversations");
       }
@@ -88,10 +88,34 @@ export default function ChatConversationScreen() {
     ]
   );
 
-  // ✅ SYNC: Update local messages when global messages change
+  // ✅ REMOVED: Local message state - now using global messages directly for better isolation
+
+  // Enhanced keyboard handling for both platforms
   useEffect(() => {
-    setMessages(messages);
-  }, [messages]);
+    const keyboardDidShow = () => {
+      // Auto-scroll to bottom when keyboard shows - longer delay for Android
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, Platform.OS === 'android' ? 150 : 100);
+    };
+
+    const keyboardDidHide = () => {
+      // On Android, ensure proper positioning when keyboard hides
+      if (Platform.OS === 'android') {
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    };
+
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', keyboardDidShow);
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', keyboardDidHide);
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
 
   // Check if user is blocked
   useEffect(() => {
@@ -108,17 +132,28 @@ export default function ChatConversationScreen() {
     checkBlockStatus();
   }, [currentConversation]);
 
-  // Effect for loading conversation data
+  // Effect for loading conversation data - triggered whenever id changes or conversations update
   useEffect(() => {
-    if (id && conversations.length > 0) {
-      loadConversationData(id);
+    if (id) {
+      console.log("🔄 Conversation ID changed to:", id);
+      // ✅ ENHANCED: Reset state with conversation isolation
+      setHasLoadedMessages(false);
+      setIsConversationSwitching(true);
+      
+      // Clear messages in provider for proper isolation
+      clearMessagesForNewConversation();
+      
+      if (conversations.length > 0) {
+        loadConversationData(id);
+      }
     }
 
-    // Cleanup function
+    // ✅ ENHANCED: Cleanup with proper state isolation
     return () => {
       console.log("🧹 Cleaning up conversation screen");
       setCurrentConversation(null);
       setHasLoadedMessages(false);
+      setIsConversationSwitching(false);
     };
   }, [id, conversations.length]);
 
@@ -130,14 +165,21 @@ export default function ChatConversationScreen() {
     }
   }, [currentConversation, messages.length]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // ✅ ENHANCED: Auto-scroll with conversation switching awareness
   useEffect(() => {
-    if (localMessages.length > 0 && hasLoadedMessages) {
+    if (messages.length > 0 && hasLoadedMessages && !isConversationSwitching) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [localMessages.length, hasLoadedMessages]);
+  }, [messages.length, hasLoadedMessages, isConversationSwitching]);
+  
+  // ✅ NEW: Reset switching flag after messages load
+  useEffect(() => {
+    if (hasLoadedMessages && isConversationSwitching) {
+      setIsConversationSwitching(false);
+    }
+  }, [hasLoadedMessages, isConversationSwitching]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !id || sending) return;
@@ -166,8 +208,7 @@ export default function ChatConversationScreen() {
       },
     };
 
-    // Add optimistic message to the messages array
-    setMessages((prevMessages) => [...prevMessages, optimisticMessage as any]);
+    // ✅ REMOVED: Optimistic updates now handled by provider
 
     setMessageText("");
     setSending(true);
@@ -180,31 +221,17 @@ export default function ChatConversationScreen() {
     try {
       const success = await sendMessage(id, content);
       if (!success) {
-        // Remove optimistic message on failure
-        setMessages((prevMessages) =>
-          prevMessages.filter((msg) => msg.id !== tempId)
-        );
+        // ✅ REMOVED: Local message management no longer needed
         Alert.alert("Error", "Failed to send message. Please try again.");
         setMessageText(content);
       } else {
         // ✅ ENHANCED: Replace optimistic message with real message ID when available
         console.log("✅ Message sent successfully");
         
-        // The real-time subscription will add the actual message with the real ID
-        // We'll remove the optimistic message after a short delay to let the real one arrive
-        setTimeout(() => {
-          setMessages((prevMessages) => {
-            // Remove the temporary message - the real one should have arrived by now
-            const filtered = prevMessages.filter((msg) => msg.id !== tempId);
-            return filtered;
-          });
-        }, 1000);
+        // ✅ SUCCESS: Real-time subscription will handle the actual message
       }
     } catch (error) {
-      // Remove optimistic message on error
-      setMessages((prevMessages) =>
-        prevMessages.filter((msg) => msg.id !== tempId)
-      );
+      // ✅ ERROR: Optimistic update removed
       console.error("Error sending message:", error);
       Alert.alert("Error", "Failed to send message. Please try again.");
       setMessageText(content);
@@ -273,7 +300,7 @@ export default function ChatConversationScreen() {
     const showTime =
       index === 0 ||
       new Date(item.created_at).getTime() -
-        new Date(localMessages[index - 1].created_at).getTime() >
+        new Date(messages[index - 1].created_at).getTime() >
         300000; // 5 minutes
 
     // Special rendering for system messages
@@ -500,9 +527,9 @@ export default function ChatConversationScreen() {
       )}
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.chatContainer}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         {/* Messages */}
         <View style={styles.messagesContainer}>
@@ -510,23 +537,30 @@ export default function ChatConversationScreen() {
             <View style={styles.loadingMessages}>
               <Text style={styles.loadingText}>Loading messages...</Text>
             </View>
-          ) : localMessages.length > 0 ? (
+          ) : messages.length > 0 ? (
             <FlatList
               ref={flatListRef}
-              data={localMessages}
+              data={messages}
               renderItem={renderMessage}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
               scrollEventThrottle={16}
               keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === "android" ? "on-drag" : "interactive"}
               removeClippedSubviews={Platform.OS === 'android'}
+              nestedScrollEnabled={Platform.OS === 'android'}
+              initialNumToRender={Platform.OS === 'android' ? 15 : 10}
+              maxToRenderPerBatch={Platform.OS === 'android' ? 8 : 10}
+              updateCellsBatchingPeriod={Platform.OS === 'android' ? 100 : 50}
+              windowSize={Platform.OS === 'android' ? 8 : 10}
+              getItemLayout={Platform.OS === 'android' ? undefined : undefined}
               maintainVisibleContentPosition={{
                 minIndexForVisible: 0,
                 autoscrollToTopThreshold: 10,
               }}
               contentContainerStyle={styles.messagesList}
               ListHeaderComponent={
-                currentConversation?.ticket && localMessages.length === 0 ? (
+                currentConversation?.ticket && messages.length === 0 ? (
                   <View style={styles.sellingProcessContainer}>
                     <View style={styles.sellingProcessBubble}>
                       <View style={styles.sellingProcessHeader}>
@@ -616,6 +650,12 @@ export default function ChatConversationScreen() {
                 multiline
                 maxLength={1000}
                 placeholderTextColor="#9ca3af"
+                onFocus={() => {
+                  // Platform-specific scroll timing when focusing input
+                  setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: true });
+                  }, Platform.OS === 'android' ? 400 : 300);
+                }}
               />
 
               <TouchableOpacity
@@ -716,11 +756,11 @@ const styles = StyleSheet.create({
   participantName: {
     fontSize: 16,
     fontWeight: "700",
-    color: "black",
+    color: "white",
   },
   participantUsername: {
     fontSize: 12,
-    color: "black",
+    color: "rgba(255, 255, 255, 0.8)",
   },
   ticketReference: {
     paddingVertical: 12,
@@ -928,6 +968,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingBottom: Platform.OS === "ios" ? 34 : 16,
+    backgroundColor: Platform.OS === "android" ? "#f8fafc" : "transparent",
   },
   inputBlur: {
     borderRadius: 20,

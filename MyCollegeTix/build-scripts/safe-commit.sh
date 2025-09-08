@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Change to project root directory
+cd "$(dirname "$0")/.."
+
 if [ -z "$1" ]; then
     echo "❌ Please provide a commit message"
     echo "Usage: ./safe-commit.sh \"your commit message\""

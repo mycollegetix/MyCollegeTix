@@ -60,11 +60,11 @@ export const GestureConfig = {
    * Get platform-specific scroll configuration
    */
   getScrollConfig: () => {
-    return Platform.select({
-      android: GestureConfig.androidScrollFixes,
-      ios: GestureConfig.iOSScrollConfig,
-      default: GestureConfig.androidScrollFixes,
-    });
+    if (Platform.OS === 'android') {
+      return GestureConfig.androidScrollFixes;
+    } else {
+      return GestureConfig.iOSScrollConfig;
+    }
   },
 
   /**
@@ -74,6 +74,11 @@ export const GestureConfig = {
     return Platform.select({
       android: GestureConfig.androidFlatListConfig,
       ios: {
+        initialNumToRender: 10,
+        maxToRenderPerBatch: 10,
+        updateCellsBatchingPeriod: 50,
+        windowSize: 10,
+        removeClippedSubviews: false,
         keyboardShouldPersistTaps: "handled" as const,
         scrollEventThrottle: 16,
       },

@@ -6,12 +6,19 @@ import {
   TablesInsert,
   Tables,
 } from "../types/database.types";
+import { ipTrackingService } from "./ipTrackingService";
 
 type Ticket = Tables<"tickets">;
 type TicketInsert = TablesInsert<"tickets">;
 
 export class TicketService {
-  // Example of the complete fixed method:
+  /**
+   * Get tickets for a college with sport-specific season pass prioritization
+   * 
+   * Season pass behavior (matches EventService logic):
+   * - When filtering by specific sport (not "All Sports"): Tickets for season pass events appear at top
+   * - When showing "All Sports": Regular date-based sorting applies
+   */
   static async getTicketsForCollege({
     collegeId,
     sport,
@@ -45,6 +52,12 @@ export class TicketService {
           email,
           college_id
         ),
+        event:events!tickets_event_id_fkey (
+          id,
+          title,
+          game_time,
+          is_season_pass
+        ),
         home_college:colleges!tickets_home_college_id_fkey (
           id,
           name,
@@ -76,9 +89,21 @@ export class TicketService {
         query = query.ilike("sport", `%${sport}%`);
       }
 
-      // Filter by season tickets only
+      // Filter by season pass events only
       if (onlySeasonTickets) {
-        query = query.eq("is_season_ticket", true);
+        // First get all season pass event IDs
+        const { data: seasonEvents } = await supabase
+          .from("events")
+          .select("id")
+          .eq("is_season_pass", true);
+        
+        if (seasonEvents && seasonEvents.length > 0) {
+          const seasonEventIds = seasonEvents.map(e => e.id);
+          query = query.in("event_id", seasonEventIds);
+        } else {
+          // No season events exist, return empty result
+          return { data: [], error: null };
+        }
       }
 
       // FIXED: Search filter - single line, no newlines
@@ -93,7 +118,7 @@ export class TicketService {
         query = query.not("seller_id", "eq", excludeUserId);
       }
 
-      // Sorting
+      // Apply initial database sorting (will be overridden by client-side season ticket prioritization if needed)
       switch (sortBy) {
         case "price_asc":
           query = query.order("price", { ascending: true });
@@ -117,7 +142,35 @@ export class TicketService {
 
       if (error) throw error;
 
-      return { data: data as unknown as TicketWithSeller[], error: null };
+      let tickets = data as unknown as TicketWithSeller[];
+
+      // Apply season pass prioritization - only when filtering by specific sport (not "All Sports")
+      if (sport && sport !== "All Sports") {
+        tickets = tickets.sort((a, b) => {
+          // Check if event is marked as season pass
+          const aIsSeasonPass = a.event?.is_season_pass;
+          const bIsSeasonPass = b.event?.is_season_pass;
+
+          // If one is season pass and the other isn't, season pass goes first
+          if (aIsSeasonPass && !bIsSeasonPass) return -1;
+          if (!aIsSeasonPass && bIsSeasonPass) return 1;
+
+          // For all other cases, maintain the database sort order by applying the same sort logic
+          switch (sortBy) {
+            case "price_asc":
+              return a.price - b.price;
+            case "price_desc":
+              return b.price - a.price;
+            case "event_date":
+              return new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
+            case "created_at":
+            default:
+              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          }
+        });
+      }
+
+      return { data: tickets, error: null };
     } catch (error) {
       console.error("Error fetching tickets:", error);
       return { data: [], error };
@@ -152,6 +205,7 @@ export class TicketService {
             id,
             title,
             event_date,
+            game_time,
             location,
             venue,
             sport,
@@ -160,7 +214,8 @@ export class TicketService {
             away_college_id,
             is_home_game,
             home_team,
-            away_team
+            away_team,
+            is_season_pass
           ),
           home_college:colleges!tickets_home_college_id_fkey (
             id,
@@ -218,6 +273,7 @@ export class TicketService {
             id,
             title,
             event_date,
+            game_time,
             location,
             venue,
             sport,
@@ -226,7 +282,8 @@ export class TicketService {
             away_college_id,
             is_home_game,
             home_team,
-            away_team
+            away_team,
+            is_season_pass
           ),
           home_college:colleges!tickets_home_college_id_fkey (
             id,
@@ -264,7 +321,7 @@ export class TicketService {
     seat_number: string;
     price: number;
     description?: string;
-    is_season_ticket?: boolean;
+    ticket_type?: 'general_admission' | 'student';
   }): Promise<{ data: Ticket | null; error: any }> {
     try {
       const {
@@ -303,12 +360,23 @@ export class TicketService {
           row_number: ticketData.row_number,
           seat_number: ticketData.seat_number,
           seller_id: user.id,
-          is_season_ticket: ticketData.is_season_ticket || false,
+          ticket_type: ticketData.ticket_type || 'student',
         })
         .select()
         .single();
 
       if (error) throw error;
+
+      // Track IP address for ticket creation (important action)
+      ipTrackingService.trackOnAction(user.id, 'ticket_created').then((result) => {
+        if (result.success) {
+          console.log('🌐 Ticket creation IP tracking successful:', result.ip);
+        } else {
+          console.log('⏰ Ticket creation IP tracking skipped:', result.reason);
+        }
+      }).catch((error) => {
+        console.log('❌ Ticket creation IP tracking error:', error);
+      });
 
       return { data, error: null };
     } catch (error) {
@@ -392,6 +460,17 @@ export class TicketService {
       if (purchaseError) {
         throw purchaseError;
       }
+
+      // Track IP address for ticket purchase (important action)
+      ipTrackingService.trackOnAction(user.id, 'ticket_purchased').then((result) => {
+        if (result.success) {
+          console.log('🌐 Ticket purchase IP tracking successful:', result.ip);
+        } else {
+          console.log('⏰ Ticket purchase IP tracking skipped:', result.reason);
+        }
+      }).catch((error) => {
+        console.log('❌ Ticket purchase IP tracking error:', error);
+      });
 
       return { data: { id: ticketId }, error: null };
     } catch (error: any) {
