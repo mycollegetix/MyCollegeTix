@@ -79,13 +79,7 @@ export default function ChatConversationScreen() {
         console.log("❌ Conversation not found in loaded conversations");
       }
     },
-    [
-      conversations,
-      loadMessages,
-      markAsRead,
-      setCurrentConversation,
-      hasLoadedMessages,
-    ]
+    [conversations, loadMessages, markAsRead, setCurrentConversation]
   );
 
   // ✅ REMOVED: Local message state - now using global messages directly for better isolation
@@ -94,22 +88,31 @@ export default function ChatConversationScreen() {
   useEffect(() => {
     const keyboardDidShow = () => {
       // Auto-scroll to bottom when keyboard shows - longer delay for Android
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, Platform.OS === 'android' ? 150 : 100);
+      setTimeout(
+        () => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        },
+        Platform.OS === "android" ? 150 : 100
+      );
     };
 
     const keyboardDidHide = () => {
       // On Android, ensure proper positioning when keyboard hides
-      if (Platform.OS === 'android') {
+      if (Platform.OS === "android") {
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
         }, 100);
       }
     };
 
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', keyboardDidShow);
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', keyboardDidHide);
+    const keyboardDidShowListener = Keyboard.addListener(
+      "keyboardDidShow",
+      keyboardDidShow
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      "keyboardDidHide",
+      keyboardDidHide
+    );
 
     return () => {
       keyboardDidShowListener?.remove();
@@ -123,7 +126,9 @@ export default function ChatConversationScreen() {
       if (currentConversation) {
         const otherParticipant = getOtherParticipant();
         if (otherParticipant) {
-          const blocked = await reportingService.isUserBlocked(otherParticipant.id);
+          const blocked = await reportingService.isUserBlocked(
+            otherParticipant.id
+          );
           setIsUserBlocked(blocked);
         }
       }
@@ -139,13 +144,11 @@ export default function ChatConversationScreen() {
       // ✅ ENHANCED: Reset state with conversation isolation
       setHasLoadedMessages(false);
       setIsConversationSwitching(true);
-      
+
       // Clear messages in provider for proper isolation
       clearMessagesForNewConversation();
-      
-      if (conversations.length > 0) {
-        loadConversationData(id);
-      }
+
+      loadConversationData(id);
     }
 
     // ✅ ENHANCED: Cleanup with proper state isolation
@@ -173,7 +176,7 @@ export default function ChatConversationScreen() {
       }, 100);
     }
   }, [messages.length, hasLoadedMessages, isConversationSwitching]);
-  
+
   // ✅ NEW: Reset switching flag after messages load
   useEffect(() => {
     if (hasLoadedMessages && isConversationSwitching) {
@@ -227,7 +230,7 @@ export default function ChatConversationScreen() {
       } else {
         // ✅ ENHANCED: Replace optimistic message with real message ID when available
         console.log("✅ Message sent successfully");
-        
+
         // ✅ SUCCESS: Real-time subscription will handle the actual message
       }
     } catch (error) {
@@ -319,13 +322,13 @@ export default function ChatConversationScreen() {
                 size={16}
                 color={theme.primary}
               />
-              <Text style={[styles.systemMessageTitle, { color: theme.primary }]}>
+              <Text
+                style={[styles.systemMessageTitle, { color: theme.primary }]}
+              >
                 MyCollegeTix Info
               </Text>
             </View>
-            <Text style={styles.systemMessageText}>
-              {item.content}
-            </Text>
+            <Text style={styles.systemMessageText}>{item.content}</Text>
           </View>
         </View>
       );
@@ -445,12 +448,17 @@ export default function ChatConversationScreen() {
                 text: isUserBlocked ? "Unblock User" : "Block User",
                 onPress: async () => {
                   if (isUserBlocked) {
-                    const result = await reportingService.unblockUser(otherParticipant.id);
+                    const result = await reportingService.unblockUser(
+                      otherParticipant.id
+                    );
                     if (result.success) {
                       setIsUserBlocked(false);
                       Alert.alert("Success", "User has been unblocked");
                     } else {
-                      Alert.alert("Error", result.error || "Failed to unblock user");
+                      Alert.alert(
+                        "Error",
+                        result.error || "Failed to unblock user"
+                      );
                     }
                   } else {
                     Alert.alert(
@@ -462,15 +470,21 @@ export default function ChatConversationScreen() {
                           text: "Block",
                           style: "destructive",
                           onPress: async () => {
-                            const result = await reportingService.blockUser(otherParticipant.id, "Blocked from chat");
+                            const result = await reportingService.blockUser(
+                              otherParticipant.id,
+                              "Blocked from chat"
+                            );
                             if (result.success) {
                               setIsUserBlocked(true);
                               Alert.alert("Success", "User has been blocked");
                             } else {
-                              Alert.alert("Error", result.error || "Failed to block user");
+                              Alert.alert(
+                                "Error",
+                                result.error || "Failed to block user"
+                              );
                             }
-                          }
-                        }
+                          },
+                        },
                       ]
                     );
                   }
@@ -533,11 +547,11 @@ export default function ChatConversationScreen() {
       >
         {/* Messages */}
         <View style={styles.messagesContainer}>
-          {messagesLoading && !hasLoadedMessages ? (
+          {messagesLoading && messages.length === 0 ? (
             <View style={styles.loadingMessages}>
               <Text style={styles.loadingText}>Loading messages...</Text>
             </View>
-          ) : messages.length > 0 ? (
+          ) : (
             <FlatList
               ref={flatListRef}
               data={messages}
@@ -546,98 +560,86 @@ export default function ChatConversationScreen() {
               showsVerticalScrollIndicator={false}
               scrollEventThrottle={16}
               keyboardShouldPersistTaps="handled"
-              keyboardDismissMode={Platform.OS === "android" ? "on-drag" : "interactive"}
-              removeClippedSubviews={Platform.OS === 'android'}
-              nestedScrollEnabled={Platform.OS === 'android'}
-              initialNumToRender={Platform.OS === 'android' ? 15 : 10}
-              maxToRenderPerBatch={Platform.OS === 'android' ? 8 : 10}
-              updateCellsBatchingPeriod={Platform.OS === 'android' ? 100 : 50}
-              windowSize={Platform.OS === 'android' ? 8 : 10}
-              getItemLayout={Platform.OS === 'android' ? undefined : undefined}
-              maintainVisibleContentPosition={{
-                minIndexForVisible: 0,
-                autoscrollToTopThreshold: 10,
-              }}
+              keyboardDismissMode={
+                Platform.OS === "android" ? "on-drag" : "interactive"
+              }
+              removeClippedSubviews={Platform.OS === "android"}
+              nestedScrollEnabled={Platform.OS === "android"}
+              initialNumToRender={Platform.OS === "android" ? 15 : 10}
+              maxToRenderPerBatch={Platform.OS === "android" ? 8 : 10}
+              updateCellsBatchingPeriod={Platform.OS === "android" ? 100 : 50}
+              windowSize={Platform.OS === "android" ? 8 : 10}
               contentContainerStyle={styles.messagesList}
-              ListHeaderComponent={
-                currentConversation?.ticket && messages.length === 0 ? (
-                  <View style={styles.sellingProcessContainer}>
-                    <View style={styles.sellingProcessBubble}>
-                      <View style={styles.sellingProcessHeader}>
-                        <Ionicons
-                          name="information-circle"
-                          size={16}
-                          color={theme.primary}
-                        />
-                        <Text style={[styles.sellingProcessTitle, { color: theme.primary }]}>
-                          How MyCollegeTix Works
-                        </Text>
+              ListEmptyComponent={
+                !messagesLoading ? (
+                  <View style={styles.emptyMessages}>
+                    {currentConversation?.ticket && (
+                      <View style={styles.sellingProcessContainer}>
+                        <View style={styles.sellingProcessBubble}>
+                          <View style={styles.sellingProcessHeader}>
+                            <Ionicons
+                              name="information-circle"
+                              size={16}
+                              color={theme.primary}
+                            />
+                            <Text
+                              style={[
+                                styles.sellingProcessTitle,
+                                { color: theme.primary },
+                              ]}
+                            >
+                              How MyCollegeTix Works
+                            </Text>
+                          </View>
+                          <Text style={styles.sellingProcessText}>
+                            Welcome to MyCollegeTix! 🎫{"\n\n"}
+                            Here's how ticket selling works:{"\n"}• Chat about
+                            ticket details and price{"\n"}• Negotiate terms
+                            privately{"\n"}• When you agree on a sale, the
+                            seller marks it as sold in their Orders tab{"\n"}•
+                            Tickets stay available until the seller manually
+                            marks them as sold{"\n\n"}
+                            Happy ticket trading! 🏈
+                          </Text>
+                        </View>
                       </View>
-                      <Text style={styles.sellingProcessText}>
-                        Welcome to MyCollegeTix! 🎫{"\n\n"}
-                        Here's how ticket selling works:{"\n"}
-                        • Chat about ticket details and price{"\n"}
-                        • Negotiate terms privately{"\n"}
-                        • When you agree on a sale, the seller marks it as sold in their Orders tab{"\n"}
-                        • Tickets stay available until the seller manually marks them as sold{"\n\n"}
-                        Happy ticket trading! 🏈
-                      </Text>
+                    )}
+
+                    <View style={styles.emptyMessagesIcon}>
+                      <Ionicons
+                        name="chatbubbles-outline"
+                        size={32}
+                        color="#9ca3af"
+                      />
                     </View>
+                    <Text style={styles.emptyMessagesTitle}>
+                      Start the conversation
+                    </Text>
+                    <Text style={styles.emptyMessagesText}>
+                      Send a message to {otherParticipant?.full_name}
+                    </Text>
                   </View>
                 ) : null
               }
               onContentSizeChange={() => {
-                if (hasLoadedMessages) {
-                  flatListRef.current?.scrollToEnd({ animated: false });
+                // Always scroll to end when content changes and we have messages
+                if (messages.length > 0) {
+                  setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: false });
+                  }, 100);
+                }
+              }}
+              onLayout={() => {
+                // Scroll to end when FlatList is first laid out with messages
+                if (messages.length > 0) {
+                  setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: false });
+                  }, 100);
                 }
               }}
             />
-          ) : hasLoadedMessages ? (
-            <View style={styles.emptyMessages}>
-              {/* Show selling process info for new ticket conversations */}
-              {currentConversation?.ticket && (
-                <View style={styles.sellingProcessContainer}>
-                  <View style={styles.sellingProcessBubble}>
-                    <View style={styles.sellingProcessHeader}>
-                      <Ionicons
-                        name="information-circle"
-                        size={16}
-                        color={theme.primary}
-                      />
-                      <Text style={[styles.sellingProcessTitle, { color: theme.primary }]}>
-                        How MyCollegeTix Works
-                      </Text>
-                    </View>
-                    <Text style={styles.sellingProcessText}>
-                      Welcome to MyCollegeTix! 🎫{"\n\n"}
-                      Here's how ticket selling works:{"\n"}
-                      • Chat about ticket details and price{"\n"}
-                      • Negotiate terms privately{"\n"}
-                      • When you agree on a sale, the seller marks it as sold in their Orders tab{"\n"}
-                      • Tickets stay available until the seller manually marks them as sold{"\n\n"}
-                      Happy ticket trading! 🏈
-                    </Text>
-                  </View>
-                </View>
-              )}
-              
-              <View style={styles.emptyMessagesIcon}>
-                <Ionicons
-                  name="chatbubbles-outline"
-                  size={32}
-                  color="#9ca3af"
-                />
-              </View>
-              <Text style={styles.emptyMessagesTitle}>
-                Start the conversation
-              </Text>
-              <Text style={styles.emptyMessagesText}>
-                Send a message to {otherParticipant.full_name}
-              </Text>
-            </View>
-          ) : null}
+          )}
         </View>
-
         {/* Message Input */}
         <View style={styles.inputContainer}>
           <BlurView intensity={90} style={styles.inputBlur}>
@@ -652,9 +654,12 @@ export default function ChatConversationScreen() {
                 placeholderTextColor="#9ca3af"
                 onFocus={() => {
                   // Platform-specific scroll timing when focusing input
-                  setTimeout(() => {
-                    flatListRef.current?.scrollToEnd({ animated: true });
-                  }, Platform.OS === 'android' ? 400 : 300);
+                  setTimeout(
+                    () => {
+                      flatListRef.current?.scrollToEnd({ animated: true });
+                    },
+                    Platform.OS === "android" ? 400 : 300
+                  );
                 }}
               />
 
@@ -693,11 +698,14 @@ export default function ChatConversationScreen() {
           onClose={() => setShowReportModal(false)}
           reportedUserId={otherParticipant.id}
           reportedUserName={otherParticipant.full_name}
-          contentId={id || ''}
+          contentId={id || ""}
           contentType="message"
           onReportSubmitted={() => {
             // Optionally refresh block status or show success message
-            Alert.alert("Thank you", "Your report has been submitted and will be reviewed within 24 hours.");
+            Alert.alert(
+              "Thank you",
+              "Your report has been submitted and will be reviewed within 24 hours."
+            );
           }}
         />
       )}
