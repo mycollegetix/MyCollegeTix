@@ -1,4 +1,4 @@
-// src/app/(tabs)/chat/[id].tsx - FIXED with proper theme usage
+// src/app/(tabs)/chat/[id].tsx - FIXED with proper conversation isolation
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   StyleSheet,
@@ -34,7 +34,7 @@ export default function ChatConversationScreen() {
   const theme = useTheme();
   const {
     currentConversation,
-    messages,
+    messages, // ✅ NOW: Using isolated messages from provider
     messagesLoading,
     loadMessages,
     sendMessage,
@@ -46,37 +46,58 @@ export default function ChatConversationScreen() {
 
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
-  const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
-  const [isConversationSwitching, setIsConversationSwitching] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [isUserBlocked, setIsUserBlocked] = useState(false);
+
+  // ✅ REMOVED: hasLoadedMessages and isConversationSwitching - provider handles this
   const flatListRef = useRef<FlatList>(null);
 
-  // ✅ OPTIMIZED: Smarter conversation loading
+  // ✅ NEW: Track current conversation ID to detect switches
+  const [currentConversationId, setCurrentConversationId] = useState<
+    string | null
+  >(null);
+
+  // ✅ ENHANCED: Smarter conversation loading with proper isolation
   const loadConversationData = useCallback(
     async (conversationId: string) => {
-      console.log("🔄 Loading conversation data for:", conversationId);
+      console.log(
+        "🔄 [id].tsx: Loading conversation data for:",
+        conversationId
+      );
+
+      // ✅ ISOLATION: Clear messages when switching conversations
+      if (currentConversationId && currentConversationId !== conversationId) {
+        console.log(
+          "🔄 [id].tsx: Conversation switch detected, clearing messages"
+        );
+        clearMessagesForNewConversation();
+      }
+
+      setCurrentConversationId(conversationId);
 
       // Find conversation from loaded conversations
       const conversation = conversations.find((c) => c.id === conversationId);
       if (conversation) {
-        console.log("✅ Found conversation, setting as current");
+        console.log("✅ [id].tsx: Found conversation, setting as current");
         setCurrentConversation(conversation);
 
         // ✅ SMART MARK AS READ: Only mark as read if there are unread messages
         if (conversation.unread_count > 0) {
-          console.log("📖 Marking messages as read (has unread messages)");
+          console.log(
+            "📖 [id].tsx: Marking messages as read (has unread messages)"
+          );
           await markAsRead(conversationId);
         } else {
-          console.log("✅ No unread messages, skipping mark as read");
+          console.log("✅ [id].tsx: No unread messages, skipping mark as read");
         }
 
-        // Always load messages when switching conversations
-        console.log("📨 Loading messages for conversation");
+        // ✅ ISOLATION: Always load messages for the specific conversation
+        console.log("📨 [id].tsx: Loading messages for conversation");
         await loadMessages(conversationId);
-        setHasLoadedMessages(true);
       } else {
-        console.log("❌ Conversation not found in loaded conversations");
+        console.log(
+          "❌ [id].tsx: Conversation not found in loaded conversations"
+        );
       }
     },
     [
@@ -84,32 +105,40 @@ export default function ChatConversationScreen() {
       loadMessages,
       markAsRead,
       setCurrentConversation,
-      hasLoadedMessages,
+      clearMessagesForNewConversation,
+      currentConversationId,
     ]
   );
-
-  // ✅ REMOVED: Local message state - now using global messages directly for better isolation
 
   // Enhanced keyboard handling for both platforms
   useEffect(() => {
     const keyboardDidShow = () => {
       // Auto-scroll to bottom when keyboard shows - longer delay for Android
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, Platform.OS === 'android' ? 150 : 100);
+      setTimeout(
+        () => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        },
+        Platform.OS === "android" ? 150 : 100
+      );
     };
 
     const keyboardDidHide = () => {
       // On Android, ensure proper positioning when keyboard hides
-      if (Platform.OS === 'android') {
+      if (Platform.OS === "android") {
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
         }, 100);
       }
     };
 
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', keyboardDidShow);
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', keyboardDidHide);
+    const keyboardDidShowListener = Keyboard.addListener(
+      "keyboardDidShow",
+      keyboardDidShow
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      "keyboardDidHide",
+      keyboardDidHide
+    );
 
     return () => {
       keyboardDidShowListener?.remove();
@@ -123,7 +152,9 @@ export default function ChatConversationScreen() {
       if (currentConversation) {
         const otherParticipant = getOtherParticipant();
         if (otherParticipant) {
-          const blocked = await reportingService.isUserBlocked(otherParticipant.id);
+          const blocked = await reportingService.isUserBlocked(
+            otherParticipant.id
+          );
           setIsUserBlocked(blocked);
         }
       }
@@ -132,88 +163,40 @@ export default function ChatConversationScreen() {
     checkBlockStatus();
   }, [currentConversation]);
 
-  // Effect for loading conversation data - triggered whenever id changes or conversations update
+  // ✅ ENHANCED: Effect for loading conversation data with proper isolation
   useEffect(() => {
     if (id) {
-      console.log("🔄 Conversation ID changed to:", id);
-      // ✅ ENHANCED: Reset state with conversation isolation
-      setHasLoadedMessages(false);
-      setIsConversationSwitching(true);
-      
-      // Clear messages in provider for proper isolation
-      clearMessagesForNewConversation();
-      
-      if (conversations.length > 0) {
-        loadConversationData(id);
-      }
+      console.log("🔄 [id].tsx: Conversation ID changed to:", id);
+      loadConversationData(id);
     }
 
     // ✅ ENHANCED: Cleanup with proper state isolation
     return () => {
-      console.log("🧹 Cleaning up conversation screen");
-      setCurrentConversation(null);
-      setHasLoadedMessages(false);
-      setIsConversationSwitching(false);
+      console.log("🧹 [id].tsx: Cleaning up conversation screen for:", id);
+      // Don't clear current conversation here - let the provider handle isolation
     };
   }, [id, conversations.length]);
 
-  // ✅ AUTO MARK AS READ: When viewing a conversation with new messages
-  useEffect(() => {
-    if (currentConversation && currentConversation.unread_count > 0) {
-      console.log("📖 Auto-marking messages as read (viewing conversation)");
-      markAsRead(currentConversation.id);
-    }
-  }, [currentConversation, messages.length]);
+  // ✅ REMOVED: Auto mark as read effect - provider handles this better
 
-  // ✅ ENHANCED: Auto-scroll with conversation switching awareness
+  // ✅ ENHANCED: Auto-scroll with better message tracking
   useEffect(() => {
-    if (messages.length > 0 && hasLoadedMessages && !isConversationSwitching) {
+    if (messages.length > 0 && currentConversation?.id === id) {
+      // Only auto-scroll if we're viewing the current conversation
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages.length, hasLoadedMessages, isConversationSwitching]);
-  
-  // ✅ NEW: Reset switching flag after messages load
-  useEffect(() => {
-    if (hasLoadedMessages && isConversationSwitching) {
-      setIsConversationSwitching(false);
-    }
-  }, [hasLoadedMessages, isConversationSwitching]);
+  }, [messages.length, currentConversation?.id, id]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !id || sending) return;
 
     const content = messageText.trim();
-    const tempId = `temp-${Date.now()}`; // Temporary ID for optimistic update
-
-    // ✅ OPTIMISTIC UPDATE: Add message immediately to UI
-    const optimisticMessage = {
-      id: tempId,
-      content: content,
-      sender_id: user?.id || "",
-      conversation_id: id,
-      created_at: new Date().toISOString(),
-      message_type: "text" as const,
-      read_by_recipient: false,
-      read_at: null,
-      edited_at: null,
-      sender: {
-        id: user?.id || "",
-        full_name: user?.user_metadata?.full_name || "You",
-        username: user?.email?.split("@")[0] || "you",
-        email: user?.email || "",
-        avatar_url: null,
-        created_at: new Date().toISOString(),
-      },
-    };
-
-    // ✅ REMOVED: Optimistic updates now handled by provider
-
     setMessageText("");
     setSending(true);
 
-    // Auto-scroll immediately
+    // Auto-scroll immediately for better UX
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 50);
@@ -221,20 +204,16 @@ export default function ChatConversationScreen() {
     try {
       const success = await sendMessage(id, content);
       if (!success) {
-        // ✅ REMOVED: Local message management no longer needed
         Alert.alert("Error", "Failed to send message. Please try again.");
-        setMessageText(content);
+        setMessageText(content); // Restore message text on failure
       } else {
-        // ✅ ENHANCED: Replace optimistic message with real message ID when available
-        console.log("✅ Message sent successfully");
-        
-        // ✅ SUCCESS: Real-time subscription will handle the actual message
+        console.log("✅ [id].tsx: Message sent successfully");
+        // Provider's real-time subscription will handle adding the message
       }
     } catch (error) {
-      // ✅ ERROR: Optimistic update removed
-      console.error("Error sending message:", error);
+      console.error("❌ [id].tsx: Error sending message:", error);
       Alert.alert("Error", "Failed to send message. Please try again.");
-      setMessageText(content);
+      setMessageText(content); // Restore message text on error
     } finally {
       setSending(false);
     }
@@ -242,8 +221,10 @@ export default function ChatConversationScreen() {
 
   // ✅ SIMPLIFIED: Always go back to chat list
   const handleBackPress = () => {
-    // Always go back to chat list when pressing back from a conversation
-    (router.push as any)("/(tabs)/chat/");
+    // Clear current conversation when going back for proper isolation
+    setCurrentConversation(null);
+    setCurrentConversationId(null);
+    router.push("/(tabs)/chat/" as any);
   };
 
   const getOtherParticipant = () => {
@@ -319,13 +300,13 @@ export default function ChatConversationScreen() {
                 size={16}
                 color={theme.primary}
               />
-              <Text style={[styles.systemMessageTitle, { color: theme.primary }]}>
+              <Text
+                style={[styles.systemMessageTitle, { color: theme.primary }]}
+              >
                 MyCollegeTix Info
               </Text>
             </View>
-            <Text style={styles.systemMessageText}>
-              {item.content}
-            </Text>
+            <Text style={styles.systemMessageText}>{item.content}</Text>
           </View>
         </View>
       );
@@ -378,7 +359,12 @@ export default function ChatConversationScreen() {
 
   const otherParticipant = getOtherParticipant();
 
-  if (!currentConversation || !otherParticipant) {
+  // ✅ ENHANCED: Better loading state with conversation isolation check
+  if (
+    !currentConversation ||
+    !otherParticipant ||
+    currentConversation.id !== id
+  ) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -403,10 +389,7 @@ export default function ChatConversationScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={handleBackPress} // ✅ IMPROVED: Smart back navigation
-        >
+        <TouchableOpacity style={styles.headerButton} onPress={handleBackPress}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
 
@@ -445,12 +428,17 @@ export default function ChatConversationScreen() {
                 text: isUserBlocked ? "Unblock User" : "Block User",
                 onPress: async () => {
                   if (isUserBlocked) {
-                    const result = await reportingService.unblockUser(otherParticipant.id);
+                    const result = await reportingService.unblockUser(
+                      otherParticipant.id
+                    );
                     if (result.success) {
                       setIsUserBlocked(false);
                       Alert.alert("Success", "User has been unblocked");
                     } else {
-                      Alert.alert("Error", result.error || "Failed to unblock user");
+                      Alert.alert(
+                        "Error",
+                        result.error || "Failed to unblock user"
+                      );
                     }
                   } else {
                     Alert.alert(
@@ -462,15 +450,21 @@ export default function ChatConversationScreen() {
                           text: "Block",
                           style: "destructive",
                           onPress: async () => {
-                            const result = await reportingService.blockUser(otherParticipant.id, "Blocked from chat");
+                            const result = await reportingService.blockUser(
+                              otherParticipant.id,
+                              "Blocked from chat"
+                            );
                             if (result.success) {
                               setIsUserBlocked(true);
                               Alert.alert("Success", "User has been blocked");
                             } else {
-                              Alert.alert("Error", result.error || "Failed to block user");
+                              Alert.alert(
+                                "Error",
+                                result.error || "Failed to block user"
+                              );
                             }
-                          }
-                        }
+                          },
+                        },
                       ]
                     );
                   }
@@ -486,7 +480,7 @@ export default function ChatConversationScreen() {
               {
                 text: "Chat List",
                 onPress: () => {
-                  (router.push as any)("/(tabs)/chat/");
+                  handleBackPress();
                 },
               },
               { text: "Cancel", style: "cancel" },
@@ -502,8 +496,8 @@ export default function ChatConversationScreen() {
         <TouchableOpacity
           style={styles.ticketReference}
           onPress={() =>
-            (router.push as any)(
-              `/ticket-details/${currentConversation.ticket!.id}`
+            router.push(
+              `/ticket-details/${currentConversation.ticket!.id}` as any
             )
           }
         >
@@ -533,11 +527,11 @@ export default function ChatConversationScreen() {
       >
         {/* Messages */}
         <View style={styles.messagesContainer}>
-          {messagesLoading && !hasLoadedMessages ? (
+          {messagesLoading && messages.length === 0 ? (
             <View style={styles.loadingMessages}>
               <Text style={styles.loadingText}>Loading messages...</Text>
             </View>
-          ) : messages.length > 0 ? (
+          ) : (
             <FlatList
               ref={flatListRef}
               data={messages}
@@ -546,96 +540,85 @@ export default function ChatConversationScreen() {
               showsVerticalScrollIndicator={false}
               scrollEventThrottle={16}
               keyboardShouldPersistTaps="handled"
-              keyboardDismissMode={Platform.OS === "android" ? "on-drag" : "interactive"}
-              removeClippedSubviews={Platform.OS === 'android'}
-              nestedScrollEnabled={Platform.OS === 'android'}
-              initialNumToRender={Platform.OS === 'android' ? 15 : 10}
-              maxToRenderPerBatch={Platform.OS === 'android' ? 8 : 10}
-              updateCellsBatchingPeriod={Platform.OS === 'android' ? 100 : 50}
-              windowSize={Platform.OS === 'android' ? 8 : 10}
-              getItemLayout={Platform.OS === 'android' ? undefined : undefined}
-              maintainVisibleContentPosition={{
-                minIndexForVisible: 0,
-                autoscrollToTopThreshold: 10,
-              }}
+              keyboardDismissMode={
+                Platform.OS === "android" ? "on-drag" : "interactive"
+              }
+              removeClippedSubviews={Platform.OS === "android"}
+              nestedScrollEnabled={Platform.OS === "android"}
+              initialNumToRender={Platform.OS === "android" ? 15 : 10}
+              maxToRenderPerBatch={Platform.OS === "android" ? 8 : 10}
+              updateCellsBatchingPeriod={Platform.OS === "android" ? 100 : 50}
+              windowSize={Platform.OS === "android" ? 8 : 10}
               contentContainerStyle={styles.messagesList}
-              ListHeaderComponent={
-                currentConversation?.ticket && messages.length === 0 ? (
-                  <View style={styles.sellingProcessContainer}>
-                    <View style={styles.sellingProcessBubble}>
-                      <View style={styles.sellingProcessHeader}>
-                        <Ionicons
-                          name="information-circle"
-                          size={16}
-                          color={theme.primary}
-                        />
-                        <Text style={[styles.sellingProcessTitle, { color: theme.primary }]}>
-                          How MyCollegeTix Works
-                        </Text>
+              ListEmptyComponent={
+                !messagesLoading ? (
+                  <View style={styles.emptyMessages}>
+                    {currentConversation?.ticket && (
+                      <View style={styles.sellingProcessContainer}>
+                        <View style={styles.sellingProcessBubble}>
+                          <View style={styles.sellingProcessHeader}>
+                            <Ionicons
+                              name="information-circle"
+                              size={16}
+                              color={theme.primary}
+                            />
+                            <Text
+                              style={[
+                                styles.sellingProcessTitle,
+                                { color: theme.primary },
+                              ]}
+                            >
+                              How MyCollegeTix Works
+                            </Text>
+                          </View>
+                          <Text style={styles.sellingProcessText}>
+                            Welcome to MyCollegeTix! 🎫{"\n\n"}
+                            Here's how ticket selling works:{"\n"}• Chat about
+                            ticket details and price{"\n"}• Negotiate terms
+                            privately{"\n"}• When you agree on a sale, the
+                            seller marks it as sold in their Orders tab{"\n"}•
+                            Tickets stay available until the seller manually
+                            marks them as sold{"\n\n"}
+                            Happy ticket trading! 🏈
+                          </Text>
+                        </View>
                       </View>
-                      <Text style={styles.sellingProcessText}>
-                        Welcome to MyCollegeTix! 🎫{"\n\n"}
-                        Here's how ticket selling works:{"\n"}
-                        • Chat about ticket details and price{"\n"}
-                        • Negotiate terms privately{"\n"}
-                        • When you agree on a sale, the seller marks it as sold in their Orders tab{"\n"}
-                        • Tickets stay available until the seller manually marks them as sold{"\n\n"}
-                        Happy ticket trading! 🏈
-                      </Text>
+                    )}
+
+                    <View style={styles.emptyMessagesIcon}>
+                      <Ionicons
+                        name="chatbubbles-outline"
+                        size={32}
+                        color="#9ca3af"
+                      />
                     </View>
+                    <Text style={styles.emptyMessagesTitle}>
+                      Start the conversation
+                    </Text>
+                    <Text style={styles.emptyMessagesText}>
+                      Send a message to {otherParticipant?.full_name}
+                    </Text>
                   </View>
                 ) : null
               }
               onContentSizeChange={() => {
-                if (hasLoadedMessages) {
-                  flatListRef.current?.scrollToEnd({ animated: false });
+                // Always scroll to end when content changes and we have messages
+                if (messages.length > 0) {
+                  setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: false });
+                  }, 100);
+                }
+              }}
+              onLayout={() => {
+                // Scroll to end when FlatList is first laid out with messages
+                if (messages.length > 0) {
+                  setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: false });
+                  }, 100);
                 }
               }}
             />
-          ) : hasLoadedMessages ? (
-            <View style={styles.emptyMessages}>
-              {/* Show selling process info for new ticket conversations */}
-              {currentConversation?.ticket && (
-                <View style={styles.sellingProcessContainer}>
-                  <View style={styles.sellingProcessBubble}>
-                    <View style={styles.sellingProcessHeader}>
-                      <Ionicons
-                        name="information-circle"
-                        size={16}
-                        color={theme.primary}
-                      />
-                      <Text style={[styles.sellingProcessTitle, { color: theme.primary }]}>
-                        How MyCollegeTix Works
-                      </Text>
-                    </View>
-                    <Text style={styles.sellingProcessText}>
-                      Welcome to MyCollegeTix! 🎫{"\n\n"}
-                      Here's how ticket selling works:{"\n"}
-                      • Chat about ticket details and price{"\n"}
-                      • Negotiate terms privately{"\n"}
-                      • When you agree on a sale, the seller marks it as sold in their Orders tab{"\n"}
-                      • Tickets stay available until the seller manually marks them as sold{"\n\n"}
-                      Happy ticket trading! 🏈
-                    </Text>
-                  </View>
-                </View>
-              )}
-              
-              <View style={styles.emptyMessagesIcon}>
-                <Ionicons
-                  name="chatbubbles-outline"
-                  size={32}
-                  color="#9ca3af"
-                />
-              </View>
-              <Text style={styles.emptyMessagesTitle}>
-                Start the conversation
-              </Text>
-              <Text style={styles.emptyMessagesText}>
-                Send a message to {otherParticipant.full_name}
-              </Text>
-            </View>
-          ) : null}
+          )}
         </View>
 
         {/* Message Input */}
@@ -652,9 +635,12 @@ export default function ChatConversationScreen() {
                 placeholderTextColor="#9ca3af"
                 onFocus={() => {
                   // Platform-specific scroll timing when focusing input
-                  setTimeout(() => {
-                    flatListRef.current?.scrollToEnd({ animated: true });
-                  }, Platform.OS === 'android' ? 400 : 300);
+                  setTimeout(
+                    () => {
+                      flatListRef.current?.scrollToEnd({ animated: true });
+                    },
+                    Platform.OS === "android" ? 400 : 300
+                  );
                 }}
               />
 
@@ -693,11 +679,14 @@ export default function ChatConversationScreen() {
           onClose={() => setShowReportModal(false)}
           reportedUserId={otherParticipant.id}
           reportedUserName={otherParticipant.full_name}
-          contentId={id || ''}
+          contentId={id || ""}
           contentType="message"
           onReportSubmitted={() => {
             // Optionally refresh block status or show success message
-            Alert.alert("Thank you", "Your report has been submitted and will be reviewed within 24 hours.");
+            Alert.alert(
+              "Thank you",
+              "Your report has been submitted and will be reviewed within 24 hours."
+            );
           }}
         />
       )}
@@ -765,17 +754,17 @@ const styles = StyleSheet.create({
   ticketReference: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.15)", // A subtle background
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 12,
-    marginHorizontal: 20, // Add some horizontal margin to make it float
-    marginBottom: 16, // Space from chat input
+    marginHorizontal: 20,
+    marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    borderWidth: 1, // Add a border
-    borderColor: "rgba(255, 255, 255, 0.2)", // Border color
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   ticketReferenceBlur: {
     borderRadius: 12,
