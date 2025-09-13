@@ -34,6 +34,7 @@ import {
   EventGroup,
   EventGroupingResult
 } from "@/src/utils/eventGroupingUtils";
+import SellerTrustBadge from "@/src/components/SellerTrustBadge";
 import { formatEventDateTime } from "@/src/utils/dateUtils";
 
 const sports = [
@@ -467,6 +468,7 @@ export default function BrowseScreen() {
         collegeMatchup={formattedTicket.collegeMatchup}
         isSeasonPass={ticket.event?.is_season_pass}
         ticketId={ticket.id}
+        sellerId={ticket.seller.id}
       />
     );
   };
@@ -900,6 +902,7 @@ const EnhancedTicketCard = ({
   collegeMatchup,
   isSeasonPass,
   ticketId,
+  sellerId,
 }: {
   sport: string;
   event: string;
@@ -913,6 +916,7 @@ const EnhancedTicketCard = ({
   collegeMatchup?: string | null;
   isSeasonPass?: boolean;
   ticketId: string;
+  sellerId: string;
 }) => {
   const theme = useTheme();
   const { isInWatchlist } = useWatchlistStatus(ticketId);
@@ -947,22 +951,7 @@ const EnhancedTicketCard = ({
             </View>
           )}
         </View>
-        {collegeMatchup && (
-          <View
-            style={[
-              styles.collegeBadge,
-              {
-                backgroundColor: `${theme.primary}15`,
-                borderColor: `${theme.primary}40`,
-              },
-            ]}
-          >
-            <Ionicons name="shield-outline" size={12} color={theme.primary} />
-            <Text style={[styles.collegeBadgeText, { color: theme.primary }]}>
-              {collegeMatchup}
-            </Text>
-          </View>
-        )}
+        <SellerTrustBadge sellerId={sellerId} />
       </View>
 
       {/* Content */}
