@@ -1,4 +1,4 @@
-// src/providers/ChatProvider.tsx - FIXED VERSION
+// src/providers/ChatProvider.tsx - ENHANCED ISOLATION FIX
 import React, {
   createContext,
   useContext,
@@ -61,10 +61,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   );
   const [currentConversation, setCurrentConversationState] =
     useState<ConversationWithDetails | null>(null);
-  const [messages, setMessages] = useState<MessageWithSender[]>([]);
+
+  // ✅ NEW: Conversation-scoped messages with conversation ID tracking
+  const [messagesMap, setMessagesMap] = useState<
+    Record<string, MessageWithSender[]>
+  >({});
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(null);
+
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -74,13 +79,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const currentConversationIdRef = useRef<string | null>(null);
   const processedMessageIds = useRef<Set<string>>(new Set());
 
+  // ✅ DERIVED STATE: Get messages for current conversation
+  const messages = currentConversationId
+    ? messagesMap[currentConversationId] || []
+    : [];
+
   // Update refs whenever currentConversation changes
   useEffect(() => {
     currentConversationRef.current = currentConversation;
     currentConversationIdRef.current = currentConversationId;
   }, [currentConversation, currentConversationId]);
 
-  // ✅ FIXED: Enhanced conversation setter with proper message isolation
+  // ✅ ENHANCED: Conversation setter with strict isolation
   const setCurrentConversation = useCallback(
     (conversation: ConversationWithDetails | null) => {
       const previousConversationId = currentConversation?.id;
@@ -91,23 +101,25 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         to: newConversationId,
       });
 
-      // Clear messages when switching conversations
-      if (previousConversationId !== newConversationId) {
-        console.log("🧹 Clearing messages for conversation switch");
-        setMessages([]);
-        setCurrentConversationId(newConversationId || null);
-      }
-
+      // Always update conversation state
       setCurrentConversationState(conversation);
+
+      // Update current conversation ID for message isolation
+      setCurrentConversationId(newConversationId || null);
+
+      // Log the switch
+      if (previousConversationId !== newConversationId) {
+        console.log("🔄 Conversation switched - messages will be isolated");
+      }
     },
     [currentConversation?.id]
   );
 
-  // Clear messages when starting new conversation
+  // ✅ ENHANCED: Clear messages for new conversation
   const clearMessagesForNewConversation = useCallback(() => {
-    console.log("🧹 ChatProvider: Clearing messages for new conversation");
-    setMessages([]);
+    console.log("🧹 ChatProvider: Clearing for new conversation");
     setCurrentConversationId(null);
+    // Note: We don't clear messagesMap to preserve loaded messages for other conversations
   }, []);
 
   const loadConversations = async () => {
@@ -132,7 +144,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // ✅ FIXED: Removed the problematic conversation change check
+  // ✅ ENHANCED: Conversation-scoped message loading
   const loadMessages = async (conversationId: string) => {
     console.log(
       "📨 ChatProvider: Loading messages for conversation:",
@@ -140,11 +152,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     );
     setMessagesLoading(true);
 
-    // Set the current conversation ID immediately
+    // Set the current conversation ID for proper isolation
     setCurrentConversationId(conversationId);
 
     try {
-      console.log("🔍 Fetching messages for conversation:", conversationId);
       const { data, error } = await ChatService.getConversationMessages(
         conversationId
       );
@@ -156,16 +167,30 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       if (data) {
         console.log("✅ Found messages:", data.length);
-        // ✅ FIXED: Always set messages if we have data - removed the problematic check
-        setMessages(data);
-        console.log("✅ Messages loaded:", data.length, "messages");
+        // ✅ FIXED: Store messages in conversation-scoped map
+        setMessagesMap((prev) => ({
+          ...prev,
+          [conversationId]: data,
+        }));
+        console.log(
+          "✅ Messages loaded and isolated:",
+          data.length,
+          "messages"
+        );
       } else {
         console.log("📭 No messages found for conversation");
-        setMessages([]);
+        setMessagesMap((prev) => ({
+          ...prev,
+          [conversationId]: [],
+        }));
       }
     } catch (error) {
       console.error("❌ Error loading messages:", error);
-      setMessages([]); // Clear messages on error
+      // Set empty array for this conversation on error
+      setMessagesMap((prev) => ({
+        ...prev,
+        [conversationId]: [],
+      }));
     } finally {
       setMessagesLoading(false);
     }
@@ -184,8 +209,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
 
-      // Refresh messages to show the sent message immediately
-      // This ensures the message appears even if real-time subscription has issues
+      // Refresh messages for this specific conversation
       await loadMessages(conversationId);
 
       return true;
@@ -283,15 +307,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } else {
       setConversations([]);
       setCurrentConversationState(null);
-      setMessages([]);
+      setMessagesMap({});
       setCurrentConversationId(null);
       setUnreadCount(0);
-      // Clear processed message IDs when user changes
       processedMessageIds.current.clear();
     }
   }, [user]);
 
-  // Real-time subscriptions with proper message handling
+  // ✅ ENHANCED: Real-time subscriptions with proper isolation
   useEffect(() => {
     if (!user) return;
 
@@ -314,7 +337,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Subscribe to NEW messages globally for unread count updates
+    // ✅ ENHANCED: Subscribe to NEW messages with strict isolation
     const newMessageChannel = supabase
       .channel(`new-messages:${user.id}`)
       .on(
@@ -363,7 +386,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
             if (senderError) {
               console.error("Error fetching sender profile:", senderError);
-              return; // Skip this message if we can't get sender info
+              return;
             }
 
             const messageWithSender = {
@@ -371,56 +394,71 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               sender: sender,
             };
 
-            // Add message only if viewing the correct conversation
+            // ✅ STRICT ISOLATION: Only add message if viewing the exact conversation
             const currentConv = currentConversationRef.current;
             const currentConvId = currentConversationIdRef.current;
-            const isCurrentConversation =
-              currentConv && newMessage.conversation_id === currentConv.id;
-            const isCorrectConversationId =
-              currentConvId === newMessage.conversation_id;
 
-            if (isCurrentConversation && isCorrectConversationId) {
-              console.log("📨 Adding message to current conversation:", {
-                conversation_id: newMessage.conversation_id,
-                current_conversation_id: currentConvId,
-                message_preview: newMessage.content?.substring(0, 30) + "...",
-              });
+            const isExactMatch = currentConvId === newMessage.conversation_id;
+            const isCurrentConversationMatch =
+              currentConv && currentConv.id === newMessage.conversation_id;
 
-              setMessages((prev) => {
+            if (isExactMatch && isCurrentConversationMatch) {
+              console.log(
+                "📨 Adding message to current conversation (strict match):",
+                {
+                  conversation_id: newMessage.conversation_id,
+                  current_conversation_id: currentConvId,
+                  message_preview: newMessage.content?.substring(0, 30) + "...",
+                }
+              );
+
+              // ✅ ENHANCED: Add to conversation-scoped messages
+              setMessagesMap((prev) => {
+                const conversationMessages =
+                  prev[newMessage.conversation_id] || [];
+
                 // Check if message already exists to avoid duplicates
-                if (prev.some((m) => m.id === newMessage.id)) {
-                  console.log("⚠️ Message already exists, skipping");
+                if (conversationMessages.some((m) => m.id === newMessage.id)) {
+                  console.log(
+                    "⚠️ Message already exists in conversation, skipping"
+                  );
                   return prev;
                 }
-                return [...prev, messageWithSender as MessageWithSender];
+
+                return {
+                  ...prev,
+                  [newMessage.conversation_id]: [
+                    ...conversationMessages,
+                    messageWithSender as MessageWithSender,
+                  ],
+                };
               });
             } else {
-              console.log("📨 Message not for current conversation:", {
-                message_conv_id: newMessage.conversation_id,
-                current_conv_id: currentConv?.id,
-                current_conversation_id: currentConvId,
-                will_add: false,
-              });
+              console.log(
+                "📨 Message not for current conversation (isolated):",
+                {
+                  message_conv_id: newMessage.conversation_id,
+                  current_conv_id: currentConv?.id,
+                  current_conversation_id: currentConvId,
+                  exact_match: isExactMatch,
+                  conversation_match: isCurrentConversationMatch,
+                }
+              );
             }
 
-            // UPDATE CONVERSATIONS LIST AND UNREAD COUNTS
+            // ✅ ENHANCED: Update conversations list with better isolation checks
             setConversations((prev) => {
               let conversationFound = false;
               const updated = prev.map((conv) => {
                 if (conv.id === newMessage.conversation_id) {
                   conversationFound = true;
-                  // Smart unread count logic with ref-based current state
+
+                  // Smart unread count logic with strict current state checking
                   const isFromOther = newMessage.sender_id !== user.id;
                   const isNotCurrentlyViewing =
-                    !currentConv ||
-                    currentConv.id !== newMessage.conversation_id;
-                  const isNotCurrentConversationId =
-                    !currentConvId ||
-                    currentConvId !== newMessage.conversation_id;
+                    !isExactMatch || !isCurrentConversationMatch;
                   const shouldIncrementUnread =
-                    isFromOther &&
-                    isNotCurrentlyViewing &&
-                    isNotCurrentConversationId;
+                    isFromOther && isNotCurrentlyViewing;
 
                   return {
                     ...conv,
@@ -447,13 +485,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               });
 
               // If conversation not found in current list, reload conversations
-              // This handles cases where a new conversation was created
               if (!conversationFound) {
                 console.log(
                   "📝 New conversation detected, reloading conversations"
                 );
                 setTimeout(() => loadConversations(), 1000);
-                return prev; // Return unchanged for now
+                return prev;
               }
 
               // Sort conversations by most recent message
@@ -468,18 +505,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               });
             });
 
-            // Global unread count with double-checking
+            // Global unread count with enhanced isolation checks
             const isFromOther = newMessage.sender_id !== user.id;
             const isNotCurrentlyViewing =
-              !currentConv || currentConv.id !== newMessage.conversation_id;
-            const isNotCurrentConversationId =
-              !currentConvId || currentConvId !== newMessage.conversation_id;
+              !isExactMatch || !isCurrentConversationMatch;
 
-            if (
-              isFromOther &&
-              isNotCurrentlyViewing &&
-              isNotCurrentConversationId
-            ) {
+            if (isFromOther && isNotCurrentlyViewing) {
               setUnreadCount((prev) => prev + 1);
             }
           } catch (error) {
@@ -499,7 +530,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const value = {
     conversations,
     currentConversation,
-    messages,
+    messages, // ✅ Now returns isolated messages for current conversation
     unreadCount,
     loading,
     messagesLoading,

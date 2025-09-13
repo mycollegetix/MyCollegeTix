@@ -1,4 +1,4 @@
-// src/app/(tabs)/chat/[id].tsx - FIXED with proper theme usage
+// src/app/(tabs)/chat/[id].tsx - FIXED with proper conversation isolation
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   StyleSheet,
@@ -34,7 +34,7 @@ export default function ChatConversationScreen() {
   const theme = useTheme();
   const {
     currentConversation,
-    messages,
+    messages, // ✅ NOW: Using isolated messages from provider
     messagesLoading,
     loadMessages,
     sendMessage,
@@ -46,43 +46,69 @@ export default function ChatConversationScreen() {
 
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
-  const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
-  const [isConversationSwitching, setIsConversationSwitching] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [isUserBlocked, setIsUserBlocked] = useState(false);
+
+  // ✅ REMOVED: hasLoadedMessages and isConversationSwitching - provider handles this
   const flatListRef = useRef<FlatList>(null);
 
-  // ✅ OPTIMIZED: Smarter conversation loading
+  // ✅ NEW: Track current conversation ID to detect switches
+  const [currentConversationId, setCurrentConversationId] = useState<
+    string | null
+  >(null);
+
+  // ✅ ENHANCED: Smarter conversation loading with proper isolation
   const loadConversationData = useCallback(
     async (conversationId: string) => {
-      console.log("🔄 Loading conversation data for:", conversationId);
+      console.log(
+        "🔄 [id].tsx: Loading conversation data for:",
+        conversationId
+      );
+
+      // ✅ ISOLATION: Clear messages when switching conversations
+      if (currentConversationId && currentConversationId !== conversationId) {
+        console.log(
+          "🔄 [id].tsx: Conversation switch detected, clearing messages"
+        );
+        clearMessagesForNewConversation();
+      }
+
+      setCurrentConversationId(conversationId);
 
       // Find conversation from loaded conversations
       const conversation = conversations.find((c) => c.id === conversationId);
       if (conversation) {
-        console.log("✅ Found conversation, setting as current");
+        console.log("✅ [id].tsx: Found conversation, setting as current");
         setCurrentConversation(conversation);
 
         // ✅ SMART MARK AS READ: Only mark as read if there are unread messages
         if (conversation.unread_count > 0) {
-          console.log("📖 Marking messages as read (has unread messages)");
+          console.log(
+            "📖 [id].tsx: Marking messages as read (has unread messages)"
+          );
           await markAsRead(conversationId);
         } else {
-          console.log("✅ No unread messages, skipping mark as read");
+          console.log("✅ [id].tsx: No unread messages, skipping mark as read");
         }
 
-        // Always load messages when switching conversations
-        console.log("📨 Loading messages for conversation");
+        // ✅ ISOLATION: Always load messages for the specific conversation
+        console.log("📨 [id].tsx: Loading messages for conversation");
         await loadMessages(conversationId);
-        setHasLoadedMessages(true);
       } else {
-        console.log("❌ Conversation not found in loaded conversations");
+        console.log(
+          "❌ [id].tsx: Conversation not found in loaded conversations"
+        );
       }
     },
-    [conversations, loadMessages, markAsRead, setCurrentConversation]
+    [
+      conversations,
+      loadMessages,
+      markAsRead,
+      setCurrentConversation,
+      clearMessagesForNewConversation,
+      currentConversationId,
+    ]
   );
-
-  // ✅ REMOVED: Local message state - now using global messages directly for better isolation
 
   // Enhanced keyboard handling for both platforms
   useEffect(() => {
@@ -137,86 +163,40 @@ export default function ChatConversationScreen() {
     checkBlockStatus();
   }, [currentConversation]);
 
-  // Effect for loading conversation data - triggered whenever id changes or conversations update
+  // ✅ ENHANCED: Effect for loading conversation data with proper isolation
   useEffect(() => {
     if (id) {
-      console.log("🔄 Conversation ID changed to:", id);
-      // ✅ ENHANCED: Reset state with conversation isolation
-      setHasLoadedMessages(false);
-      setIsConversationSwitching(true);
-
-      // Clear messages in provider for proper isolation
-      clearMessagesForNewConversation();
-
+      console.log("🔄 [id].tsx: Conversation ID changed to:", id);
       loadConversationData(id);
     }
 
     // ✅ ENHANCED: Cleanup with proper state isolation
     return () => {
-      console.log("🧹 Cleaning up conversation screen");
-      setCurrentConversation(null);
-      setHasLoadedMessages(false);
-      setIsConversationSwitching(false);
+      console.log("🧹 [id].tsx: Cleaning up conversation screen for:", id);
+      // Don't clear current conversation here - let the provider handle isolation
     };
   }, [id, conversations.length]);
 
-  // ✅ AUTO MARK AS READ: When viewing a conversation with new messages
-  useEffect(() => {
-    if (currentConversation && currentConversation.unread_count > 0) {
-      console.log("📖 Auto-marking messages as read (viewing conversation)");
-      markAsRead(currentConversation.id);
-    }
-  }, [currentConversation, messages.length]);
+  // ✅ REMOVED: Auto mark as read effect - provider handles this better
 
-  // ✅ ENHANCED: Auto-scroll with conversation switching awareness
+  // ✅ ENHANCED: Auto-scroll with better message tracking
   useEffect(() => {
-    if (messages.length > 0 && hasLoadedMessages && !isConversationSwitching) {
+    if (messages.length > 0 && currentConversation?.id === id) {
+      // Only auto-scroll if we're viewing the current conversation
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages.length, hasLoadedMessages, isConversationSwitching]);
-
-  // ✅ NEW: Reset switching flag after messages load
-  useEffect(() => {
-    if (hasLoadedMessages && isConversationSwitching) {
-      setIsConversationSwitching(false);
-    }
-  }, [hasLoadedMessages, isConversationSwitching]);
+  }, [messages.length, currentConversation?.id, id]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !id || sending) return;
 
     const content = messageText.trim();
-    const tempId = `temp-${Date.now()}`; // Temporary ID for optimistic update
-
-    // ✅ OPTIMISTIC UPDATE: Add message immediately to UI
-    const optimisticMessage = {
-      id: tempId,
-      content: content,
-      sender_id: user?.id || "",
-      conversation_id: id,
-      created_at: new Date().toISOString(),
-      message_type: "text" as const,
-      read_by_recipient: false,
-      read_at: null,
-      edited_at: null,
-      sender: {
-        id: user?.id || "",
-        full_name: user?.user_metadata?.full_name || "You",
-        username: user?.email?.split("@")[0] || "you",
-        email: user?.email || "",
-        avatar_url: null,
-        created_at: new Date().toISOString(),
-      },
-    };
-
-    // ✅ REMOVED: Optimistic updates now handled by provider
-
     setMessageText("");
     setSending(true);
 
-    // Auto-scroll immediately
+    // Auto-scroll immediately for better UX
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 50);
@@ -224,20 +204,16 @@ export default function ChatConversationScreen() {
     try {
       const success = await sendMessage(id, content);
       if (!success) {
-        // ✅ REMOVED: Local message management no longer needed
         Alert.alert("Error", "Failed to send message. Please try again.");
-        setMessageText(content);
+        setMessageText(content); // Restore message text on failure
       } else {
-        // ✅ ENHANCED: Replace optimistic message with real message ID when available
-        console.log("✅ Message sent successfully");
-
-        // ✅ SUCCESS: Real-time subscription will handle the actual message
+        console.log("✅ [id].tsx: Message sent successfully");
+        // Provider's real-time subscription will handle adding the message
       }
     } catch (error) {
-      // ✅ ERROR: Optimistic update removed
-      console.error("Error sending message:", error);
+      console.error("❌ [id].tsx: Error sending message:", error);
       Alert.alert("Error", "Failed to send message. Please try again.");
-      setMessageText(content);
+      setMessageText(content); // Restore message text on error
     } finally {
       setSending(false);
     }
@@ -245,8 +221,10 @@ export default function ChatConversationScreen() {
 
   // ✅ SIMPLIFIED: Always go back to chat list
   const handleBackPress = () => {
-    // Always go back to chat list when pressing back from a conversation
-    (router.push as any)("/(tabs)/chat/");
+    // Clear current conversation when going back for proper isolation
+    setCurrentConversation(null);
+    setCurrentConversationId(null);
+    router.push("/(tabs)/chat/" as any);
   };
 
   const getOtherParticipant = () => {
@@ -381,7 +359,12 @@ export default function ChatConversationScreen() {
 
   const otherParticipant = getOtherParticipant();
 
-  if (!currentConversation || !otherParticipant) {
+  // ✅ ENHANCED: Better loading state with conversation isolation check
+  if (
+    !currentConversation ||
+    !otherParticipant ||
+    currentConversation.id !== id
+  ) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -406,10 +389,7 @@ export default function ChatConversationScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={handleBackPress} // ✅ IMPROVED: Smart back navigation
-        >
+        <TouchableOpacity style={styles.headerButton} onPress={handleBackPress}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
 
@@ -500,7 +480,7 @@ export default function ChatConversationScreen() {
               {
                 text: "Chat List",
                 onPress: () => {
-                  (router.push as any)("/(tabs)/chat/");
+                  handleBackPress();
                 },
               },
               { text: "Cancel", style: "cancel" },
@@ -516,8 +496,8 @@ export default function ChatConversationScreen() {
         <TouchableOpacity
           style={styles.ticketReference}
           onPress={() =>
-            (router.push as any)(
-              `/ticket-details/${currentConversation.ticket!.id}`
+            router.push(
+              `/ticket-details/${currentConversation.ticket!.id}` as any
             )
           }
         >
@@ -640,6 +620,7 @@ export default function ChatConversationScreen() {
             />
           )}
         </View>
+
         {/* Message Input */}
         <View style={styles.inputContainer}>
           <BlurView intensity={90} style={styles.inputBlur}>
@@ -773,17 +754,17 @@ const styles = StyleSheet.create({
   ticketReference: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.15)", // A subtle background
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 12,
-    marginHorizontal: 20, // Add some horizontal margin to make it float
-    marginBottom: 16, // Space from chat input
+    marginHorizontal: 20,
+    marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    borderWidth: 1, // Add a border
-    borderColor: "rgba(255, 255, 255, 0.2)", // Border color
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   ticketReferenceBlur: {
     borderRadius: 12,
