@@ -32,7 +32,7 @@ interface ConversationSection {
   isEventSection?: boolean;
 }
 
-type ConversationFilter = "all" | "buyer" | "seller";
+type ConversationFilter = "all" | "seller" | "buyer";
 type SectioningMode = "status" | "events"; // New sectioning mode
 
 interface FilterOption {
@@ -79,16 +79,16 @@ export default function ChatListScreen() {
       icon: "chatbubbles-outline",
     },
     {
-      value: "buyer",
-      label: "Buying",
-      description: "Conversations where I'm inquiring about tickets",
-      icon: "person-outline",
-    },
-    {
       value: "seller",
       label: "Selling",
       description: "Conversations where I'm selling tickets",
       icon: "storefront-outline",
+    },
+    {
+      value: "buyer",
+      label: "Buying",
+      description: "Conversations where I'm inquiring about tickets",
+      icon: "person-outline",
     },
   ];
 
@@ -158,8 +158,8 @@ export default function ChatListScreen() {
   const filterCounts = useMemo(() => {
     const counts = {
       all: conversations.length,
-      buyer: 0,
       seller: 0,
+      buyer: 0,
     };
 
     conversations.forEach((conversation) => {
