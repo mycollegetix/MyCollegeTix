@@ -1,4 +1,4 @@
-// src/app/(tabs)/chat/index.tsx - FIXED with proper theme usage and no linear gradients
+// src/app/(tabs)/chat/index.tsx - Enhanced with event sectioning
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   StyleSheet,
@@ -26,9 +26,14 @@ interface ConversationSection {
   title: string;
   data: ConversationWithDetails[];
   key: string;
+  eventId?: string | null;
+  eventTitle?: string | null;
+  eventDate?: string | null;
+  isEventSection?: boolean;
 }
 
 type ConversationFilter = "all" | "buyer" | "seller";
+type SectioningMode = "status" | "events"; // New sectioning mode
 
 interface FilterOption {
   value: ConversationFilter;
@@ -49,18 +54,23 @@ export default function ChatListScreen() {
     markAsRead,
   } = useChat();
 
-  // Filter state - Enhanced with segmented control
+  // Enhanced state management
   const [currentFilter, setCurrentFilter] = useState<ConversationFilter>("all");
+  const [sectioningMode, setSectioningMode] =
+    useState<SectioningMode>("status");
   const slideAnimation = useRef(new Animated.Value(0)).current;
   const fadeAnimation = useRef(new Animated.Value(1)).current;
+  const sectionToggleAnimation = useRef(new Animated.Value(0)).current;
 
-  // Initialize animation position based on current filter
+  // Initialize animations
   useEffect(() => {
-    const index = filterOptions.findIndex(option => option.value === currentFilter);
+    const index = filterOptions.findIndex(
+      (option) => option.value === currentFilter
+    );
     slideAnimation.setValue(index);
+    sectionToggleAnimation.setValue(sectioningMode === "status" ? 0 : 1);
   }, []);
 
-  // Enhanced filter options with shorter labels for segmented control
   const filterOptions: FilterOption[] = [
     {
       value: "all",
@@ -89,22 +99,21 @@ export default function ChatListScreen() {
     if (!user?.id || !conversation.ticket) return "unknown";
 
     if (conversation.ticket.seller_id === user.id) {
-      return "seller"; // Current user owns the ticket
+      return "seller";
     } else if (
       conversation.participant_1_id === user.id ||
       conversation.participant_2_id === user.id
     ) {
-      return "buyer"; // Current user is inquiring about the ticket
+      return "buyer";
     }
 
     return "unknown";
   };
 
-  // Enhanced animation functions for segmented control
+  // Enhanced animation functions
   const selectFilter = (filter: ConversationFilter, index: number) => {
     if (filter === currentFilter) return;
 
-    // Fade out content briefly for smooth transition
     Animated.sequence([
       Animated.timing(fadeAnimation, {
         toValue: 0.7,
@@ -118,7 +127,6 @@ export default function ChatListScreen() {
       }),
     ]).start();
 
-    // Slide indicator to new position
     Animated.spring(slideAnimation, {
       toValue: index,
       tension: 120,
@@ -129,13 +137,22 @@ export default function ChatListScreen() {
     setCurrentFilter(filter);
   };
 
-  // ✅ OPTIMIZED: Load conversations only once on mount
+  // New function to toggle sectioning mode
+  const toggleSectioningMode = () => {
+    const newMode = sectioningMode === "status" ? "events" : "status";
+
+    Animated.timing(sectionToggleAnimation, {
+      toValue: newMode === "status" ? 0 : 1,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+
+    setSectioningMode(newMode);
+  };
+
   useEffect(() => {
     loadConversations();
   }, []);
-
-  // ✅ REMOVED: useFocusEffect that was causing infinite loops
-  // Real-time subscriptions will handle updates automatically
 
   // Calculate counts for each filter option
   const filterCounts = useMemo(() => {
@@ -166,40 +183,195 @@ export default function ChatListScreen() {
     });
   }, [conversations, currentFilter, user?.id]);
 
-  // ✅ ORGANIZE: Separate conversations into sections with filtering
+  // Enhanced sectioning logic - now supports both status and event grouping
   const conversationSections = useMemo((): ConversationSection[] => {
-    
-    const activeConversations: ConversationWithDetails[] = [];
-    const expiredConversations: ConversationWithDetails[] = [];
+    if (sectioningMode === "events") {
+      // Group by events
+      const eventGroups = new Map<string, ConversationWithDetails[]>();
+      const noEventConversations: ConversationWithDetails[] = [];
 
-    filteredConversations.forEach((conv) => {
-      if (conv.archived || conv.is_expired) {
-        expiredConversations.push(conv);
-      } else {
-        activeConversations.push(conv);
+      filteredConversations.forEach((conv) => {
+        if (conv.ticket?.event_id && conv.ticket?.title) {
+          const eventKey = `${conv.ticket.event_id}-${conv.ticket.title}`;
+          if (!eventGroups.has(eventKey)) {
+            eventGroups.set(eventKey, []);
+          }
+          eventGroups.get(eventKey)!.push(conv);
+        } else {
+          noEventConversations.push(conv);
+        }
+      });
+
+      const sections: ConversationSection[] = [];
+
+      // Sort event groups by most recent conversation
+      const sortedEventGroups = Array.from(eventGroups.entries()).sort(
+        (a, b) => {
+          const aLatest = Math.max(
+            ...a[1].map((conv) =>
+              conv.last_message_at
+                ? new Date(conv.last_message_at).getTime()
+                : 0
+            )
+          );
+          const bLatest = Math.max(
+            ...b[1].map((conv) =>
+              conv.last_message_at
+                ? new Date(conv.last_message_at).getTime()
+                : 0
+            )
+          );
+          return bLatest - aLatest;
+        }
+      );
+
+      // Create sections for each event
+      sortedEventGroups.forEach(([eventKey, conversations]) => {
+        const firstConv = conversations[0];
+        const ticket = firstConv.ticket;
+
+        // Separate active and expired within each event
+        const activeConvs = conversations.filter(
+          (conv) => !conv.archived && !conv.is_expired
+        );
+        const expiredConvs = conversations.filter(
+          (conv) => conv.archived || conv.is_expired
+        );
+
+        // Sort conversations within event by most recent
+        const sortConversations = (convs: ConversationWithDetails[]) =>
+          convs.sort((a, b) => {
+            const aTime = a.last_message_at
+              ? new Date(a.last_message_at).getTime()
+              : 0;
+            const bTime = b.last_message_at
+              ? new Date(b.last_message_at).getTime()
+              : 0;
+            return bTime - aTime;
+          });
+
+        if (activeConvs.length > 0) {
+          sections.push({
+            title: ticket?.title || "Unknown Event",
+            data: sortConversations(activeConvs),
+            key: `event-active-${eventKey}`,
+            eventId: ticket?.event_id,
+            eventTitle: ticket?.title,
+            eventDate: ticket?.event_date,
+            isEventSection: true,
+          });
+        }
+
+        if (expiredConvs.length > 0) {
+          sections.push({
+            title: `${ticket?.title || "Unknown Event"} (Expired)`,
+            data: sortConversations(expiredConvs),
+            key: `event-expired-${eventKey}`,
+            eventId: ticket?.event_id,
+            eventTitle: ticket?.title,
+            eventDate: ticket?.event_date,
+            isEventSection: true,
+          });
+        }
+      });
+
+      // Add conversations without events
+      if (noEventConversations.length > 0) {
+        const activeNoEvent = noEventConversations.filter(
+          (conv) => !conv.archived && !conv.is_expired
+        );
+        const expiredNoEvent = noEventConversations.filter(
+          (conv) => conv.archived || conv.is_expired
+        );
+
+        if (activeNoEvent.length > 0) {
+          sections.push({
+            title: "Other Conversations",
+            data: activeNoEvent.sort((a, b) => {
+              const aTime = a.last_message_at
+                ? new Date(a.last_message_at).getTime()
+                : 0;
+              const bTime = b.last_message_at
+                ? new Date(b.last_message_at).getTime()
+                : 0;
+              return bTime - aTime;
+            }),
+            key: "no-event-active",
+            isEventSection: false,
+          });
+        }
+
+        if (expiredNoEvent.length > 0) {
+          sections.push({
+            title: "Other Expired Conversations",
+            data: expiredNoEvent.sort((a, b) => {
+              const aTime = a.last_message_at
+                ? new Date(a.last_message_at).getTime()
+                : 0;
+              const bTime = b.last_message_at
+                ? new Date(b.last_message_at).getTime()
+                : 0;
+              return bTime - aTime;
+            }),
+            key: "no-event-expired",
+            isEventSection: false,
+          });
+        }
       }
-    });
 
-    const sections: ConversationSection[] = [];
+      return sections;
+    } else {
+      // Original status-based grouping
+      const activeConversations: ConversationWithDetails[] = [];
+      const expiredConversations: ConversationWithDetails[] = [];
 
-    if (activeConversations.length > 0) {
-      sections.push({
-        title: "Active Conversations",
-        data: activeConversations,
-        key: "active",
+      filteredConversations.forEach((conv) => {
+        if (conv.archived || conv.is_expired) {
+          expiredConversations.push(conv);
+        } else {
+          activeConversations.push(conv);
+        }
       });
-    }
 
-    if (expiredConversations.length > 0) {
-      sections.push({
-        title: "Expired Events",
-        data: expiredConversations,
-        key: "expired",
-      });
-    }
+      const sections: ConversationSection[] = [];
 
-    return sections;
-  }, [filteredConversations]);
+      if (activeConversations.length > 0) {
+        sections.push({
+          title: "Active Conversations",
+          data: activeConversations.sort((a, b) => {
+            const aTime = a.last_message_at
+              ? new Date(a.last_message_at).getTime()
+              : 0;
+            const bTime = b.last_message_at
+              ? new Date(b.last_message_at).getTime()
+              : 0;
+            return bTime - aTime;
+          }),
+          key: "active",
+          isEventSection: false,
+        });
+      }
+
+      if (expiredConversations.length > 0) {
+        sections.push({
+          title: "Expired Events",
+          data: expiredConversations.sort((a, b) => {
+            const aTime = a.last_message_at
+              ? new Date(a.last_message_at).getTime()
+              : 0;
+            const bTime = b.last_message_at
+              ? new Date(b.last_message_at).getTime()
+              : 0;
+            return bTime - aTime;
+          }),
+          key: "expired",
+          isEventSection: false,
+        });
+      }
+
+      return sections;
+    }
+  }, [filteredConversations, sectioningMode]);
 
   const getOtherParticipant = (conversation: ConversationWithDetails) => {
     return conversation.participant_1_id === user?.id
@@ -224,25 +396,104 @@ export default function ChatListScreen() {
     return date.toLocaleDateString();
   };
 
+  const formatEventDate = (dateString: string | null) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
   const handleConversationPress = (conversation: ConversationWithDetails) => {
     setCurrentConversation(conversation);
     (router.push as any)(`/(tabs)/chat/${conversation.id}`);
   };
 
+  // Enhanced sectioning mode toggle component
+  const renderSectioningToggle = () => (
+    <View style={styles.sectioningToggleContainer}>
+      <Text style={[styles.sectioningLabel, { color: theme.secondary }]}>
+        Group by:
+      </Text>
+      <TouchableOpacity
+        style={styles.sectioningToggle}
+        onPress={toggleSectioningMode}
+        activeOpacity={0.8}
+      >
+        <BlurView intensity={20} style={styles.toggleBlur}>
+          <View style={styles.toggleContent}>
+            <Animated.View
+              style={[
+                styles.toggleIndicator,
+                {
+                  backgroundColor: theme.primary,
+                  transform: [
+                    {
+                      translateX: sectionToggleAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [2, 70],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+            <View style={styles.toggleOption}>
+              <Ionicons
+                name="list-outline"
+                size={14}
+                color={sectioningMode === "status" ? "white" : "#64748b"}
+              />
+              <Text
+                style={[
+                  styles.toggleText,
+                  {
+                    color: sectioningMode === "status" ? "white" : "#64748b",
+                    fontWeight: sectioningMode === "status" ? "700" : "600",
+                  },
+                ]}
+              >
+                Status
+              </Text>
+            </View>
+            <View style={styles.toggleOption}>
+              <Ionicons
+                name="calendar-outline"
+                size={14}
+                color={sectioningMode === "events" ? "white" : "#64748b"}
+              />
+              <Text
+                style={[
+                  styles.toggleText,
+                  {
+                    color: sectioningMode === "events" ? "white" : "#64748b",
+                    fontWeight: sectioningMode === "events" ? "700" : "600",
+                  },
+                ]}
+              >
+                Events
+              </Text>
+            </View>
+          </View>
+        </BlurView>
+      </TouchableOpacity>
+    </View>
+  );
 
-  // Enhanced segmented control filter component
+  // Enhanced filter component
   const renderEnhancedFilter = () => {
-    const screenWidth = Dimensions.get('window').width;
-    const containerPadding = 40; // 20px on each side
-    const controlPadding = 12; // 6px on each side inside control
+    const screenWidth = Dimensions.get("window").width;
+    const containerPadding = 40;
+    const controlPadding = 12;
     const availableWidth = screenWidth - containerPadding - controlPadding;
     const segmentWidth = availableWidth / filterOptions.length;
-    
+
     return (
       <View style={styles.enhancedFilterContainer}>
         <BlurView intensity={25} style={styles.segmentedControlBlur}>
           <View style={styles.segmentedControl}>
-            {/* Animated sliding background indicator */}
             <Animated.View
               style={[
                 styles.segmentIndicator,
@@ -254,90 +505,69 @@ export default function ChatListScreen() {
                       translateX: slideAnimation.interpolate({
                         inputRange: [0, 1, 2],
                         outputRange: [0, segmentWidth, segmentWidth * 2],
-                        extrapolate: 'clamp',
+                        extrapolate: "clamp",
                       }),
                     },
                   ],
                 },
               ]}
             />
-            
-            {/* Filter segments */}
+
             {filterOptions.map((option, index) => {
               const isActive = currentFilter === option.value;
-              const count = filterCounts[option.value as keyof typeof filterCounts];
-              
+              const count =
+                filterCounts[option.value as keyof typeof filterCounts];
+
               return (
                 <TouchableOpacity
                   key={option.value}
-                  style={[
-                    styles.segmentButton,
-                    { width: segmentWidth },
-                  ]}
+                  style={[styles.segmentButton, { width: segmentWidth }]}
                   onPress={() => selectFilter(option.value, index)}
                   activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${option.label} conversations, ${count} total`}
-                  accessibilityState={{ selected: isActive }}
                 >
                   <Animated.View
-                    style={[
-                      styles.segmentContent,
-                      { opacity: fadeAnimation }
-                    ]}
+                    style={[styles.segmentContent, { opacity: fadeAnimation }]}
                   >
-                    {/* Icon with subtle animation */}
                     <Animated.View
                       style={[
                         styles.segmentIconContainer,
                         {
-                          backgroundColor: isActive 
-                            ? 'rgba(255, 255, 255, 0.35)' 
-                            : 'rgba(30, 41, 59, 0.08)',
+                          backgroundColor: isActive
+                            ? "rgba(255, 255, 255, 0.35)"
+                            : "rgba(30, 41, 59, 0.08)",
                         },
                       ]}
                     >
                       <Ionicons
                         name={option.icon}
                         size={16}
-                        color={isActive ? 'white' : '#1e293b'}
+                        color={isActive ? "white" : "#1e293b"}
                       />
                     </Animated.View>
-                    
-                    {/* Label with dynamic styling */}
+
                     <Text
                       style={[
                         styles.segmentLabel,
                         {
-                          color: isActive ? 'white' : '#1e293b',
-                          fontWeight: isActive ? '800' : '700',
+                          color: isActive ? "white" : "#1e293b",
+                          fontWeight: isActive ? "800" : "700",
                         },
                       ]}
                     >
                       {option.label}
                     </Text>
-                    
-                    {/* Animated count badge */}
+
                     {count > 0 && (
                       <Animated.View
                         style={[
                           styles.segmentBadge,
                           {
-                            backgroundColor: isActive 
-                              ? 'rgba(255, 255, 255, 0.3)' 
+                            backgroundColor: isActive
+                              ? "rgba(255, 255, 255, 0.3)"
                               : theme.secondary,
-                            borderColor: isActive 
-                              ? 'rgba(255, 255, 255, 0.5)' 
-                              : 'rgba(30, 41, 59, 0.1)',
-                            transform: [
-                              {
-                                scale: fadeAnimation.interpolate({
-                                  inputRange: [0.7, 1],
-                                  outputRange: [0.9, 1],
-                                  extrapolate: 'clamp',
-                                }),
-                              },
-                            ],
+                            borderColor: isActive
+                              ? "rgba(255, 255, 255, 0.5)"
+                              : "rgba(30, 41, 59, 0.1)",
                           },
                         ]}
                       >
@@ -345,11 +575,11 @@ export default function ChatListScreen() {
                           style={[
                             styles.segmentBadgeText,
                             {
-                              color: isActive ? 'white' : '#1e293b',
+                              color: isActive ? "white" : "#1e293b",
                             },
                           ]}
                         >
-                          {count > 99 ? '99+' : count}
+                          {count > 99 ? "99+" : count}
                         </Text>
                       </Animated.View>
                     )}
@@ -359,58 +589,99 @@ export default function ChatListScreen() {
             })}
           </View>
         </BlurView>
-        
-        {/* Subtle description text */}
-        <Text style={[styles.filterDescription, { color: theme.text }]}>
-          {filterOptions.find(opt => opt.value === currentFilter)?.description}
-        </Text>
+
+        <View style={styles.filterBottomRow}>
+          <Text
+            style={[
+              styles.filterDescription,
+              { color: "rgba(255, 255, 255, 0.8)" },
+            ]}
+          >
+            {
+              filterOptions.find((opt) => opt.value === currentFilter)
+                ?.description
+            }
+          </Text>
+          {renderSectioningToggle()}
+        </View>
       </View>
     );
   };
 
-
+  // Enhanced section header with event information
   const renderSectionHeader = ({
     section,
   }: {
     section: ConversationSection;
-  }) => (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionHeaderContent}>
-        <Ionicons
-          name={section.key === "active" ? "chatbubbles" : "time-outline"}
-          size={16}
-          color={section.key === "active" ? theme.primary : "#94a3b8"}
-        />
-        <Text
-          style={[
-            styles.sectionHeaderText,
-            section.key === "expired" && styles.expiredSectionText,
-          ]}
-        >
-          {section.title}
-        </Text>
-        <View
-          style={[
-            styles.sectionCount,
-            {
-              backgroundColor:
-                section.key === "active" ? theme.primary : "#94a3b8",
-            },
-            section.key === "expired" && styles.expiredSectionCount,
-          ]}
-        >
-          <Text
+  }) => {
+    const isExpired = section.key.includes("expired");
+    const isEventSection = section.isEventSection;
+
+    return (
+      <View
+        style={[
+          styles.sectionHeader,
+          isEventSection && styles.eventSectionHeader,
+        ]}
+      >
+        <View style={styles.sectionHeaderContent}>
+          <Ionicons
+            name={
+              isEventSection
+                ? isExpired
+                  ? "calendar-outline"
+                  : "calendar"
+                : section.key === "active"
+                ? "chatbubbles"
+                : "time-outline"
+            }
+            size={16}
+            color={
+              isEventSection
+                ? isExpired
+                  ? "#94a3b8"
+                  : theme.primary
+                : section.key === "active"
+                ? theme.primary
+                : "#94a3b8"
+            }
+          />
+          <View style={styles.sectionTitleContainer}>
+            <Text
+              style={[
+                styles.sectionHeaderText,
+                isExpired && styles.expiredSectionText,
+                isEventSection && styles.eventSectionTitle,
+              ]}
+            >
+              {section.title}
+            </Text>
+            {isEventSection && section.eventDate && !isExpired && (
+              <Text style={[styles.eventDate, { color: theme.primary }]}>
+                {formatEventDate(section.eventDate)}
+              </Text>
+            )}
+          </View>
+          <View
             style={[
-              styles.sectionCountText,
-              section.key === "expired" && styles.expiredSectionCountText,
+              styles.sectionCount,
+              {
+                backgroundColor: isEventSection
+                  ? isExpired
+                    ? "#94a3b8"
+                    : theme.primary
+                  : section.key === "active"
+                  ? theme.primary
+                  : "#94a3b8",
+              },
             ]}
           >
-            {section.data.length}
-          </Text>
+            <Text style={styles.sectionCountText}>{section.data.length}</Text>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderConversation = ({ item }: { item: ConversationWithDetails }) => {
     const otherParticipant = getOtherParticipant(item);
@@ -499,8 +770,8 @@ export default function ChatListScreen() {
               )}
             </View>
 
-            {/* Ticket reference if applicable */}
-            {item.ticket && (
+            {/* Ticket reference - only show when not in event sectioning mode */}
+            {item.ticket && sectioningMode !== "events" && (
               <View style={styles.ticketReference}>
                 <Ionicons
                   name="ticket-outline"
@@ -509,10 +780,8 @@ export default function ChatListScreen() {
                 />
                 <Text
                   style={[
-                    [
-                      styles.ticketText,
-                      { color: isExpired ? "#94a3b8" : theme.primary },
-                    ],
+                    styles.ticketText,
+                    { color: isExpired ? "#94a3b8" : theme.primary },
                     isExpired && styles.expiredTicketText,
                   ]}
                   numberOfLines={1}
@@ -589,7 +858,10 @@ export default function ChatListScreen() {
               </View>
               <Text style={styles.statNumber}>
                 {conversationSections.find((s) => s.key === "active")?.data
-                  .length || 0}
+                  .length ||
+                  conversationSections
+                    .filter((s) => !s.key.includes("expired"))
+                    .reduce((sum, s) => sum + s.data.length, 0)}
               </Text>
               <Text style={styles.statLabel}>Active</Text>
             </View>
@@ -622,19 +894,36 @@ export default function ChatListScreen() {
                   { backgroundColor: "rgba(148, 163, 184, 0.2)" },
                 ]}
               >
-                <Ionicons name="time-outline" size={20} color="#94a3b8" />
+                <Ionicons
+                  name={
+                    sectioningMode === "events"
+                      ? "calendar-outline"
+                      : "time-outline"
+                  }
+                  size={20}
+                  color="#94a3b8"
+                />
               </View>
               <Text style={[styles.statNumber, { color: "#94a3b8" }]}>
-                {conversationSections.find((s) => s.key === "expired")?.data
-                  .length || 0}
+                {sectioningMode === "events"
+                  ? new Set(
+                      conversations
+                        .filter((c) => c.ticket?.event_id)
+                        .map((c) => c.ticket?.event_id)
+                    ).size
+                  : conversationSections
+                      .filter((s) => s.key.includes("expired"))
+                      .reduce((sum, s) => sum + s.data.length, 0)}
               </Text>
-              <Text style={styles.statLabel}>Expired</Text>
+              <Text style={styles.statLabel}>
+                {sectioningMode === "events" ? "Events" : "Expired"}
+              </Text>
             </View>
           </View>
         </BlurView>
       </View>
 
-      {/* Enhanced Segmented Filter Control */}
+      {/* Enhanced Filter with Sectioning Toggle */}
       {renderEnhancedFilter()}
 
       {/* Conversations List */}
@@ -652,13 +941,15 @@ export default function ChatListScreen() {
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
             keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={Platform.OS === "android" ? "on-drag" : "interactive"}
-            removeClippedSubviews={Platform.OS === 'android'}
-            nestedScrollEnabled={Platform.OS === 'android'}
-            initialNumToRender={Platform.OS === 'android' ? 8 : 10}
-            maxToRenderPerBatch={Platform.OS === 'android' ? 6 : 10}
-            updateCellsBatchingPeriod={Platform.OS === 'android' ? 100 : 50}
-            windowSize={Platform.OS === 'android' ? 6 : 10}
+            keyboardDismissMode={
+              Platform.OS === "android" ? "on-drag" : "interactive"
+            }
+            removeClippedSubviews={Platform.OS === "android"}
+            nestedScrollEnabled={Platform.OS === "android"}
+            initialNumToRender={Platform.OS === "android" ? 8 : 10}
+            maxToRenderPerBatch={Platform.OS === "android" ? 6 : 10}
+            updateCellsBatchingPeriod={Platform.OS === "android" ? 100 : 50}
+            windowSize={Platform.OS === "android" ? 6 : 10}
             refreshControl={
               <RefreshControl
                 refreshing={loading}
@@ -813,22 +1104,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  // ✅ Section header styles
+  // Section header styles
   sectionHeader: {
     paddingVertical: 12,
     paddingHorizontal: 4,
     marginBottom: 8,
+  },
+  eventSectionHeader: {
+    paddingVertical: 16,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
   },
   sectionHeaderContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
+  sectionTitleContainer: {
+    flex: 1,
+  },
   sectionHeaderText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#1e293b",
-    flex: 1,
+  },
+  eventSectionTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  eventDate: {
+    fontSize: 13,
+    fontWeight: "600",
+    opacity: 0.8,
   },
   expiredSectionText: {
     color: "#64748b",
@@ -840,15 +1149,9 @@ const styles = StyleSheet.create({
     minWidth: 24,
     alignItems: "center",
   },
-  expiredSectionCount: {
-    backgroundColor: "#94a3b8",
-  },
   sectionCountText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "white",
-  },
-  expiredSectionCountText: {
     color: "white",
   },
   conversationCard: {
@@ -870,7 +1173,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fefffe",
     shadowOpacity: 0.1,
   },
-  // ✅ Expired conversation styles
   expiredConversation: {
     backgroundColor: "#f8fafc",
     borderColor: "#e2e8f0",
@@ -911,7 +1213,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "white",
   },
-  // ✅ Expired indicator
   expiredIndicator: {
     position: "absolute",
     top: -2,
@@ -944,7 +1245,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#0f172a",
   },
-  // ✅ Expired text styles
   expiredText: {
     color: "#64748b",
     fontWeight: "500",
@@ -992,7 +1292,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     flex: 1,
   },
-  // ✅ Expired ticket text
   expiredTicketText: {
     fontStyle: "italic",
   },
@@ -1058,7 +1357,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  // ✅ Enhanced Segmented Control Filter Styles
+  // Enhanced Segmented Control Filter Styles
   enhancedFilterContainer: {
     paddingHorizontal: 20,
     marginBottom: 20,
@@ -1141,11 +1440,71 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 13,
   },
+  filterBottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   filterDescription: {
     fontSize: 13,
-    color: "rgba(255, 255, 255, 0.8)",
-    textAlign: "center",
     fontWeight: "500",
+    letterSpacing: 0.1,
+    flex: 1,
+  },
+  // Sectioning Toggle Styles
+  sectioningToggleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sectioningLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    opacity: 0.9,
+  },
+  sectioningToggle: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  toggleBlur: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.4)",
+    overflow: "hidden",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+  },
+  toggleContent: {
+    flexDirection: "row",
+    position: "relative",
+    padding: 2,
+    width: 140,
+    height: 32,
+  },
+  toggleIndicator: {
+    position: "absolute",
+    top: 2,
+    left: 2,
+    width: 66,
+    height: 28,
+    borderRadius: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  toggleOption: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    zIndex: 2,
+    paddingHorizontal: 4,
+  },
+  toggleText: {
+    fontSize: 11,
+    fontWeight: "600",
     letterSpacing: 0.1,
   },
 });
