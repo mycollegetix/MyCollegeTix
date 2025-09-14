@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		11E10BB5D63A39B3800975B9 /* libPods-MyCollegeTix.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6E14B64C62874E6FE3959155 /* libPods-MyCollegeTix.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		44BB566F903B0921FABAD139 /* libPods-MyCollegeTix.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D2AC5C8F9D5CD35085603DF8 /* libPods-MyCollegeTix.a */; };
 		8AB6A5D77CF5990D4A9DC268 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2124886DC1B543667D634E51 /* ExpoModulesProvider.swift */; };
 		A0C46EF3CE4E98D3A2A682C9 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 63EC6597675481B1B12B7CD4 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
@@ -21,12 +21,12 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = MyCollegeTix/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = MyCollegeTix/Info.plist; sourceTree = "<group>"; };
 		2124886DC1B543667D634E51 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MyCollegeTix/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		4C938584B2B5A42C0A9679E0 /* Pods-MyCollegeTix.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.release.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.release.xcconfig"; sourceTree = "<group>"; };
 		63EC6597675481B1B12B7CD4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = MyCollegeTix/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		6E14B64C62874E6FE3959155 /* libPods-MyCollegeTix.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MyCollegeTix.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		84DB1A7D871016DA2E7C2A73 /* Pods-MyCollegeTix.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.debug.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.debug.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = MyCollegeTix/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		BFCE9D5BBE8D438C1F1659F0 /* Pods-MyCollegeTix.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.debug.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.debug.xcconfig"; sourceTree = "<group>"; };
-		D2AC5C8F9D5CD35085603DF8 /* libPods-MyCollegeTix.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MyCollegeTix.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C4ED48B7275EB815AA9B6B51 /* Pods-MyCollegeTix.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.release.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = MyCollegeTix/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* MyCollegeTix-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MyCollegeTix-Bridging-Header.h"; path = "MyCollegeTix/MyCollegeTix-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				44BB566F903B0921FABAD139 /* libPods-MyCollegeTix.a in Frameworks */,
+				11E10BB5D63A39B3800975B9 /* libPods-MyCollegeTix.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -62,7 +62,7 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				D2AC5C8F9D5CD35085603DF8 /* libPods-MyCollegeTix.a */,
+				6E14B64C62874E6FE3959155 /* libPods-MyCollegeTix.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -78,8 +78,8 @@
 		649F8596FAF61BDF29793B93 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				BFCE9D5BBE8D438C1F1659F0 /* Pods-MyCollegeTix.debug.xcconfig */,
-				4C938584B2B5A42C0A9679E0 /* Pods-MyCollegeTix.release.xcconfig */,
+				84DB1A7D871016DA2E7C2A73 /* Pods-MyCollegeTix.debug.xcconfig */,
+				C4ED48B7275EB815AA9B6B51 /* Pods-MyCollegeTix.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -138,14 +138,14 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "MyCollegeTix" */;
 			buildPhases = (
-				DD9DD88339B6FF37D8FB1E6E /* [CP] Check Pods Manifest.lock */,
+				8B55FDE44FC4ABCD7BD412C9 /* [CP] Check Pods Manifest.lock */,
 				EFCCBFB707070BCAB6DD23A0 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				1C0823DFF82E6E37CE9528D0 /* [CP] Embed Pods Frameworks */,
-				D95DA8F73AF2DA5FDEB7EF61 /* [CP] Copy Pods Resources */,
+				B03752C81822D60F7147F084 /* [CP] Embed Pods Frameworks */,
+				97B92387B744911EC45AE112 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -217,25 +217,29 @@
 			shellPath = /bin/sh;
 			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  export SKIP_BUNDLING=1\nfi\nif [[ -z \"$ENTRY_FILE\" ]]; then\n  # Set the entry JS file using the bundler's entry resolution.\n  export ENTRY_FILE=\"$(\"$NODE_BINARY\" -e \"require('expo/scripts/resolveAppEntry')\" \"$PROJECT_ROOT\" ios absolute | tail -n 1)\"\nfi\n\nif [[ -z \"$CLI_PATH\" ]]; then\n  # Use Expo CLI\n  export CLI_PATH=\"$(\"$NODE_BINARY\" --print \"require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })\")\"\nfi\nif [[ -z \"$BUNDLE_COMMAND\" ]]; then\n  # Default Expo CLI command for bundling\n  export BUNDLE_COMMAND=\"export:embed\"\nfi\n\n# Source .xcode.env.updates if it exists to allow\n# SKIP_BUNDLING to be unset if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.updates\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.updates\"\nfi\n# Source local changes to allow overrides\n# if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n\n";
 		};
-		1C0823DFF82E6E37CE9528D0 /* [CP] Embed Pods Frameworks */ = {
+		8B55FDE44FC4ABCD7BD412C9 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			inputFileListPaths = (
 			);
-			name = "[CP] Embed Pods Frameworks";
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+				"$(DERIVED_FILE_DIR)/Pods-MyCollegeTix-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix-frameworks.sh\"\n";
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		D95DA8F73AF2DA5FDEB7EF61 /* [CP] Copy Pods Resources */ = {
+		97B92387B744911EC45AE112 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -277,26 +281,22 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		DD9DD88339B6FF37D8FB1E6E /* [CP] Check Pods Manifest.lock */ = {
+		B03752C81822D60F7147F084 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
-			inputFileListPaths = (
-			);
 			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
+				"${PODS_ROOT}/Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
 			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
+			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-MyCollegeTix-checkManifestLockResult.txt",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		EFCCBFB707070BCAB6DD23A0 /* [Expo] Configure project */ = {
@@ -335,7 +335,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = BFCE9D5BBE8D438C1F1659F0 /* Pods-MyCollegeTix.debug.xcconfig */;
+			baseConfigurationReference = 84DB1A7D871016DA2E7C2A73 /* Pods-MyCollegeTix.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -372,7 +372,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4C938584B2B5A42C0A9679E0 /* Pods-MyCollegeTix.release.xcconfig */;
+			baseConfigurationReference = C4ED48B7275EB815AA9B6B51 /* Pods-MyCollegeTix.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
