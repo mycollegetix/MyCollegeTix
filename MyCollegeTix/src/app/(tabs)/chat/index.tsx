@@ -12,9 +12,12 @@ import {
   SectionList,
   Platform,
   Animated,
+  ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { useChat } from "@/src/providers/ChatProvider";
@@ -364,126 +367,109 @@ export default function ChatListScreen() {
 
   // Removed sectioning toggle since we only use status-based grouping now
 
-  // Enhanced filter component
-  const renderEnhancedFilter = () => {
+  // Compact filter component (matches Browse/Tickets pattern)
+  const renderCompactFilter = () => {
     const screenWidth = Dimensions.get("window").width;
     const containerPadding = 40;
-    const controlPadding = 12;
-    const availableWidth = screenWidth - containerPadding - controlPadding;
+    const availableWidth = screenWidth - containerPadding;
     const segmentWidth = availableWidth / filterOptions.length;
 
     return (
-      <View style={styles.enhancedFilterContainer}>
-        <BlurView intensity={25} style={styles.segmentedControlBlur}>
-          <View style={styles.segmentedControl}>
-            <Animated.View
-              style={[
-                styles.segmentIndicator,
-                {
-                  width: segmentWidth,
-                  backgroundColor: theme.primary,
-                  transform: [
-                    {
-                      translateX: slideAnimation.interpolate({
-                        inputRange: [0, 1, 2],
-                        outputRange: [0, segmentWidth, segmentWidth * 2],
-                        extrapolate: "clamp",
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
+      <View style={styles.compactFilterContainer}>
+        <View style={styles.compactSegmentedControl}>
+          <Animated.View
+            style={[
+              styles.compactSegmentIndicator,
+              {
+                width: segmentWidth - 4,
+                backgroundColor: theme.primary,
+                transform: [
+                  {
+                    translateX: slideAnimation.interpolate({
+                      inputRange: [0, 1, 2],
+                      outputRange: [2, segmentWidth + 2, segmentWidth * 2 + 2],
+                      extrapolate: "clamp",
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
 
-            {filterOptions.map((option, index) => {
-              const isActive = currentFilter === option.value;
-              const count =
-                filterCounts[option.value as keyof typeof filterCounts];
+          {filterOptions.map((option, index) => {
+            const isActive = currentFilter === option.value;
+            const count =
+              filterCounts[option.value as keyof typeof filterCounts];
 
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[styles.segmentButton, { width: segmentWidth }]}
-                  onPress={() => selectFilter(option.value, index)}
-                  activeOpacity={0.7}
+            return (
+              <TouchableOpacity
+                key={option.value}
+                style={[styles.segmentButton, { width: segmentWidth }]}
+                onPress={() => selectFilter(option.value, index)}
+                activeOpacity={0.7}
+              >
+                <Animated.View
+                  style={[styles.segmentContent, { opacity: fadeAnimation }]}
                 >
                   <Animated.View
-                    style={[styles.segmentContent, { opacity: fadeAnimation }]}
+                    style={[
+                      styles.segmentIconContainer,
+                      {
+                        backgroundColor: isActive
+                          ? "rgba(255, 255, 255, 0.35)"
+                          : "rgba(30, 41, 59, 0.08)",
+                      },
+                    ]}
                   >
+                    <Ionicons
+                      name={option.icon}
+                      size={14}
+                      color={isActive ? "white" : "#1e293b"}
+                    />
+                  </Animated.View>
+
+                  <Text
+                    style={[
+                      styles.segmentLabel,
+                      {
+                        color: isActive ? "white" : "#1e293b",
+                        fontWeight: isActive ? "800" : "700",
+                      },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+
+                  {count > 0 && (
                     <Animated.View
                       style={[
-                        styles.segmentIconContainer,
+                        styles.segmentBadge,
                         {
                           backgroundColor: isActive
-                            ? "rgba(255, 255, 255, 0.35)"
-                            : "rgba(30, 41, 59, 0.08)",
+                            ? "rgba(255, 255, 255, 0.3)"
+                            : theme.secondary,
+                          borderColor: isActive
+                            ? "rgba(255, 255, 255, 0.5)"
+                            : "rgba(30, 41, 59, 0.1)",
                         },
                       ]}
                     >
-                      <Ionicons
-                        name={option.icon}
-                        size={16}
-                        color={isActive ? "white" : "#1e293b"}
-                      />
-                    </Animated.View>
-
-                    <Text
-                      style={[
-                        styles.segmentLabel,
-                        {
-                          color: isActive ? "white" : "#1e293b",
-                          fontWeight: isActive ? "800" : "700",
-                        },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-
-                    {count > 0 && (
-                      <Animated.View
+                      <Text
                         style={[
-                          styles.segmentBadge,
+                          styles.segmentBadgeText,
                           {
-                            backgroundColor: isActive
-                              ? "rgba(255, 255, 255, 0.3)"
-                              : theme.secondary,
-                            borderColor: isActive
-                              ? "rgba(255, 255, 255, 0.5)"
-                              : "rgba(30, 41, 59, 0.1)",
+                            color: isActive ? "white" : "#1e293b",
                           },
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.segmentBadgeText,
-                            {
-                              color: isActive ? "white" : "#1e293b",
-                            },
-                          ]}
-                        >
-                          {count > 99 ? "99+" : count}
-                        </Text>
-                      </Animated.View>
-                    )}
-                  </Animated.View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </BlurView>
-
-        <View style={styles.filterBottomRow}>
-          <Text
-            style={[
-              styles.filterDescription,
-              { color: "rgba(255, 255, 255, 0.8)" },
-            ]}
-          >
-            {
-              filterOptions.find((opt) => opt.value === currentFilter)
-                ?.description
-            }
-          </Text>
+                        {count > 99 ? "99+" : count}
+                      </Text>
+                    </Animated.View>
+                  )}
+                </Animated.View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     );
@@ -685,99 +671,109 @@ export default function ChatListScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.primary }]}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      <View style={[styles.background, { backgroundColor: theme.primary }]} />
+      {/* Linear Gradient Background */}
+      <LinearGradient
+        colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
+        style={styles.background}
+      />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View
-            style={[styles.logoContainer, { backgroundColor: theme.secondary }]}
+      {/* Floating elements for premium feel */}
+      <View
+        style={[
+          styles.floatingElement1,
+          { backgroundColor: `${theme.secondary}08` },
+        ]}
+      />
+      <View
+        style={[
+          styles.floatingElement2,
+          { backgroundColor: "rgba(255, 255, 255, 0.05)" },
+        ]}
+      />
+
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        keyboardDismissMode={
+          Platform.OS === "android" ? "on-drag" : "interactive"
+        }
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={loadConversations}
+            tintColor={theme.secondary}
+            colors={[theme.secondary]}
+          />
+        }
+      >
+        {/* Premium Header Section */}
+        <View style={styles.headerSection}>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => (router.push as any)("/notifications/")}
           >
-            <View style={styles.logo}>
-              <Ionicons name="chatbubbles" size={20} color={theme.primary} />
-            </View>
+            <NotificationBadge
+              iconName="notifications-outline"
+              iconSize={24}
+              iconColor={theme.secondary}
+            />
+          </TouchableOpacity>
+
+          <View style={styles.logoContainer}>
+            <LinearGradient
+              colors={[theme.secondary, `${theme.secondary}DD`]}
+              style={styles.logo}
+            >
+              <Ionicons name="chatbubbles" size={32} color={theme.primary} />
+            </LinearGradient>
           </View>
           <Text style={styles.headerTitle}>Messages</Text>
+          <Text style={styles.headerSubtitle}>
+            Connect with buyers and sellers for ticket exchanges
+          </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={() => (router.push as any)("/notifications/")}
-        >
-          <NotificationBadge
-            iconName="notifications-outline"
-            iconSize={24}
-            iconColor={theme.secondary}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats */}
-      <View style={styles.statsContainer}>
-        <BlurView intensity={30} style={styles.statsCard}>
-          <View
-            style={[
-              styles.statsGradient,
-              { backgroundColor: `${theme.primary}20` },
-            ]}
+        {/* Premium Content Section */}
+        <View style={styles.contentSection}>
+          {/* Compact Stats Row */}
+          <LinearGradient
+            colors={[theme.primary, `${theme.primary}E6`]}
+            style={styles.compactStatsContainer}
           >
-            <View style={styles.statItem}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: `${theme.secondary}20` },
-                ]}
+            <View style={styles.compactStatItem}>
+              <Ionicons name="chatbubbles" size={18} color={theme.secondary} />
+              <Text
+                style={[styles.compactStatNumber, { color: "white" }]}
               >
-                <Ionicons
-                  name="chatbubbles"
-                  size={20}
-                  color={theme.secondary}
-                />
-              </View>
-              <Text style={styles.statNumber}>
-                {conversationSections.find((s) => s.key === "active")?.data
-                  .length ||
-                  conversationSections
-                    .filter((s) => !s.key.includes("expired"))
-                    .reduce((sum, s) => sum + s.data.length, 0)}
+                {conversationSections
+                  .filter((s) => !s.key.includes("expired"))
+                  .reduce((sum, s) => sum + s.data.length, 0)}
               </Text>
-              <Text style={styles.statLabel}>Active</Text>
+              <Text style={styles.compactStatLabel}>Active</Text>
             </View>
 
-            <View style={styles.statDivider} />
+            <View style={styles.compactStatDivider} />
 
-            <View style={styles.statItem}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: "rgba(239, 68, 68, 0.2)" },
-                ]}
-              >
-                <Ionicons name="mail-unread" size={20} color="#ef4444" />
-              </View>
-              <Text style={[styles.statNumber, { color: "#ef4444" }]}>
+            <View style={styles.compactStatItem}>
+              <Ionicons name="mail-unread" size={18} color={theme.secondary} />
+              <Text style={[styles.compactStatNumber, { color: "white" }]}>
                 {conversations
                   .filter((conv) => !conv.archived && !conv.is_expired)
                   .reduce((sum, conv) => sum + conv.unread_count, 0)}
               </Text>
-              <Text style={styles.statLabel}>Unread</Text>
+              <Text style={styles.compactStatLabel}>Unread</Text>
             </View>
 
-            <View style={styles.statDivider} />
+            <View style={styles.compactStatDivider} />
 
-            <View style={styles.statItem}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: "rgba(148, 163, 184, 0.2)" },
-                ]}
-              >
-                <Ionicons name="calendar-outline" size={20} color="#94a3b8" />
-              </View>
-              <Text style={[styles.statNumber, { color: "#94a3b8" }]}>
+            <View style={styles.compactStatItem}>
+              <Ionicons name="calendar-outline" size={18} color={theme.secondary} />
+              <Text style={[styles.compactStatNumber, { color: "white" }]}>
                 {
                   new Set(
                     conversations
@@ -786,83 +782,78 @@ export default function ChatListScreen() {
                   ).size
                 }
               </Text>
-              <Text style={styles.statLabel}>Events</Text>
+              <Text style={styles.compactStatLabel}>Events</Text>
             </View>
-          </View>
-        </BlurView>
-      </View>
+          </LinearGradient>
 
-      {/* Enhanced Filter with Sectioning Toggle */}
-      {renderEnhancedFilter()}
+          {/* Enhanced Filter Controls */}
+          {renderCompactFilter()}
 
-      {/* Conversations List */}
-      <View style={styles.conversationsContainer}>
-        {loading ? (
-          <BlurView intensity={20} style={styles.loadingState}>
-            <Text style={styles.loadingText}>Loading conversations...</Text>
-          </BlurView>
-        ) : conversations.length > 0 ? (
-          <SectionList
-            sections={conversationSections}
-            renderItem={renderConversation}
-            renderSectionHeader={renderSectionHeader}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            scrollEventThrottle={16}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={
-              Platform.OS === "android" ? "on-drag" : "interactive"
-            }
-            removeClippedSubviews={Platform.OS === "android"}
-            nestedScrollEnabled={Platform.OS === "android"}
-            initialNumToRender={Platform.OS === "android" ? 8 : 10}
-            maxToRenderPerBatch={Platform.OS === "android" ? 6 : 10}
-            updateCellsBatchingPeriod={Platform.OS === "android" ? 100 : 50}
-            windowSize={Platform.OS === "android" ? 6 : 10}
-            refreshControl={
-              <RefreshControl
-                refreshing={loading}
-                onRefresh={loadConversations}
-                tintColor={theme.primary}
-                colors={[theme.primary]}
+          {/* Conversations List */}
+          <View style={styles.conversationsListContainer}>
+            {loading ? (
+              <BlurView intensity={20} style={styles.loadingState}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={styles.loadingText}>Loading conversations...</Text>
+              </BlurView>
+            ) : conversations.length > 0 ? (
+              <SectionList
+                sections={conversationSections}
+                renderItem={renderConversation}
+                renderSectionHeader={renderSectionHeader}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled={true}
+                removeClippedSubviews={Platform.OS === "android"}
+                keyboardShouldPersistTaps="handled"
+                initialNumToRender={Platform.OS === "android" ? 8 : 10}
+                maxToRenderPerBatch={Platform.OS === "android" ? 6 : 10}
+                updateCellsBatchingPeriod={Platform.OS === "android" ? 100 : 50}
+                windowSize={Platform.OS === "android" ? 6 : 10}
+                contentContainerStyle={styles.listContent}
+                stickySectionHeadersEnabled={false}
               />
-            }
-            contentContainerStyle={styles.listContent}
-            stickySectionHeadersEnabled={false}
-          />
-        ) : (
-          <BlurView intensity={20} style={styles.emptyState}>
-            <View style={styles.emptyIconContainer}>
-              <View
-                style={[
-                  styles.emptyIconGradient,
-                  { backgroundColor: theme.primary },
-                ]}
-              >
-                <Ionicons name="chatbubbles-outline" size={32} color="white" />
-              </View>
-            </View>
-            <Text style={styles.emptyStateTitle}>No conversations yet</Text>
-            <Text style={styles.emptyStateText}>
-              Start a conversation by contacting a seller from a ticket listing
-            </Text>
-            <TouchableOpacity
-              style={styles.browseButton}
-              onPress={() => (router.push as any)("/(tabs)/")}
-            >
-              <View
-                style={[
-                  styles.browseButtonGradient,
-                  { backgroundColor: theme.primary },
-                ]}
-              >
-                <Ionicons name="search-outline" size={16} color="white" />
-                <Text style={styles.browseButtonText}>Browse Tickets</Text>
-              </View>
-            </TouchableOpacity>
-          </BlurView>
-        )}
-      </View>
+            ) : (
+              <BlurView intensity={20} style={styles.emptyState}>
+                <View style={styles.emptyIconContainer}>
+                  <View
+                    style={[
+                      styles.emptyIconGradient,
+                      { backgroundColor: theme.primary },
+                    ]}
+                  >
+                    <Ionicons
+                      name="chatbubbles-outline"
+                      size={32}
+                      color="white"
+                    />
+                  </View>
+                </View>
+                <Text style={styles.emptyStateTitle}>No conversations yet</Text>
+                <Text style={styles.emptyStateText}>
+                  Start a conversation by contacting a seller from a ticket
+                  listing
+                </Text>
+                <TouchableOpacity
+                  style={styles.browseButton}
+                  onPress={() => (router.push as any)("/(tabs)/")}
+                >
+                  <View
+                    style={[
+                      styles.browseButtonGradient,
+                      { backgroundColor: theme.primary },
+                    ]}
+                  >
+                    <Ionicons name="search-outline" size={16} color="white" />
+                    <Text style={styles.browseButtonText}>Browse Tickets</Text>
+                  </View>
+                </TouchableOpacity>
+              </BlurView>
+            )}
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -878,40 +869,68 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+  // Floating elements for visual depth
+  floatingElement1: {
+    position: "absolute",
+    top: "15%",
+    left: "10%",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
-  headerLeft: {
-    flexDirection: "row",
+  floatingElement2: {
+    position: "absolute",
+    bottom: "30%",
+    right: "15%",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  // ScrollView structure like other tabs
+  scrollView: {
+    flex: 1,
+  },
+  // Header Section (Gradient)
+  headerSection: {
     alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    position: "relative",
   },
   logoContainer: {
-    marginRight: 12,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 16,
   },
   logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "800",
     color: "white",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.9)",
+    textAlign: "center",
+    paddingHorizontal: 20,
+    lineHeight: 22,
   },
   notificationButton: {
+    position: "absolute",
+    top: 60,
+    right: 20,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -920,47 +939,123 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 1000,
+    elevation: 5,
   },
-  statsContainer: {
+  // Content Section (White)
+  contentSection: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
     paddingHorizontal: 20,
-    marginBottom: 24,
+    flex: 1,
   },
-  statsCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    overflow: "hidden",
-  },
-  statsGradient: {
+  // Compact Stats
+  compactStatsContainer: {
     flexDirection: "row",
-    padding: 20,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  statItem: {
+  compactStatItem: {
     flex: 1,
     alignItems: "center",
-    gap: 8,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
   },
-  statIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  compactStatIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "white",
+  compactStatNumber: {
+    fontSize: 16,
+    fontWeight: "700",
   },
-  statLabel: {
+  compactStatLabel: {
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "rgba(255, 255, 255, 0.9)",
     fontWeight: "500",
   },
-  statDivider: {
+  compactStatDivider: {
     width: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    marginHorizontal: 16,
+    height: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    marginHorizontal: 8,
+  },
+  // Compact Filter Styles
+  compactFilterContainer: {
+    marginBottom: 20,
+  },
+  compactSegmentedControl: {
+    flexDirection: "row",
+    backgroundColor: "#f1f5f9",
+    borderRadius: 16,
+    padding: 4,
+    height: 44,
+    position: "relative",
+  },
+  compactSegmentIndicator: {
+    position: "absolute",
+    top: 4,
+    height: 36,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  compactSegmentButton: {
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 12,
+    zIndex: 2,
+  },
+  compactSegmentContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  compactSegmentLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  compactSegmentBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  compactSegmentBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    lineHeight: 13,
+  },
+  // Conversations List
+  conversationsListContainer: {
+    flex: 1,
+  },
+  // Legacy styles for compatibility
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   conversationsContainer: {
     flex: 1,
@@ -1226,98 +1321,93 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  // Enhanced Segmented Control Filter Styles
+  // Enhanced Segmented Control Filter Styles - Compact Version
   enhancedFilterContainer: {
-    paddingHorizontal: 20,
     marginBottom: 20,
     zIndex: 100,
   },
   segmentedControlBlur: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
+    borderColor: "#e2e8f0",
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
     marginBottom: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "#f8fafc",
   },
   segmentedControl: {
     flexDirection: "row",
     position: "relative",
-    padding: 6,
-    height: 64,
-    backgroundColor: "rgba(248, 250, 252, 0.8)",
+    padding: 4,
+    height: 44,
+    backgroundColor: "#f8fafc",
   },
   segmentIndicator: {
     position: "absolute",
-    top: 6,
-    left: 6,
-    bottom: 6,
-    borderRadius: 16,
+    top: 4,
+    left: 4,
+    bottom: 4,
+    borderRadius: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   segmentButton: {
-    height: 52,
+    height: 36,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 16,
+    borderRadius: 12,
     zIndex: 2,
   },
   segmentContent: {
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 3,
+    gap: 2,
     paddingHorizontal: 2,
   },
   segmentIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 2,
   },
   segmentLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     letterSpacing: 0.1,
     textAlign: "center",
     flexShrink: 1,
   },
   segmentBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    minWidth: 20,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 8,
+    minWidth: 16,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 2,
+    marginLeft: 1,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.3)",
   },
   segmentBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
-    lineHeight: 13,
-  },
-  filterBottomRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    lineHeight: 12,
   },
   filterDescription: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
-    letterSpacing: 0.1,
-    flex: 1,
+    color: "#64748b",
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });
