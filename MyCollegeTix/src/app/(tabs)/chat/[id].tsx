@@ -28,7 +28,7 @@ import { reportingService } from "@/src/services/reportingService";
 const { width, height } = Dimensions.get("window");
 
 export default function ChatConversationScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, firstMessage } = useLocalSearchParams<{ id: string; firstMessage?: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const theme = useTheme();
@@ -48,6 +48,8 @@ export default function ChatConversationScreen() {
   const [sending, setSending] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [isUserBlocked, setIsUserBlocked] = useState(false);
+  const [hasAutoSentFirstMessage, setHasAutoSentFirstMessage] = useState(false);
+  const [isAutoSending, setIsAutoSending] = useState(false);
 
   // ✅ REMOVED: hasLoadedMessages and isConversationSwitching - provider handles this
   const flatListRef = useRef<FlatList>(null);
@@ -188,6 +190,61 @@ export default function ChatConversationScreen() {
       }, 100);
     }
   }, [messages.length, currentConversation?.id, id]);
+
+  // ✅ NEW: Auto-send first message if provided via navigation parameter
+  useEffect(() => {
+    if (firstMessage && currentConversation?.id === id && !hasAutoSentFirstMessage) {
+      const decodedMessage = decodeURIComponent(firstMessage);
+      console.log("🔄 Auto-sending first message:", decodedMessage.substring(0, 50) + "...");
+      
+      // Mark that we're auto-sending to prevent repeats
+      setHasAutoSentFirstMessage(true);
+      
+      // Auto-send the message immediately
+      const autoSend = async () => {
+        setIsAutoSending(true);
+        try {
+          console.log("📤 Sending auto-message:", decodedMessage);
+          const success = await sendMessage(id, decodedMessage);
+          
+          if (success) {
+            console.log("✅ Auto-sent first message successfully");
+            // Clean up the URL by removing the firstMessage parameter
+            setTimeout(() => {
+              (router.replace as any)(`/(tabs)/chat/${id}`);
+            }, 100);
+          } else {
+            console.error("❌ Failed to auto-send first message");
+            Alert.alert("Send Failed", "Your message couldn't be sent automatically. Please try sending it manually.", [
+              {
+                text: "OK",
+                onPress: () => {
+                  setMessageText(decodedMessage);
+                  setHasAutoSentFirstMessage(false);
+                }
+              }
+            ]);
+          }
+        } catch (error) {
+          console.error("❌ Error auto-sending first message:", error);
+          Alert.alert("Send Error", "There was an error sending your message. Please try again.", [
+            {
+              text: "OK", 
+              onPress: () => {
+                setMessageText(decodedMessage);
+                setHasAutoSentFirstMessage(false);
+              }
+            }
+          ]);
+        } finally {
+          setIsAutoSending(false);
+        }
+      };
+
+      // Small delay to ensure conversation is fully loaded
+      setTimeout(autoSend, 500);
+    }
+  }, [firstMessage, currentConversation?.id, id, hasAutoSentFirstMessage, sendMessage, router]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !id || sending) return;
@@ -527,9 +584,11 @@ export default function ChatConversationScreen() {
       >
         {/* Messages */}
         <View style={styles.messagesContainer}>
-          {messagesLoading && messages.length === 0 ? (
+          {(messagesLoading && messages.length === 0) || isAutoSending ? (
             <View style={styles.loadingMessages}>
-              <Text style={styles.loadingText}>Loading messages...</Text>
+              <Text style={styles.loadingText}>
+                {isAutoSending ? "Sending your message..." : "Loading messages..."}
+              </Text>
             </View>
           ) : (
             <FlatList

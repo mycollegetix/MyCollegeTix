@@ -31,7 +31,7 @@ export default function TicketDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const { getOrCreateConversation } = useChat();
+  const { getOrCreateConversation, conversations } = useChat();
   const theme = useTheme();
 
   const [ticket, setTicket] = useState<TicketWithSeller | null>(null);
@@ -102,29 +102,37 @@ export default function TicketDetailsScreen() {
       return;
     }
 
-    console.log("🗨️ Starting conversation with seller...");
+    console.log("🗨️ Checking for existing conversation with seller...");
     console.log("🔍 Current user:", user.id);
     console.log("🔍 Seller ID:", ticket.seller.id);
     console.log("🔍 Ticket ID:", ticket.id);
 
     try {
-      console.log("🔄 Calling getOrCreateConversation...");
-      const conversationId = await getOrCreateConversation(
-        ticket.seller.id,
-        ticket.id
-      );
+      // First, check if there's already a conversation for this ticket with this seller
+      const existingConversation = conversations.find(conv => {
+        const otherParticipant = conv.participant_1_id === user.id 
+          ? conv.participant_2 
+          : conv.participant_1;
+        
+        const isWithCorrectSeller = otherParticipant?.id === ticket.seller.id;
+        const isForCorrectTicket = conv.ticket_id === ticket.id;
+        
+        return isWithCorrectSeller && isForCorrectTicket;
+      });
 
-      console.log("🔍 Conversation result:", conversationId);
-
-      if (conversationId) {
-        console.log("✅ Conversation created/found:", conversationId);
-        (router.push as any)(`/(tabs)/chat/${conversationId}`);
-      } else {
-        throw new Error("Failed to create conversation - no ID returned");
+      if (existingConversation) {
+        console.log("✅ Found existing conversation:", existingConversation.id);
+        // Navigate directly to the existing conversation
+        (router.push as any)(`/(tabs)/chat/${existingConversation.id}`);
+        return;
       }
+
+      console.log("📝 No existing conversation found, showing new conversation screen");
+      // Navigate to new conversation screen only if no existing conversation
+      (router.push as any)(`/(tabs)/chat/new?sellerId=${ticket.seller.id}&ticketId=${ticket.id}&sellerName=${encodeURIComponent(ticket.seller.full_name)}&ticketTitle=${encodeURIComponent(ticket.title)}`);
     } catch (error) {
-      console.error("❌ Error starting conversation:", error);
-      Alert.alert("Error", "Unable to start conversation. Please try again.");
+      console.error("❌ Error handling contact seller:", error);
+      Alert.alert("Error", "Unable to open chat. Please try again.");
     }
   };
 
