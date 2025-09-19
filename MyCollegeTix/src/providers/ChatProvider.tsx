@@ -200,17 +200,94 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     conversationId: string,
     content: string
   ): Promise<boolean> => {
+    if (!user) return false;
+
     try {
+      // ✅ OPTIMISTIC UPDATE: Create a temporary message immediately
+      const optimisticMessage: MessageWithSender = {
+        id: `temp-${Date.now()}`, // Temporary ID
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content: content,
+        message_type: "text",
+        created_at: new Date().toISOString(),
+        read_at: null,
+        read_by_recipient: null,
+        edited_at: null,
+        sender: {
+          id: user.id,
+          username: user.username || "",
+          full_name: user.full_name || "",
+          email: user.email || "",
+          avatar_url: user.avatar_url || null,
+          created_at: user.created_at || new Date().toISOString(),
+          is_admin: user.is_admin || false,
+          college_id: user.college_id || null,
+          expo_push_token: user.expo_push_token || null,
+          current_ip_address: user.current_ip_address || null,
+          last_ip_address: user.last_ip_address || null,
+          ip_updated_at: user.ip_updated_at || null,
+          device_info: user.device_info || null,
+          location_data: user.location_data || null,
+          user_agent: user.user_agent || null,
+          is_trusted: user.is_trusted || false,
+          trust_earned_at: user.trust_earned_at || null,
+        },
+      };
+
+      console.log("📤 Optimistically adding message:", {
+        conversation_id: conversationId,
+        content: content.substring(0, 30) + "...",
+        temp_id: optimisticMessage.id,
+      });
+
+      // ✅ INSTANT UPDATE: Add optimistic message to local state immediately
+      setMessagesMap((prev) => {
+        const conversationMessages = prev[conversationId] || [];
+        return {
+          ...prev,
+          [conversationId]: [...conversationMessages, optimisticMessage],
+        };
+      });
+
+      // ✅ Send to server in background
       const { data, error } = await ChatService.sendMessage(
         conversationId,
         content
       );
+
       if (error || !data) {
+        console.error("❌ Failed to send message, removing optimistic update");
+        
+        // ✅ ROLLBACK: Remove optimistic message on failure
+        setMessagesMap((prev) => {
+          const conversationMessages = prev[conversationId] || [];
+          return {
+            ...prev,
+            [conversationId]: conversationMessages.filter(
+              (msg) => msg.id !== optimisticMessage.id
+            ),
+          };
+        });
+        
         throw error;
       }
 
-      // Refresh messages for this specific conversation
-      await loadMessages(conversationId);
+      console.log("✅ Message sent successfully, replacing optimistic message");
+
+      // ✅ REPLACE: Update optimistic message with real server data
+      setMessagesMap((prev) => {
+        const conversationMessages = prev[conversationId] || [];
+        const updatedMessages = conversationMessages.map((msg) =>
+          msg.id === optimisticMessage.id
+            ? { ...data, sender: optimisticMessage.sender } // Keep sender data
+            : msg
+        );
+        return {
+          ...prev,
+          [conversationId]: updatedMessages,
+        };
+      });
 
       return true;
     } catch (error) {
@@ -412,7 +489,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 }
               );
 
-              // ✅ ENHANCED: Add to conversation-scoped messages
+              // ✅ ENHANCED: Add to conversation-scoped messages with optimistic update handling
               setMessagesMap((prev) => {
                 const conversationMessages =
                   prev[newMessage.conversation_id] || [];
@@ -425,6 +502,42 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                   return prev;
                 }
 
+                // ✅ OPTIMISTIC UPDATE HANDLING: Check if this is replacing a temp message
+                const isFromCurrentUser = newMessage.sender_id === user.id;
+                if (isFromCurrentUser) {
+                  // Look for recent temporary message with same content and sender
+                  const recentTempMessage = conversationMessages
+                    .filter((m) => m.id.startsWith('temp-') && m.sender_id === user.id)
+                    .find((m) => {
+                      const timeDiff = Math.abs(
+                        new Date(newMessage.created_at).getTime() - 
+                        new Date(m.created_at).getTime()
+                      );
+                      return m.content === newMessage.content && timeDiff < 10000; // Within 10 seconds
+                    });
+
+                  if (recentTempMessage) {
+                    console.log(
+                      "🔄 Replacing optimistic message with real message:",
+                      {
+                        temp_id: recentTempMessage.id,
+                        real_id: newMessage.id,
+                      }
+                    );
+                    
+                    // Replace the temporary message with the real one
+                    return {
+                      ...prev,
+                      [newMessage.conversation_id]: conversationMessages.map((m) =>
+                        m.id === recentTempMessage.id
+                          ? messageWithSender as MessageWithSender
+                          : m
+                      ),
+                    };
+                  }
+                }
+
+                // Regular message addition (not replacing optimistic update)
                 return {
                   ...prev,
                   [newMessage.conversation_id]: [
