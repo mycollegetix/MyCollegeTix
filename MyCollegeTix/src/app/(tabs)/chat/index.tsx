@@ -33,7 +33,7 @@ interface ConversationSection {
 }
 
 type ConversationFilter = "all" | "seller" | "buyer";
-type SectioningMode = "status" | "events"; // New sectioning mode
+type SectioningMode = "events"; // Always use event-based grouping
 
 interface FilterOption {
   value: ConversationFilter;
@@ -57,10 +57,9 @@ export default function ChatListScreen() {
   // Enhanced state management
   const [currentFilter, setCurrentFilter] = useState<ConversationFilter>("all");
   const [sectioningMode, setSectioningMode] =
-    useState<SectioningMode>("status");
+    useState<SectioningMode>("events");
   const slideAnimation = useRef(new Animated.Value(0)).current;
   const fadeAnimation = useRef(new Animated.Value(1)).current;
-  const sectionToggleAnimation = useRef(new Animated.Value(0)).current;
 
   // Initialize animations
   useEffect(() => {
@@ -68,14 +67,13 @@ export default function ChatListScreen() {
       (option) => option.value === currentFilter
     );
     slideAnimation.setValue(index);
-    sectionToggleAnimation.setValue(sectioningMode === "status" ? 0 : 1);
   }, []);
 
   const filterOptions: FilterOption[] = [
     {
       value: "all",
       label: "All",
-      description: "Show all conversations",
+      description: "",
       icon: "chatbubbles-outline",
     },
     {
@@ -137,18 +135,8 @@ export default function ChatListScreen() {
     setCurrentFilter(filter);
   };
 
-  // New function to toggle sectioning mode
-  const toggleSectioningMode = () => {
-    const newMode = sectioningMode === "status" ? "events" : "status";
-
-    Animated.timing(sectionToggleAnimation, {
-      toValue: newMode === "status" ? 0 : 1,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-
-    setSectioningMode(newMode);
-  };
+  // Since we only have status mode now, this function is no longer needed
+  // Keeping the function stub in case we want to add other grouping options in the future
 
   useEffect(() => {
     loadConversations();
@@ -183,162 +171,108 @@ export default function ChatListScreen() {
     });
   }, [conversations, currentFilter, user?.id]);
 
-  // Enhanced sectioning logic - now supports both status and event grouping
+  // Event-based grouping - organizes conversations by individual events
   const conversationSections = useMemo((): ConversationSection[] => {
-    if (sectioningMode === "events") {
-      // Group by events
-      const eventGroups = new Map<string, ConversationWithDetails[]>();
-      const noEventConversations: ConversationWithDetails[] = [];
+    // Group by events
+    const eventGroups = new Map<string, ConversationWithDetails[]>();
+    const noEventConversations: ConversationWithDetails[] = [];
 
-      filteredConversations.forEach((conv) => {
-        if (conv.ticket?.event_id && conv.ticket?.title) {
-          const eventKey = `${conv.ticket.event_id}-${conv.ticket.title}`;
-          if (!eventGroups.has(eventKey)) {
-            eventGroups.set(eventKey, []);
-          }
-          eventGroups.get(eventKey)!.push(conv);
-        } else {
-          noEventConversations.push(conv);
+    filteredConversations.forEach((conv) => {
+      if (conv.ticket?.event_id && conv.ticket?.title) {
+        const eventKey = `${conv.ticket.event_id}-${conv.ticket.title}`;
+        if (!eventGroups.has(eventKey)) {
+          eventGroups.set(eventKey, []);
         }
-      });
+        eventGroups.get(eventKey)!.push(conv);
+      } else {
+        noEventConversations.push(conv);
+      }
+    });
 
-      const sections: ConversationSection[] = [];
+    const sections: ConversationSection[] = [];
 
-      // Sort event groups by most recent conversation
-      const sortedEventGroups = Array.from(eventGroups.entries()).sort(
-        (a, b) => {
-          const aLatest = Math.max(
-            ...a[1].map((conv) =>
-              conv.last_message_at
-                ? new Date(conv.last_message_at).getTime()
-                : 0
-            )
-          );
-          const bLatest = Math.max(
-            ...b[1].map((conv) =>
-              conv.last_message_at
-                ? new Date(conv.last_message_at).getTime()
-                : 0
-            )
-          );
-          return bLatest - aLatest;
-        }
+    // Sort event groups by most recent conversation
+    const sortedEventGroups = Array.from(eventGroups.entries()).sort((a, b) => {
+      const aLatest = Math.max(
+        ...a[1].map((conv) =>
+          conv.last_message_at ? new Date(conv.last_message_at).getTime() : 0
+        )
+      );
+      const bLatest = Math.max(
+        ...b[1].map((conv) =>
+          conv.last_message_at ? new Date(conv.last_message_at).getTime() : 0
+        )
+      );
+      return bLatest - aLatest;
+    });
+
+    // Separate active and expired events for proper sorting
+    const activeEventSections: ConversationSection[] = [];
+    const expiredEventSections: ConversationSection[] = [];
+
+    // Create sections for each event
+    sortedEventGroups.forEach(([eventKey, conversations]) => {
+      const firstConv = conversations[0];
+      const ticket = firstConv.ticket;
+
+      // Separate active and expired within each event
+      const activeConvs = conversations.filter(
+        (conv) => !conv.archived && !conv.is_expired
+      );
+      const expiredConvs = conversations.filter(
+        (conv) => conv.archived || conv.is_expired
       );
 
-      // Create sections for each event
-      sortedEventGroups.forEach(([eventKey, conversations]) => {
-        const firstConv = conversations[0];
-        const ticket = firstConv.ticket;
+      // Sort conversations within event by most recent
+      const sortConversations = (convs: ConversationWithDetails[]) =>
+        convs.sort((a, b) => {
+          const aTime = a.last_message_at
+            ? new Date(a.last_message_at).getTime()
+            : 0;
+          const bTime = b.last_message_at
+            ? new Date(b.last_message_at).getTime()
+            : 0;
+          return bTime - aTime;
+        });
 
-        // Separate active and expired within each event
-        const activeConvs = conversations.filter(
-          (conv) => !conv.archived && !conv.is_expired
-        );
-        const expiredConvs = conversations.filter(
-          (conv) => conv.archived || conv.is_expired
-        );
-
-        // Sort conversations within event by most recent
-        const sortConversations = (convs: ConversationWithDetails[]) =>
-          convs.sort((a, b) => {
-            const aTime = a.last_message_at
-              ? new Date(a.last_message_at).getTime()
-              : 0;
-            const bTime = b.last_message_at
-              ? new Date(b.last_message_at).getTime()
-              : 0;
-            return bTime - aTime;
-          });
-
-        if (activeConvs.length > 0) {
-          sections.push({
-            title: ticket?.title || "Unknown Event",
-            data: sortConversations(activeConvs),
-            key: `event-active-${eventKey}`,
-            eventId: ticket?.event_id,
-            eventTitle: ticket?.title,
-            eventDate: ticket?.event_date,
-            isEventSection: true,
-          });
-        }
-
-        if (expiredConvs.length > 0) {
-          sections.push({
-            title: `${ticket?.title || "Unknown Event"} (Expired)`,
-            data: sortConversations(expiredConvs),
-            key: `event-expired-${eventKey}`,
-            eventId: ticket?.event_id,
-            eventTitle: ticket?.title,
-            eventDate: ticket?.event_date,
-            isEventSection: true,
-          });
-        }
-      });
-
-      // Add conversations without events
-      if (noEventConversations.length > 0) {
-        const activeNoEvent = noEventConversations.filter(
-          (conv) => !conv.archived && !conv.is_expired
-        );
-        const expiredNoEvent = noEventConversations.filter(
-          (conv) => conv.archived || conv.is_expired
-        );
-
-        if (activeNoEvent.length > 0) {
-          sections.push({
-            title: "Other Conversations",
-            data: activeNoEvent.sort((a, b) => {
-              const aTime = a.last_message_at
-                ? new Date(a.last_message_at).getTime()
-                : 0;
-              const bTime = b.last_message_at
-                ? new Date(b.last_message_at).getTime()
-                : 0;
-              return bTime - aTime;
-            }),
-            key: "no-event-active",
-            isEventSection: false,
-          });
-        }
-
-        if (expiredNoEvent.length > 0) {
-          sections.push({
-            title: "Other Expired Conversations",
-            data: expiredNoEvent.sort((a, b) => {
-              const aTime = a.last_message_at
-                ? new Date(a.last_message_at).getTime()
-                : 0;
-              const bTime = b.last_message_at
-                ? new Date(b.last_message_at).getTime()
-                : 0;
-              return bTime - aTime;
-            }),
-            key: "no-event-expired",
-            isEventSection: false,
-          });
-        }
+      if (activeConvs.length > 0) {
+        activeEventSections.push({
+          title: ticket?.title || "Unknown Event",
+          data: sortConversations(activeConvs),
+          key: `event-active-${eventKey}`,
+          eventId: ticket?.event_id,
+          eventTitle: ticket?.title,
+          eventDate: ticket?.event_date,
+          isEventSection: true,
+        });
       }
 
-      return sections;
-    } else {
-      // Original status-based grouping
-      const activeConversations: ConversationWithDetails[] = [];
-      const expiredConversations: ConversationWithDetails[] = [];
+      if (expiredConvs.length > 0) {
+        expiredEventSections.push({
+          title: `${ticket?.title || "Unknown Event"} (Expired)`,
+          data: sortConversations(expiredConvs),
+          key: `event-expired-${eventKey}`,
+          eventId: ticket?.event_id,
+          eventTitle: ticket?.title,
+          eventDate: ticket?.event_date,
+          isEventSection: true,
+        });
+      }
+    });
 
-      filteredConversations.forEach((conv) => {
-        if (conv.archived || conv.is_expired) {
-          expiredConversations.push(conv);
-        } else {
-          activeConversations.push(conv);
-        }
-      });
+    // Add active sections first
+    sections.push(...activeEventSections);
 
-      const sections: ConversationSection[] = [];
+    // Add conversations without events (active only first)
+    if (noEventConversations.length > 0) {
+      const activeNoEvent = noEventConversations.filter(
+        (conv) => !conv.archived && !conv.is_expired
+      );
 
-      if (activeConversations.length > 0) {
+      if (activeNoEvent.length > 0) {
         sections.push({
-          title: "Active Conversations",
-          data: activeConversations.sort((a, b) => {
+          title: "Other Conversations",
+          data: activeNoEvent.sort((a, b) => {
             const aTime = a.last_message_at
               ? new Date(a.last_message_at).getTime()
               : 0;
@@ -347,31 +281,48 @@ export default function ChatListScreen() {
               : 0;
             return bTime - aTime;
           }),
-          key: "active",
+          key: "no-event-active",
           isEventSection: false,
         });
       }
-
-      if (expiredConversations.length > 0) {
-        sections.push({
-          title: "Expired Events",
-          data: expiredConversations.sort((a, b) => {
-            const aTime = a.last_message_at
-              ? new Date(a.last_message_at).getTime()
-              : 0;
-            const bTime = b.last_message_at
-              ? new Date(b.last_message_at).getTime()
-              : 0;
-            return bTime - aTime;
-          }),
-          key: "expired",
-          isEventSection: false,
-        });
-      }
-
-      return sections;
     }
-  }, [filteredConversations, sectioningMode]);
+
+    // Combine all expired conversations into a single section at the bottom
+    const allExpiredConversations: ConversationWithDetails[] = [];
+
+    // Add all expired conversations from events
+    expiredEventSections.forEach((section) => {
+      allExpiredConversations.push(...section.data);
+    });
+
+    // Add expired conversations without events
+    if (noEventConversations.length > 0) {
+      const expiredNoEvent = noEventConversations.filter(
+        (conv) => conv.archived || conv.is_expired
+      );
+      allExpiredConversations.push(...expiredNoEvent);
+    }
+
+    // Create single expired section if we have any expired conversations
+    if (allExpiredConversations.length > 0) {
+      sections.push({
+        title: "Expired Events",
+        data: allExpiredConversations.sort((a, b) => {
+          const aTime = a.last_message_at
+            ? new Date(a.last_message_at).getTime()
+            : 0;
+          const bTime = b.last_message_at
+            ? new Date(b.last_message_at).getTime()
+            : 0;
+          return bTime - aTime;
+        }),
+        key: "all-expired",
+        isEventSection: false,
+      });
+    }
+
+    return sections;
+  }, [filteredConversations]);
 
   const getOtherParticipant = (conversation: ConversationWithDetails) => {
     return conversation.participant_1_id === user?.id
@@ -411,76 +362,7 @@ export default function ChatListScreen() {
     (router.push as any)(`/(tabs)/chat/${conversation.id}`);
   };
 
-  // Enhanced sectioning mode toggle component
-  const renderSectioningToggle = () => (
-    <View style={styles.sectioningToggleContainer}>
-      <Text style={[styles.sectioningLabel, { color: theme.secondary }]}>
-        Group by:
-      </Text>
-      <TouchableOpacity
-        style={styles.sectioningToggle}
-        onPress={toggleSectioningMode}
-        activeOpacity={0.8}
-      >
-        <BlurView intensity={20} style={styles.toggleBlur}>
-          <View style={styles.toggleContent}>
-            <Animated.View
-              style={[
-                styles.toggleIndicator,
-                {
-                  backgroundColor: theme.primary,
-                  transform: [
-                    {
-                      translateX: sectionToggleAnimation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [2, 70],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-            <View style={styles.toggleOption}>
-              <Ionicons
-                name="list-outline"
-                size={14}
-                color={sectioningMode === "status" ? "white" : "#64748b"}
-              />
-              <Text
-                style={[
-                  styles.toggleText,
-                  {
-                    color: sectioningMode === "status" ? "white" : "#64748b",
-                    fontWeight: sectioningMode === "status" ? "700" : "600",
-                  },
-                ]}
-              >
-                Status
-              </Text>
-            </View>
-            <View style={styles.toggleOption}>
-              <Ionicons
-                name="calendar-outline"
-                size={14}
-                color={sectioningMode === "events" ? "white" : "#64748b"}
-              />
-              <Text
-                style={[
-                  styles.toggleText,
-                  {
-                    color: sectioningMode === "events" ? "white" : "#64748b",
-                    fontWeight: sectioningMode === "events" ? "700" : "600",
-                  },
-                ]}
-              >
-                Events
-              </Text>
-            </View>
-          </View>
-        </BlurView>
-      </TouchableOpacity>
-    </View>
-  );
+  // Removed sectioning toggle since we only use status-based grouping now
 
   // Enhanced filter component
   const renderEnhancedFilter = () => {
@@ -602,7 +484,6 @@ export default function ChatListScreen() {
                 ?.description
             }
           </Text>
-          {renderSectioningToggle()}
         </View>
       </View>
     );
@@ -894,30 +775,18 @@ export default function ChatListScreen() {
                   { backgroundColor: "rgba(148, 163, 184, 0.2)" },
                 ]}
               >
-                <Ionicons
-                  name={
-                    sectioningMode === "events"
-                      ? "calendar-outline"
-                      : "time-outline"
-                  }
-                  size={20}
-                  color="#94a3b8"
-                />
+                <Ionicons name="calendar-outline" size={20} color="#94a3b8" />
               </View>
               <Text style={[styles.statNumber, { color: "#94a3b8" }]}>
-                {sectioningMode === "events"
-                  ? new Set(
-                      conversations
-                        .filter((c) => c.ticket?.event_id)
-                        .map((c) => c.ticket?.event_id)
-                    ).size
-                  : conversationSections
-                      .filter((s) => s.key.includes("expired"))
-                      .reduce((sum, s) => sum + s.data.length, 0)}
+                {
+                  new Set(
+                    conversations
+                      .filter((c) => c.ticket?.event_id)
+                      .map((c) => c.ticket?.event_id)
+                  ).size
+                }
               </Text>
-              <Text style={styles.statLabel}>
-                {sectioningMode === "events" ? "Events" : "Expired"}
-              </Text>
+              <Text style={styles.statLabel}>Events</Text>
             </View>
           </View>
         </BlurView>
@@ -1450,61 +1319,5 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     letterSpacing: 0.1,
     flex: 1,
-  },
-  // Sectioning Toggle Styles
-  sectioningToggleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  sectioningLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    opacity: 0.9,
-  },
-  sectioningToggle: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  toggleBlur: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.4)",
-    overflow: "hidden",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-  },
-  toggleContent: {
-    flexDirection: "row",
-    position: "relative",
-    padding: 2,
-    width: 140,
-    height: 32,
-  },
-  toggleIndicator: {
-    position: "absolute",
-    top: 2,
-    left: 2,
-    width: 66,
-    height: 28,
-    borderRadius: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  toggleOption: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-    zIndex: 2,
-    paddingHorizontal: 4,
-  },
-  toggleText: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.1,
   },
 });
