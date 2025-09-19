@@ -737,7 +737,7 @@ export default function ChatListScreen() {
                   hasUnread && !isExpired && styles.unreadText,
                   isExpired && styles.expiredText,
                 ]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {otherParticipant.full_name}
               </Text>
@@ -784,7 +784,7 @@ export default function ChatListScreen() {
                     { color: isExpired ? "#94a3b8" : theme.primary },
                     isExpired && styles.expiredTicketText,
                   ]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {item.ticket.title}
                   {isExpired && " (Expired)"}

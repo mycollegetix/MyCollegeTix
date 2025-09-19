@@ -510,7 +510,7 @@ export default function ChatConversationScreen() {
               />
               <Text
                 style={[styles.ticketReferenceText, { color: theme.secondary }]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 About: {currentConversation.ticket.title}
               </Text>
