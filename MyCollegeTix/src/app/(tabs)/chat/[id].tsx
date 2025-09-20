@@ -341,6 +341,53 @@ export default function ChatConversationScreen() {
         new Date(messages[index - 1].created_at).getTime() >
         300000; // 5 minutes
 
+    // WhatsApp-style grouping logic
+    const isFirstInGroup = index === 0 || 
+      messages[index - 1].sender_id !== item.sender_id ||
+      new Date(item.created_at).getTime() -
+        new Date(messages[index - 1].created_at).getTime() > 300000; // 5 minutes
+
+    const isLastInGroup = index === messages.length - 1 || 
+      messages[index + 1].sender_id !== item.sender_id ||
+      new Date(messages[index + 1].created_at).getTime() -
+        new Date(item.created_at).getTime() > 300000; // 5 minutes
+
+    // Check if all messages in current group are read (for double checkmark)
+    const getGroupReadStatus = () => {
+      if (!isMyMessage) return false;
+      
+      // Find all messages in this group
+      const groupMessages = [];
+      
+      // Look backwards from current message to find start of group
+      let startIndex = index;
+      while (startIndex > 0 && 
+             messages[startIndex - 1].sender_id === item.sender_id &&
+             new Date(item.created_at).getTime() - 
+               new Date(messages[startIndex - 1].created_at).getTime() <= 300000) {
+        startIndex--;
+      }
+      
+      // Look forwards from current message to find end of group
+      let endIndex = index;
+      while (endIndex < messages.length - 1 && 
+             messages[endIndex + 1].sender_id === item.sender_id &&
+             new Date(messages[endIndex + 1].created_at).getTime() - 
+               new Date(item.created_at).getTime() <= 300000) {
+        endIndex++;
+      }
+      
+      // Get all messages in group
+      for (let i = startIndex; i <= endIndex; i++) {
+        groupMessages.push(messages[i]);
+      }
+      
+      // Check if all messages in group are read
+      return groupMessages.every(msg => msg.read_by_recipient);
+    };
+
+    const allGroupMessagesRead = getGroupReadStatus();
+
     // Special rendering for system messages
     if (isSystemMessage) {
       return (
@@ -370,7 +417,11 @@ export default function ChatConversationScreen() {
     }
 
     return (
-      <View style={styles.messageContainer}>
+      <View style={[
+        styles.messageContainer,
+        // Reduce spacing for grouped messages
+        !isFirstInGroup && styles.groupedMessageContainer
+      ]}>
         {showTime && (
           <Text style={styles.messageTime}>
             {formatMessageTime(item.created_at)}
@@ -381,11 +432,26 @@ export default function ChatConversationScreen() {
           style={[
             styles.messageBubble,
             isMyMessage
-              ? [styles.myMessage, { backgroundColor: theme.primary }]
-              : styles.otherMessage,
+              ? [
+                  styles.myMessage, 
+                  { backgroundColor: theme.primary },
+                  // Adjust border radius for grouped messages
+                  isFirstInGroup && isLastInGroup && styles.singleMessage,
+                  isFirstInGroup && !isLastInGroup && styles.firstInGroup,
+                  !isFirstInGroup && !isLastInGroup && styles.middleInGroup,
+                  !isFirstInGroup && isLastInGroup && styles.lastInGroup
+                ]
+              : [
+                  styles.otherMessage,
+                  // Adjust border radius for grouped messages
+                  isFirstInGroup && isLastInGroup && styles.singleMessageOther,
+                  isFirstInGroup && !isLastInGroup && styles.firstInGroupOther,
+                  !isFirstInGroup && !isLastInGroup && styles.middleInGroupOther,
+                  !isFirstInGroup && isLastInGroup && styles.lastInGroupOther
+                ],
           ]}
         >
-          {!isMyMessage && (
+          {!isMyMessage && isFirstInGroup && (
             <View style={styles.senderInfo}>
               <Text style={styles.senderName}>{item.sender.full_name}</Text>
             </View>
@@ -401,9 +467,10 @@ export default function ChatConversationScreen() {
           </Text>
         </View>
 
-        {isMyMessage && (
+        {/* Only show checkmark on last message in group for sent messages */}
+        {isMyMessage && isLastInGroup && (
           <View style={styles.messageStatus}>
-            {item.read_by_recipient ? (
+            {allGroupMessagesRead ? (
               <Ionicons name="checkmark-done" size={14} color="#10b981" />
             ) : (
               <Ionicons name="checkmark" size={14} color="#9ca3af" />
@@ -873,6 +940,9 @@ const styles = StyleSheet.create({
   messageContainer: {
     marginBottom: 16,
   },
+  groupedMessageContainer: {
+    marginBottom: 3, // Reduced spacing for grouped messages
+  },
   messageTime: {
     fontSize: 11,
     color: "black",
@@ -1063,5 +1133,35 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "rgba(255, 255, 255, 0.3)",
     borderTopColor: "white",
+  },
+  // WhatsApp-style grouped message styles for sent messages
+  singleMessage: {
+    // Default border radius - no changes needed
+  },
+  firstInGroup: {
+    borderBottomRightRadius: 16, // Keep normal radius at bottom
+  },
+  middleInGroup: {
+    borderBottomRightRadius: 16, // Keep normal radius
+    borderTopRightRadius: 16, // Keep normal radius
+  },
+  lastInGroup: {
+    borderTopRightRadius: 16, // Keep normal radius at top
+    borderBottomRightRadius: 4, // Sharp corner at bottom
+  },
+  // WhatsApp-style grouped message styles for received messages
+  singleMessageOther: {
+    // Default border radius - no changes needed
+  },
+  firstInGroupOther: {
+    borderBottomLeftRadius: 16, // Keep normal radius at bottom
+  },
+  middleInGroupOther: {
+    borderBottomLeftRadius: 16, // Keep normal radius
+    borderTopLeftRadius: 16, // Keep normal radius
+  },
+  lastInGroupOther: {
+    borderTopLeftRadius: 16, // Keep normal radius at top
+    borderBottomLeftRadius: 4, // Sharp corner at bottom
   },
 });
