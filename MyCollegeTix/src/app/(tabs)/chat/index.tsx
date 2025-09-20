@@ -24,6 +24,8 @@ import { useChat } from "@/src/providers/ChatProvider";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ConversationWithDetails } from "@/src/types/database.types";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
+import { TrustService } from "@/src/services/trustService";
+import TrustedBadge from "@/src/components/TrustedBadge";
 
 interface ConversationSection {
   title: string;
@@ -63,6 +65,7 @@ export default function ChatListScreen() {
     useState<SectioningMode>("events");
   const slideAnimation = useRef(new Animated.Value(0)).current;
   const fadeAnimation = useRef(new Animated.Value(1)).current;
+  const [trustedUsers, setTrustedUsers] = useState<Set<string>>(new Set());
 
   // Initialize animations
   useEffect(() => {
@@ -144,6 +147,42 @@ export default function ChatListScreen() {
   useEffect(() => {
     loadConversations();
   }, []);
+
+  // Load trust status for all conversation participants
+  useEffect(() => {
+    const loadTrustStatuses = async () => {
+      if (conversations.length > 0) {
+        const participantIds = conversations.map(conv => {
+          const otherParticipant = conv.participant_1_id === user?.id
+            ? conv.participant_2
+            : conv.participant_1;
+          return otherParticipant.id;
+        });
+
+        // Get unique participant IDs
+        const uniqueIds = [...new Set(participantIds)];
+        
+        // Check trust status for each participant
+        const trustPromises = uniqueIds.map(async (userId) => {
+          const isTrusted = await TrustService.isUserTrusted(userId);
+          return { userId, isTrusted };
+        });
+
+        const trustResults = await Promise.all(trustPromises);
+        const newTrustedUsers = new Set<string>();
+        
+        trustResults.forEach(({ userId, isTrusted }) => {
+          if (isTrusted) {
+            newTrustedUsers.add(userId);
+          }
+        });
+
+        setTrustedUsers(newTrustedUsers);
+      }
+    };
+
+    loadTrustStatuses();
+  }, [conversations, user?.id]);
 
   // Calculate counts for each filter option
   const filterCounts = useMemo(() => {
@@ -555,6 +594,7 @@ export default function ChatListScreen() {
     const hasUnread = item.unread_count > 0;
     const lastMessageTime = formatLastMessageTime(item.last_message_at);
     const isExpired = item.archived || item.is_expired;
+    const isParticipantTrusted = trustedUsers.has(otherParticipant.id);
 
     return (
       <TouchableOpacity
@@ -616,6 +656,13 @@ export default function ChatListScreen() {
                 </Text>
               )}
             </View>
+
+            {/* Trusted Badge Line */}
+            {isParticipantTrusted && (
+              <View style={styles.trustedBadgeContainer}>
+                <TrustedBadge size="small" />
+              </View>
+            )}
 
             <View style={styles.messagePreview}>
               <Text
@@ -1204,6 +1251,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1e293b",
     flex: 1,
+  },
+  trustedBadgeContainer: {
+    marginBottom: 4,
+    alignSelf: "flex-start",
   },
   unreadText: {
     fontWeight: "700",
