@@ -55,7 +55,7 @@ const ChatContext = createContext<ChatContextType>({
 });
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [conversations, setConversations] = useState<ConversationWithDetails[]>(
     []
   );
@@ -216,22 +216,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         edited_at: null,
         sender: {
           id: user.id,
-          username: user.username || "",
-          full_name: user.full_name || "",
+          username: profile?.username || "",
+          full_name: profile?.full_name || "",
           email: user.email || "",
-          avatar_url: user.avatar_url || null,
-          created_at: user.created_at || new Date().toISOString(),
-          is_admin: user.is_admin || false,
-          college_id: user.college_id || null,
-          expo_push_token: user.expo_push_token || null,
-          current_ip_address: user.current_ip_address || null,
-          last_ip_address: user.last_ip_address || null,
-          ip_updated_at: user.ip_updated_at || null,
-          device_info: user.device_info || null,
-          location_data: user.location_data || null,
-          user_agent: user.user_agent || null,
-          is_trusted: user.is_trusted || false,
-          trust_earned_at: user.trust_earned_at || null,
+          avatar_url: profile?.avatar_url || null,
+          created_at: profile?.created_at || new Date().toISOString(),
+          is_admin: profile?.is_admin || false,
+          college_id: profile?.college_id || null,
+          expo_push_token: null,
+          current_ip_address: null,
+          last_ip_address: null,
+          ip_updated_at: null,
+          device_info: null,
+          location_data: null,
+          user_agent: null,
+          is_trusted: false,
+          trust_earned_at: null,
         },
       };
 
@@ -258,7 +258,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       if (error || !data) {
         console.error("❌ Failed to send message, removing optimistic update");
-        
+
         // ✅ ROLLBACK: Remove optimistic message on failure
         setMessagesMap((prev) => {
           const conversationMessages = prev[conversationId] || [];
@@ -269,7 +269,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             ),
           };
         });
-        
+
         throw error;
       }
 
@@ -507,13 +507,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 if (isFromCurrentUser) {
                   // Look for recent temporary message with same content and sender
                   const recentTempMessage = conversationMessages
-                    .filter((m) => m.id.startsWith('temp-') && m.sender_id === user.id)
+                    .filter(
+                      (m) => m.id.startsWith("temp-") && m.sender_id === user.id
+                    )
                     .find((m) => {
                       const timeDiff = Math.abs(
-                        new Date(newMessage.created_at).getTime() - 
-                        new Date(m.created_at).getTime()
+                        new Date(newMessage.created_at).getTime() -
+                          new Date(m.created_at).getTime()
                       );
-                      return m.content === newMessage.content && timeDiff < 10000; // Within 10 seconds
+                      return (
+                        m.content === newMessage.content && timeDiff < 10000
+                      ); // Within 10 seconds
                     });
 
                   if (recentTempMessage) {
@@ -524,14 +528,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                         real_id: newMessage.id,
                       }
                     );
-                    
+
                     // Replace the temporary message with the real one
                     return {
                       ...prev,
-                      [newMessage.conversation_id]: conversationMessages.map((m) =>
-                        m.id === recentTempMessage.id
-                          ? messageWithSender as MessageWithSender
-                          : m
+                      [newMessage.conversation_id]: conversationMessages.map(
+                        (m) =>
+                          m.id === recentTempMessage.id
+                            ? (messageWithSender as MessageWithSender)
+                            : m
                       ),
                     };
                   }
