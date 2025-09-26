@@ -92,8 +92,8 @@ export default function UserProfileCard({
       return "New to the platform";
     }
 
-    // Calculate what they need for trust (example: 5+ transactions, 4.0+ rating)
-    const requiredTransactions = 5;
+    // Calculate what they need for trust (example: 2+ transactions, 4.0+ rating)
+    const requiredTransactions = 2;
     const requiredRating = 4.0;
 
     if (totalTransactions < requiredTransactions) {

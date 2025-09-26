@@ -24,11 +24,13 @@ import { useTheme } from "@/src/providers/ThemeProvider";
 import { MessageWithSender } from "@/src/types/database.types";
 import { ReportModal } from "@/src/components/ReportModal";
 import { reportingService } from "@/src/services/reportingService";
+import { TrustService } from "@/src/services/trustService";
+import TrustedBadge from "@/src/components/TrustedBadge";
 
 const { width, height } = Dimensions.get("window");
 
 export default function ChatConversationScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, firstMessage } = useLocalSearchParams<{ id: string; firstMessage?: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const theme = useTheme();
@@ -48,6 +50,9 @@ export default function ChatConversationScreen() {
   const [sending, setSending] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [isUserBlocked, setIsUserBlocked] = useState(false);
+  const [hasAutoSentFirstMessage, setHasAutoSentFirstMessage] = useState(false);
+  const [isAutoSending, setIsAutoSending] = useState(false);
+  const [isOtherParticipantTrusted, setIsOtherParticipantTrusted] = useState(false);
 
   // ✅ REMOVED: hasLoadedMessages and isConversationSwitching - provider handles this
   const flatListRef = useRef<FlatList>(null);
@@ -146,21 +151,26 @@ export default function ChatConversationScreen() {
     };
   }, []);
 
-  // Check if user is blocked
+  // Check if user is blocked and trusted status
   useEffect(() => {
-    const checkBlockStatus = async () => {
+    const checkUserStatus = async () => {
       if (currentConversation) {
         const otherParticipant = getOtherParticipant();
         if (otherParticipant) {
+          // Check if user is blocked
           const blocked = await reportingService.isUserBlocked(
             otherParticipant.id
           );
           setIsUserBlocked(blocked);
+
+          // Check if user is trusted
+          const trusted = await TrustService.isUserTrusted(otherParticipant.id);
+          setIsOtherParticipantTrusted(trusted);
         }
       }
     };
 
-    checkBlockStatus();
+    checkUserStatus();
   }, [currentConversation]);
 
   // ✅ ENHANCED: Effect for loading conversation data with proper isolation
@@ -188,6 +198,61 @@ export default function ChatConversationScreen() {
       }, 100);
     }
   }, [messages.length, currentConversation?.id, id]);
+
+  // ✅ NEW: Auto-send first message if provided via navigation parameter
+  useEffect(() => {
+    if (firstMessage && currentConversation?.id === id && !hasAutoSentFirstMessage) {
+      const decodedMessage = decodeURIComponent(firstMessage);
+      console.log("🔄 Auto-sending first message:", decodedMessage.substring(0, 50) + "...");
+      
+      // Mark that we're auto-sending to prevent repeats
+      setHasAutoSentFirstMessage(true);
+      
+      // Auto-send the message immediately
+      const autoSend = async () => {
+        setIsAutoSending(true);
+        try {
+          console.log("📤 Sending auto-message:", decodedMessage);
+          const success = await sendMessage(id, decodedMessage);
+          
+          if (success) {
+            console.log("✅ Auto-sent first message successfully");
+            // Clean up the URL by removing the firstMessage parameter
+            setTimeout(() => {
+              (router.replace as any)(`/(tabs)/chat/${id}`);
+            }, 100);
+          } else {
+            console.error("❌ Failed to auto-send first message");
+            Alert.alert("Send Failed", "Your message couldn't be sent automatically. Please try sending it manually.", [
+              {
+                text: "OK",
+                onPress: () => {
+                  setMessageText(decodedMessage);
+                  setHasAutoSentFirstMessage(false);
+                }
+              }
+            ]);
+          }
+        } catch (error) {
+          console.error("❌ Error auto-sending first message:", error);
+          Alert.alert("Send Error", "There was an error sending your message. Please try again.", [
+            {
+              text: "OK", 
+              onPress: () => {
+                setMessageText(decodedMessage);
+                setHasAutoSentFirstMessage(false);
+              }
+            }
+          ]);
+        } finally {
+          setIsAutoSending(false);
+        }
+      };
+
+      // Small delay to ensure conversation is fully loaded
+      setTimeout(autoSend, 500);
+    }
+  }, [firstMessage, currentConversation?.id, id, hasAutoSentFirstMessage, sendMessage, router]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !id || sending) return;
@@ -284,6 +349,53 @@ export default function ChatConversationScreen() {
         new Date(messages[index - 1].created_at).getTime() >
         300000; // 5 minutes
 
+    // WhatsApp-style grouping logic
+    const isFirstInGroup = index === 0 || 
+      messages[index - 1].sender_id !== item.sender_id ||
+      new Date(item.created_at).getTime() -
+        new Date(messages[index - 1].created_at).getTime() > 300000; // 5 minutes
+
+    const isLastInGroup = index === messages.length - 1 || 
+      messages[index + 1].sender_id !== item.sender_id ||
+      new Date(messages[index + 1].created_at).getTime() -
+        new Date(item.created_at).getTime() > 300000; // 5 minutes
+
+    // Check if all messages in current group are read (for double checkmark)
+    const getGroupReadStatus = () => {
+      if (!isMyMessage) return false;
+      
+      // Find all messages in this group
+      const groupMessages = [];
+      
+      // Look backwards from current message to find start of group
+      let startIndex = index;
+      while (startIndex > 0 && 
+             messages[startIndex - 1].sender_id === item.sender_id &&
+             new Date(item.created_at).getTime() - 
+               new Date(messages[startIndex - 1].created_at).getTime() <= 300000) {
+        startIndex--;
+      }
+      
+      // Look forwards from current message to find end of group
+      let endIndex = index;
+      while (endIndex < messages.length - 1 && 
+             messages[endIndex + 1].sender_id === item.sender_id &&
+             new Date(messages[endIndex + 1].created_at).getTime() - 
+               new Date(item.created_at).getTime() <= 300000) {
+        endIndex++;
+      }
+      
+      // Get all messages in group
+      for (let i = startIndex; i <= endIndex; i++) {
+        groupMessages.push(messages[i]);
+      }
+      
+      // Check if all messages in group are read
+      return groupMessages.every(msg => msg.read_by_recipient);
+    };
+
+    const allGroupMessagesRead = getGroupReadStatus();
+
     // Special rendering for system messages
     if (isSystemMessage) {
       return (
@@ -313,7 +425,11 @@ export default function ChatConversationScreen() {
     }
 
     return (
-      <View style={styles.messageContainer}>
+      <View style={[
+        styles.messageContainer,
+        // Reduce spacing for grouped messages
+        !isFirstInGroup && styles.groupedMessageContainer
+      ]}>
         {showTime && (
           <Text style={styles.messageTime}>
             {formatMessageTime(item.created_at)}
@@ -324,11 +440,26 @@ export default function ChatConversationScreen() {
           style={[
             styles.messageBubble,
             isMyMessage
-              ? [styles.myMessage, { backgroundColor: theme.primary }]
-              : styles.otherMessage,
+              ? [
+                  styles.myMessage, 
+                  { backgroundColor: theme.primary },
+                  // Adjust border radius for grouped messages
+                  isFirstInGroup && isLastInGroup && styles.singleMessage,
+                  isFirstInGroup && !isLastInGroup && styles.firstInGroup,
+                  !isFirstInGroup && !isLastInGroup && styles.middleInGroup,
+                  !isFirstInGroup && isLastInGroup && styles.lastInGroup
+                ]
+              : [
+                  styles.otherMessage,
+                  // Adjust border radius for grouped messages
+                  isFirstInGroup && isLastInGroup && styles.singleMessageOther,
+                  isFirstInGroup && !isLastInGroup && styles.firstInGroupOther,
+                  !isFirstInGroup && !isLastInGroup && styles.middleInGroupOther,
+                  !isFirstInGroup && isLastInGroup && styles.lastInGroupOther
+                ],
           ]}
         >
-          {!isMyMessage && (
+          {!isMyMessage && isFirstInGroup && (
             <View style={styles.senderInfo}>
               <Text style={styles.senderName}>{item.sender.full_name}</Text>
             </View>
@@ -344,9 +475,10 @@ export default function ChatConversationScreen() {
           </Text>
         </View>
 
-        {isMyMessage && (
+        {/* Only show checkmark on last message in group for sent messages */}
+        {isMyMessage && isLastInGroup && (
           <View style={styles.messageStatus}>
-            {item.read_by_recipient ? (
+            {allGroupMessagesRead ? (
               <Ionicons name="checkmark-done" size={14} color="#10b981" />
             ) : (
               <Ionicons name="checkmark" size={14} color="#9ca3af" />
@@ -407,9 +539,14 @@ export default function ChatConversationScreen() {
             </Text>
           </View>
           <View style={styles.participantInfo}>
-            <Text style={styles.participantName}>
-              {otherParticipant.full_name}
-            </Text>
+            <View style={styles.participantNameRow}>
+              <Text style={styles.participantName}>
+                {otherParticipant.full_name}
+              </Text>
+              {isOtherParticipantTrusted && (
+                <TrustedBadge size="small" />
+              )}
+            </View>
             <Text style={styles.participantUsername}>
               @{otherParticipant.username}
             </Text>
@@ -510,7 +647,7 @@ export default function ChatConversationScreen() {
               />
               <Text
                 style={[styles.ticketReferenceText, { color: theme.secondary }]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 About: {currentConversation.ticket.title}
               </Text>
@@ -527,9 +664,11 @@ export default function ChatConversationScreen() {
       >
         {/* Messages */}
         <View style={styles.messagesContainer}>
-          {messagesLoading && messages.length === 0 ? (
+          {(messagesLoading && messages.length === 0) || isAutoSending ? (
             <View style={styles.loadingMessages}>
-              <Text style={styles.loadingText}>Loading messages...</Text>
+              <Text style={styles.loadingText}>
+                {isAutoSending ? "Sending your message..." : "Loading messages..."}
+              </Text>
             </View>
           ) : (
             <FlatList
@@ -742,10 +881,16 @@ const styles = StyleSheet.create({
   participantInfo: {
     flex: 1,
   },
+  participantNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   participantName: {
     fontSize: 16,
     fontWeight: "700",
     color: "white",
+    flex: 1,
   },
   participantUsername: {
     fontSize: 12,
@@ -813,6 +958,9 @@ const styles = StyleSheet.create({
   },
   messageContainer: {
     marginBottom: 16,
+  },
+  groupedMessageContainer: {
+    marginBottom: 3, // Reduced spacing for grouped messages
   },
   messageTime: {
     fontSize: 11,
@@ -1004,5 +1152,35 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "rgba(255, 255, 255, 0.3)",
     borderTopColor: "white",
+  },
+  // WhatsApp-style grouped message styles for sent messages
+  singleMessage: {
+    // Default border radius - no changes needed
+  },
+  firstInGroup: {
+    borderBottomRightRadius: 16, // Keep normal radius at bottom
+  },
+  middleInGroup: {
+    borderBottomRightRadius: 16, // Keep normal radius
+    borderTopRightRadius: 16, // Keep normal radius
+  },
+  lastInGroup: {
+    borderTopRightRadius: 16, // Keep normal radius at top
+    borderBottomRightRadius: 4, // Sharp corner at bottom
+  },
+  // WhatsApp-style grouped message styles for received messages
+  singleMessageOther: {
+    // Default border radius - no changes needed
+  },
+  firstInGroupOther: {
+    borderBottomLeftRadius: 16, // Keep normal radius at bottom
+  },
+  middleInGroupOther: {
+    borderBottomLeftRadius: 16, // Keep normal radius
+    borderTopLeftRadius: 16, // Keep normal radius
+  },
+  lastInGroupOther: {
+    borderTopLeftRadius: 16, // Keep normal radius at top
+    borderBottomLeftRadius: 4, // Sharp corner at bottom
   },
 });

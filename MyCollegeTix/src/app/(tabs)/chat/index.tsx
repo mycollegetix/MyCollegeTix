@@ -12,15 +12,20 @@ import {
   SectionList,
   Platform,
   Animated,
+  ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { useChat } from "@/src/providers/ChatProvider";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ConversationWithDetails } from "@/src/types/database.types";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
+import { TrustService } from "@/src/services/trustService";
+import TrustedBadge from "@/src/components/TrustedBadge";
 
 interface ConversationSection {
   title: string;
@@ -33,7 +38,7 @@ interface ConversationSection {
 }
 
 type ConversationFilter = "all" | "seller" | "buyer";
-type SectioningMode = "status" | "events"; // New sectioning mode
+type SectioningMode = "events"; // Always use event-based grouping
 
 interface FilterOption {
   value: ConversationFilter;
@@ -57,10 +62,10 @@ export default function ChatListScreen() {
   // Enhanced state management
   const [currentFilter, setCurrentFilter] = useState<ConversationFilter>("all");
   const [sectioningMode, setSectioningMode] =
-    useState<SectioningMode>("status");
+    useState<SectioningMode>("events");
   const slideAnimation = useRef(new Animated.Value(0)).current;
   const fadeAnimation = useRef(new Animated.Value(1)).current;
-  const sectionToggleAnimation = useRef(new Animated.Value(0)).current;
+  const [trustedUsers, setTrustedUsers] = useState<Set<string>>(new Set());
 
   // Initialize animations
   useEffect(() => {
@@ -68,14 +73,13 @@ export default function ChatListScreen() {
       (option) => option.value === currentFilter
     );
     slideAnimation.setValue(index);
-    sectionToggleAnimation.setValue(sectioningMode === "status" ? 0 : 1);
   }, []);
 
   const filterOptions: FilterOption[] = [
     {
       value: "all",
       label: "All",
-      description: "Show all conversations",
+      description: "",
       icon: "chatbubbles-outline",
     },
     {
@@ -137,22 +141,48 @@ export default function ChatListScreen() {
     setCurrentFilter(filter);
   };
 
-  // New function to toggle sectioning mode
-  const toggleSectioningMode = () => {
-    const newMode = sectioningMode === "status" ? "events" : "status";
-
-    Animated.timing(sectionToggleAnimation, {
-      toValue: newMode === "status" ? 0 : 1,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-
-    setSectioningMode(newMode);
-  };
+  // Since we only have status mode now, this function is no longer needed
+  // Keeping the function stub in case we want to add other grouping options in the future
 
   useEffect(() => {
     loadConversations();
   }, []);
+
+  // Load trust status for all conversation participants
+  useEffect(() => {
+    const loadTrustStatuses = async () => {
+      if (conversations.length > 0) {
+        const participantIds = conversations.map(conv => {
+          const otherParticipant = conv.participant_1_id === user?.id
+            ? conv.participant_2
+            : conv.participant_1;
+          return otherParticipant.id;
+        });
+
+        // Get unique participant IDs
+        const uniqueIds = [...new Set(participantIds)];
+        
+        // Check trust status for each participant
+        const trustPromises = uniqueIds.map(async (userId) => {
+          const isTrusted = await TrustService.isUserTrusted(userId);
+          return { userId, isTrusted };
+        });
+
+        const trustResults = await Promise.all(trustPromises);
+        const newTrustedUsers = new Set<string>();
+        
+        trustResults.forEach(({ userId, isTrusted }) => {
+          if (isTrusted) {
+            newTrustedUsers.add(userId);
+          }
+        });
+
+        setTrustedUsers(newTrustedUsers);
+      }
+    };
+
+    loadTrustStatuses();
+  }, [conversations, user?.id]);
 
   // Calculate counts for each filter option
   const filterCounts = useMemo(() => {
@@ -183,162 +213,108 @@ export default function ChatListScreen() {
     });
   }, [conversations, currentFilter, user?.id]);
 
-  // Enhanced sectioning logic - now supports both status and event grouping
+  // Event-based grouping - organizes conversations by individual events
   const conversationSections = useMemo((): ConversationSection[] => {
-    if (sectioningMode === "events") {
-      // Group by events
-      const eventGroups = new Map<string, ConversationWithDetails[]>();
-      const noEventConversations: ConversationWithDetails[] = [];
+    // Group by events
+    const eventGroups = new Map<string, ConversationWithDetails[]>();
+    const noEventConversations: ConversationWithDetails[] = [];
 
-      filteredConversations.forEach((conv) => {
-        if (conv.ticket?.event_id && conv.ticket?.title) {
-          const eventKey = `${conv.ticket.event_id}-${conv.ticket.title}`;
-          if (!eventGroups.has(eventKey)) {
-            eventGroups.set(eventKey, []);
-          }
-          eventGroups.get(eventKey)!.push(conv);
-        } else {
-          noEventConversations.push(conv);
+    filteredConversations.forEach((conv) => {
+      if (conv.ticket?.event_id && conv.ticket?.title) {
+        const eventKey = `${conv.ticket.event_id}-${conv.ticket.title}`;
+        if (!eventGroups.has(eventKey)) {
+          eventGroups.set(eventKey, []);
         }
-      });
+        eventGroups.get(eventKey)!.push(conv);
+      } else {
+        noEventConversations.push(conv);
+      }
+    });
 
-      const sections: ConversationSection[] = [];
+    const sections: ConversationSection[] = [];
 
-      // Sort event groups by most recent conversation
-      const sortedEventGroups = Array.from(eventGroups.entries()).sort(
-        (a, b) => {
-          const aLatest = Math.max(
-            ...a[1].map((conv) =>
-              conv.last_message_at
-                ? new Date(conv.last_message_at).getTime()
-                : 0
-            )
-          );
-          const bLatest = Math.max(
-            ...b[1].map((conv) =>
-              conv.last_message_at
-                ? new Date(conv.last_message_at).getTime()
-                : 0
-            )
-          );
-          return bLatest - aLatest;
-        }
+    // Sort event groups by most recent conversation
+    const sortedEventGroups = Array.from(eventGroups.entries()).sort((a, b) => {
+      const aLatest = Math.max(
+        ...a[1].map((conv) =>
+          conv.last_message_at ? new Date(conv.last_message_at).getTime() : 0
+        )
+      );
+      const bLatest = Math.max(
+        ...b[1].map((conv) =>
+          conv.last_message_at ? new Date(conv.last_message_at).getTime() : 0
+        )
+      );
+      return bLatest - aLatest;
+    });
+
+    // Separate active and expired events for proper sorting
+    const activeEventSections: ConversationSection[] = [];
+    const expiredEventSections: ConversationSection[] = [];
+
+    // Create sections for each event
+    sortedEventGroups.forEach(([eventKey, conversations]) => {
+      const firstConv = conversations[0];
+      const ticket = firstConv.ticket;
+
+      // Separate active and expired within each event
+      const activeConvs = conversations.filter(
+        (conv) => !conv.archived && !conv.is_expired
+      );
+      const expiredConvs = conversations.filter(
+        (conv) => conv.archived || conv.is_expired
       );
 
-      // Create sections for each event
-      sortedEventGroups.forEach(([eventKey, conversations]) => {
-        const firstConv = conversations[0];
-        const ticket = firstConv.ticket;
+      // Sort conversations within event by most recent
+      const sortConversations = (convs: ConversationWithDetails[]) =>
+        convs.sort((a, b) => {
+          const aTime = a.last_message_at
+            ? new Date(a.last_message_at).getTime()
+            : 0;
+          const bTime = b.last_message_at
+            ? new Date(b.last_message_at).getTime()
+            : 0;
+          return bTime - aTime;
+        });
 
-        // Separate active and expired within each event
-        const activeConvs = conversations.filter(
-          (conv) => !conv.archived && !conv.is_expired
-        );
-        const expiredConvs = conversations.filter(
-          (conv) => conv.archived || conv.is_expired
-        );
-
-        // Sort conversations within event by most recent
-        const sortConversations = (convs: ConversationWithDetails[]) =>
-          convs.sort((a, b) => {
-            const aTime = a.last_message_at
-              ? new Date(a.last_message_at).getTime()
-              : 0;
-            const bTime = b.last_message_at
-              ? new Date(b.last_message_at).getTime()
-              : 0;
-            return bTime - aTime;
-          });
-
-        if (activeConvs.length > 0) {
-          sections.push({
-            title: ticket?.title || "Unknown Event",
-            data: sortConversations(activeConvs),
-            key: `event-active-${eventKey}`,
-            eventId: ticket?.event_id,
-            eventTitle: ticket?.title,
-            eventDate: ticket?.event_date,
-            isEventSection: true,
-          });
-        }
-
-        if (expiredConvs.length > 0) {
-          sections.push({
-            title: `${ticket?.title || "Unknown Event"} (Expired)`,
-            data: sortConversations(expiredConvs),
-            key: `event-expired-${eventKey}`,
-            eventId: ticket?.event_id,
-            eventTitle: ticket?.title,
-            eventDate: ticket?.event_date,
-            isEventSection: true,
-          });
-        }
-      });
-
-      // Add conversations without events
-      if (noEventConversations.length > 0) {
-        const activeNoEvent = noEventConversations.filter(
-          (conv) => !conv.archived && !conv.is_expired
-        );
-        const expiredNoEvent = noEventConversations.filter(
-          (conv) => conv.archived || conv.is_expired
-        );
-
-        if (activeNoEvent.length > 0) {
-          sections.push({
-            title: "Other Conversations",
-            data: activeNoEvent.sort((a, b) => {
-              const aTime = a.last_message_at
-                ? new Date(a.last_message_at).getTime()
-                : 0;
-              const bTime = b.last_message_at
-                ? new Date(b.last_message_at).getTime()
-                : 0;
-              return bTime - aTime;
-            }),
-            key: "no-event-active",
-            isEventSection: false,
-          });
-        }
-
-        if (expiredNoEvent.length > 0) {
-          sections.push({
-            title: "Other Expired Conversations",
-            data: expiredNoEvent.sort((a, b) => {
-              const aTime = a.last_message_at
-                ? new Date(a.last_message_at).getTime()
-                : 0;
-              const bTime = b.last_message_at
-                ? new Date(b.last_message_at).getTime()
-                : 0;
-              return bTime - aTime;
-            }),
-            key: "no-event-expired",
-            isEventSection: false,
-          });
-        }
+      if (activeConvs.length > 0) {
+        activeEventSections.push({
+          title: ticket?.title || "Unknown Event",
+          data: sortConversations(activeConvs),
+          key: `event-active-${eventKey}`,
+          eventId: ticket?.event_id,
+          eventTitle: ticket?.title,
+          eventDate: ticket?.event_date,
+          isEventSection: true,
+        });
       }
 
-      return sections;
-    } else {
-      // Original status-based grouping
-      const activeConversations: ConversationWithDetails[] = [];
-      const expiredConversations: ConversationWithDetails[] = [];
+      if (expiredConvs.length > 0) {
+        expiredEventSections.push({
+          title: `${ticket?.title || "Unknown Event"} (Expired)`,
+          data: sortConversations(expiredConvs),
+          key: `event-expired-${eventKey}`,
+          eventId: ticket?.event_id,
+          eventTitle: ticket?.title,
+          eventDate: ticket?.event_date,
+          isEventSection: true,
+        });
+      }
+    });
 
-      filteredConversations.forEach((conv) => {
-        if (conv.archived || conv.is_expired) {
-          expiredConversations.push(conv);
-        } else {
-          activeConversations.push(conv);
-        }
-      });
+    // Add active sections first
+    sections.push(...activeEventSections);
 
-      const sections: ConversationSection[] = [];
+    // Add conversations without events (active only first)
+    if (noEventConversations.length > 0) {
+      const activeNoEvent = noEventConversations.filter(
+        (conv) => !conv.archived && !conv.is_expired
+      );
 
-      if (activeConversations.length > 0) {
+      if (activeNoEvent.length > 0) {
         sections.push({
-          title: "Active Conversations",
-          data: activeConversations.sort((a, b) => {
+          title: "Other Conversations",
+          data: activeNoEvent.sort((a, b) => {
             const aTime = a.last_message_at
               ? new Date(a.last_message_at).getTime()
               : 0;
@@ -347,31 +323,48 @@ export default function ChatListScreen() {
               : 0;
             return bTime - aTime;
           }),
-          key: "active",
+          key: "no-event-active",
           isEventSection: false,
         });
       }
-
-      if (expiredConversations.length > 0) {
-        sections.push({
-          title: "Expired Events",
-          data: expiredConversations.sort((a, b) => {
-            const aTime = a.last_message_at
-              ? new Date(a.last_message_at).getTime()
-              : 0;
-            const bTime = b.last_message_at
-              ? new Date(b.last_message_at).getTime()
-              : 0;
-            return bTime - aTime;
-          }),
-          key: "expired",
-          isEventSection: false,
-        });
-      }
-
-      return sections;
     }
-  }, [filteredConversations, sectioningMode]);
+
+    // Combine all expired conversations into a single section at the bottom
+    const allExpiredConversations: ConversationWithDetails[] = [];
+
+    // Add all expired conversations from events
+    expiredEventSections.forEach((section) => {
+      allExpiredConversations.push(...section.data);
+    });
+
+    // Add expired conversations without events
+    if (noEventConversations.length > 0) {
+      const expiredNoEvent = noEventConversations.filter(
+        (conv) => conv.archived || conv.is_expired
+      );
+      allExpiredConversations.push(...expiredNoEvent);
+    }
+
+    // Create single expired section if we have any expired conversations
+    if (allExpiredConversations.length > 0) {
+      sections.push({
+        title: "Expired Events",
+        data: allExpiredConversations.sort((a, b) => {
+          const aTime = a.last_message_at
+            ? new Date(a.last_message_at).getTime()
+            : 0;
+          const bTime = b.last_message_at
+            ? new Date(b.last_message_at).getTime()
+            : 0;
+          return bTime - aTime;
+        }),
+        key: "all-expired",
+        isEventSection: false,
+      });
+    }
+
+    return sections;
+  }, [filteredConversations]);
 
   const getOtherParticipant = (conversation: ConversationWithDetails) => {
     return conversation.participant_1_id === user?.id
@@ -411,198 +404,111 @@ export default function ChatListScreen() {
     (router.push as any)(`/(tabs)/chat/${conversation.id}`);
   };
 
-  // Enhanced sectioning mode toggle component
-  const renderSectioningToggle = () => (
-    <View style={styles.sectioningToggleContainer}>
-      <Text style={[styles.sectioningLabel, { color: theme.secondary }]}>
-        Group by:
-      </Text>
-      <TouchableOpacity
-        style={styles.sectioningToggle}
-        onPress={toggleSectioningMode}
-        activeOpacity={0.8}
-      >
-        <BlurView intensity={20} style={styles.toggleBlur}>
-          <View style={styles.toggleContent}>
-            <Animated.View
-              style={[
-                styles.toggleIndicator,
-                {
-                  backgroundColor: theme.primary,
-                  transform: [
-                    {
-                      translateX: sectionToggleAnimation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [2, 70],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-            <View style={styles.toggleOption}>
-              <Ionicons
-                name="list-outline"
-                size={14}
-                color={sectioningMode === "status" ? "white" : "#64748b"}
-              />
-              <Text
-                style={[
-                  styles.toggleText,
-                  {
-                    color: sectioningMode === "status" ? "white" : "#64748b",
-                    fontWeight: sectioningMode === "status" ? "700" : "600",
-                  },
-                ]}
-              >
-                Status
-              </Text>
-            </View>
-            <View style={styles.toggleOption}>
-              <Ionicons
-                name="calendar-outline"
-                size={14}
-                color={sectioningMode === "events" ? "white" : "#64748b"}
-              />
-              <Text
-                style={[
-                  styles.toggleText,
-                  {
-                    color: sectioningMode === "events" ? "white" : "#64748b",
-                    fontWeight: sectioningMode === "events" ? "700" : "600",
-                  },
-                ]}
-              >
-                Events
-              </Text>
-            </View>
-          </View>
-        </BlurView>
-      </TouchableOpacity>
-    </View>
-  );
+  // Removed sectioning toggle since we only use status-based grouping now
 
-  // Enhanced filter component
-  const renderEnhancedFilter = () => {
+  // Compact filter component (matches Browse/Tickets pattern)
+  const renderCompactFilter = () => {
     const screenWidth = Dimensions.get("window").width;
     const containerPadding = 40;
-    const controlPadding = 12;
-    const availableWidth = screenWidth - containerPadding - controlPadding;
+    const availableWidth = screenWidth - containerPadding;
     const segmentWidth = availableWidth / filterOptions.length;
 
     return (
-      <View style={styles.enhancedFilterContainer}>
-        <BlurView intensity={25} style={styles.segmentedControlBlur}>
-          <View style={styles.segmentedControl}>
-            <Animated.View
-              style={[
-                styles.segmentIndicator,
-                {
-                  width: segmentWidth,
-                  backgroundColor: theme.primary,
-                  transform: [
-                    {
-                      translateX: slideAnimation.interpolate({
-                        inputRange: [0, 1, 2],
-                        outputRange: [0, segmentWidth, segmentWidth * 2],
-                        extrapolate: "clamp",
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
+      <View style={styles.compactFilterContainer}>
+        <View style={styles.compactSegmentedControl}>
+          <Animated.View
+            style={[
+              styles.compactSegmentIndicator,
+              {
+                width: segmentWidth - 4,
+                backgroundColor: theme.primary,
+                transform: [
+                  {
+                    translateX: slideAnimation.interpolate({
+                      inputRange: [0, 1, 2],
+                      outputRange: [2, segmentWidth + 2, segmentWidth * 2 + 2],
+                      extrapolate: "clamp",
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
 
-            {filterOptions.map((option, index) => {
-              const isActive = currentFilter === option.value;
-              const count =
-                filterCounts[option.value as keyof typeof filterCounts];
+          {filterOptions.map((option, index) => {
+            const isActive = currentFilter === option.value;
+            const count =
+              filterCounts[option.value as keyof typeof filterCounts];
 
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[styles.segmentButton, { width: segmentWidth }]}
-                  onPress={() => selectFilter(option.value, index)}
-                  activeOpacity={0.7}
+            return (
+              <TouchableOpacity
+                key={option.value}
+                style={[styles.segmentButton, { width: segmentWidth }]}
+                onPress={() => selectFilter(option.value, index)}
+                activeOpacity={0.7}
+              >
+                <Animated.View
+                  style={[styles.segmentContent, { opacity: fadeAnimation }]}
                 >
                   <Animated.View
-                    style={[styles.segmentContent, { opacity: fadeAnimation }]}
+                    style={[
+                      styles.segmentIconContainer,
+                      {
+                        backgroundColor: isActive
+                          ? "rgba(255, 255, 255, 0.35)"
+                          : "rgba(30, 41, 59, 0.08)",
+                      },
+                    ]}
                   >
+                    <Ionicons
+                      name={option.icon}
+                      size={14}
+                      color={isActive ? "white" : "#1e293b"}
+                    />
+                  </Animated.View>
+
+                  <Text
+                    style={[
+                      styles.segmentLabel,
+                      {
+                        color: isActive ? "white" : "#1e293b",
+                        fontWeight: isActive ? "800" : "700",
+                      },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+
+                  {count > 0 && (
                     <Animated.View
                       style={[
-                        styles.segmentIconContainer,
+                        styles.segmentBadge,
                         {
                           backgroundColor: isActive
-                            ? "rgba(255, 255, 255, 0.35)"
-                            : "rgba(30, 41, 59, 0.08)",
+                            ? "rgba(255, 255, 255, 0.3)"
+                            : theme.secondary,
+                          borderColor: isActive
+                            ? "rgba(255, 255, 255, 0.5)"
+                            : "rgba(30, 41, 59, 0.1)",
                         },
                       ]}
                     >
-                      <Ionicons
-                        name={option.icon}
-                        size={16}
-                        color={isActive ? "white" : "#1e293b"}
-                      />
-                    </Animated.View>
-
-                    <Text
-                      style={[
-                        styles.segmentLabel,
-                        {
-                          color: isActive ? "white" : "#1e293b",
-                          fontWeight: isActive ? "800" : "700",
-                        },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-
-                    {count > 0 && (
-                      <Animated.View
+                      <Text
                         style={[
-                          styles.segmentBadge,
+                          styles.segmentBadgeText,
                           {
-                            backgroundColor: isActive
-                              ? "rgba(255, 255, 255, 0.3)"
-                              : theme.secondary,
-                            borderColor: isActive
-                              ? "rgba(255, 255, 255, 0.5)"
-                              : "rgba(30, 41, 59, 0.1)",
+                            color: isActive ? "white" : "#1e293b",
                           },
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.segmentBadgeText,
-                            {
-                              color: isActive ? "white" : "#1e293b",
-                            },
-                          ]}
-                        >
-                          {count > 99 ? "99+" : count}
-                        </Text>
-                      </Animated.View>
-                    )}
-                  </Animated.View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </BlurView>
-
-        <View style={styles.filterBottomRow}>
-          <Text
-            style={[
-              styles.filterDescription,
-              { color: "rgba(255, 255, 255, 0.8)" },
-            ]}
-          >
-            {
-              filterOptions.find((opt) => opt.value === currentFilter)
-                ?.description
-            }
-          </Text>
-          {renderSectioningToggle()}
+                        {count > 99 ? "99+" : count}
+                      </Text>
+                    </Animated.View>
+                  )}
+                </Animated.View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     );
@@ -688,6 +594,7 @@ export default function ChatListScreen() {
     const hasUnread = item.unread_count > 0;
     const lastMessageTime = formatLastMessageTime(item.last_message_at);
     const isExpired = item.archived || item.is_expired;
+    const isParticipantTrusted = trustedUsers.has(otherParticipant.id);
 
     return (
       <TouchableOpacity
@@ -737,7 +644,7 @@ export default function ChatListScreen() {
                   hasUnread && !isExpired && styles.unreadText,
                   isExpired && styles.expiredText,
                 ]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {otherParticipant.full_name}
               </Text>
@@ -749,6 +656,13 @@ export default function ChatListScreen() {
                 </Text>
               )}
             </View>
+
+            {/* Trusted Badge Line */}
+            {isParticipantTrusted && (
+              <View style={styles.trustedBadgeContainer}>
+                <TrustedBadge size="small" />
+              </View>
+            )}
 
             <View style={styles.messagePreview}>
               <Text
@@ -784,7 +698,7 @@ export default function ChatListScreen() {
                     { color: isExpired ? "#94a3b8" : theme.primary },
                     isExpired && styles.expiredTicketText,
                   ]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {item.ticket.title}
                   {isExpired && " (Expired)"}
@@ -804,196 +718,189 @@ export default function ChatListScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.primary }]}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      <View style={[styles.background, { backgroundColor: theme.primary }]} />
+      {/* Linear Gradient Background */}
+      <LinearGradient
+        colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
+        style={styles.background}
+      />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View
-            style={[styles.logoContainer, { backgroundColor: theme.secondary }]}
+      {/* Floating elements for premium feel */}
+      <View
+        style={[
+          styles.floatingElement1,
+          { backgroundColor: `${theme.secondary}08` },
+        ]}
+      />
+      <View
+        style={[
+          styles.floatingElement2,
+          { backgroundColor: "rgba(255, 255, 255, 0.05)" },
+        ]}
+      />
+
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        keyboardDismissMode={
+          Platform.OS === "android" ? "on-drag" : "interactive"
+        }
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={loadConversations}
+            tintColor={theme.secondary}
+            colors={[theme.secondary]}
+          />
+        }
+      >
+        {/* Premium Header Section */}
+        <View style={styles.headerSection}>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => (router.push as any)("/notifications/")}
           >
-            <View style={styles.logo}>
-              <Ionicons name="chatbubbles" size={20} color={theme.primary} />
-            </View>
+            <NotificationBadge
+              iconName="notifications-outline"
+              iconSize={24}
+              iconColor={theme.secondary}
+            />
+          </TouchableOpacity>
+
+          <View style={styles.logoContainer}>
+            <LinearGradient
+              colors={[theme.secondary, `${theme.secondary}DD`]}
+              style={styles.logo}
+            >
+              <Ionicons name="chatbubbles" size={32} color={theme.primary} />
+            </LinearGradient>
           </View>
           <Text style={styles.headerTitle}>Messages</Text>
+          <Text style={styles.headerSubtitle}>
+            Connect with buyers and sellers for ticket exchanges
+          </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={() => (router.push as any)("/notifications/")}
-        >
-          <NotificationBadge
-            iconName="notifications-outline"
-            iconSize={24}
-            iconColor={theme.secondary}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats */}
-      <View style={styles.statsContainer}>
-        <BlurView intensity={30} style={styles.statsCard}>
-          <View
-            style={[
-              styles.statsGradient,
-              { backgroundColor: `${theme.primary}20` },
-            ]}
+        {/* Premium Content Section */}
+        <View style={styles.contentSection}>
+          {/* Compact Stats Row */}
+          <LinearGradient
+            colors={[theme.primary, `${theme.primary}E6`]}
+            style={styles.compactStatsContainer}
           >
-            <View style={styles.statItem}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: `${theme.secondary}20` },
-                ]}
+            <View style={styles.compactStatItem}>
+              <Ionicons name="chatbubbles" size={18} color={theme.secondary} />
+              <Text
+                style={[styles.compactStatNumber, { color: "white" }]}
               >
-                <Ionicons
-                  name="chatbubbles"
-                  size={20}
-                  color={theme.secondary}
-                />
-              </View>
-              <Text style={styles.statNumber}>
-                {conversationSections.find((s) => s.key === "active")?.data
-                  .length ||
-                  conversationSections
-                    .filter((s) => !s.key.includes("expired"))
-                    .reduce((sum, s) => sum + s.data.length, 0)}
+                {conversationSections
+                  .filter((s) => !s.key.includes("expired"))
+                  .reduce((sum, s) => sum + s.data.length, 0)}
               </Text>
-              <Text style={styles.statLabel}>Active</Text>
+              <Text style={styles.compactStatLabel}>Active</Text>
             </View>
 
-            <View style={styles.statDivider} />
+            <View style={styles.compactStatDivider} />
 
-            <View style={styles.statItem}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: "rgba(239, 68, 68, 0.2)" },
-                ]}
-              >
-                <Ionicons name="mail-unread" size={20} color="#ef4444" />
-              </View>
-              <Text style={[styles.statNumber, { color: "#ef4444" }]}>
+            <View style={styles.compactStatItem}>
+              <Ionicons name="mail-unread" size={18} color={theme.secondary} />
+              <Text style={[styles.compactStatNumber, { color: "white" }]}>
                 {conversations
                   .filter((conv) => !conv.archived && !conv.is_expired)
                   .reduce((sum, conv) => sum + conv.unread_count, 0)}
               </Text>
-              <Text style={styles.statLabel}>Unread</Text>
+              <Text style={styles.compactStatLabel}>Unread</Text>
             </View>
 
-            <View style={styles.statDivider} />
+            <View style={styles.compactStatDivider} />
 
-            <View style={styles.statItem}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: "rgba(148, 163, 184, 0.2)" },
-                ]}
-              >
-                <Ionicons
-                  name={
-                    sectioningMode === "events"
-                      ? "calendar-outline"
-                      : "time-outline"
-                  }
-                  size={20}
-                  color="#94a3b8"
-                />
-              </View>
-              <Text style={[styles.statNumber, { color: "#94a3b8" }]}>
-                {sectioningMode === "events"
-                  ? new Set(
-                      conversations
-                        .filter((c) => c.ticket?.event_id)
-                        .map((c) => c.ticket?.event_id)
-                    ).size
-                  : conversationSections
-                      .filter((s) => s.key.includes("expired"))
-                      .reduce((sum, s) => sum + s.data.length, 0)}
+            <View style={styles.compactStatItem}>
+              <Ionicons name="calendar-outline" size={18} color={theme.secondary} />
+              <Text style={[styles.compactStatNumber, { color: "white" }]}>
+                {
+                  new Set(
+                    conversations
+                      .filter((c) => c.ticket?.event_id)
+                      .map((c) => c.ticket?.event_id)
+                  ).size
+                }
               </Text>
-              <Text style={styles.statLabel}>
-                {sectioningMode === "events" ? "Events" : "Expired"}
-              </Text>
+              <Text style={styles.compactStatLabel}>Events</Text>
             </View>
-          </View>
-        </BlurView>
-      </View>
+          </LinearGradient>
 
-      {/* Enhanced Filter with Sectioning Toggle */}
-      {renderEnhancedFilter()}
+          {/* Enhanced Filter Controls */}
+          {renderCompactFilter()}
 
-      {/* Conversations List */}
-      <View style={styles.conversationsContainer}>
-        {loading ? (
-          <BlurView intensity={20} style={styles.loadingState}>
-            <Text style={styles.loadingText}>Loading conversations...</Text>
-          </BlurView>
-        ) : conversations.length > 0 ? (
-          <SectionList
-            sections={conversationSections}
-            renderItem={renderConversation}
-            renderSectionHeader={renderSectionHeader}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            scrollEventThrottle={16}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={
-              Platform.OS === "android" ? "on-drag" : "interactive"
-            }
-            removeClippedSubviews={Platform.OS === "android"}
-            nestedScrollEnabled={Platform.OS === "android"}
-            initialNumToRender={Platform.OS === "android" ? 8 : 10}
-            maxToRenderPerBatch={Platform.OS === "android" ? 6 : 10}
-            updateCellsBatchingPeriod={Platform.OS === "android" ? 100 : 50}
-            windowSize={Platform.OS === "android" ? 6 : 10}
-            refreshControl={
-              <RefreshControl
-                refreshing={loading}
-                onRefresh={loadConversations}
-                tintColor={theme.primary}
-                colors={[theme.primary]}
+          {/* Conversations List */}
+          <View style={styles.conversationsListContainer}>
+            {loading ? (
+              <BlurView intensity={20} style={styles.loadingState}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={styles.loadingText}>Loading conversations...</Text>
+              </BlurView>
+            ) : conversations.length > 0 ? (
+              <SectionList
+                sections={conversationSections}
+                renderItem={renderConversation}
+                renderSectionHeader={renderSectionHeader}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled={true}
+                removeClippedSubviews={Platform.OS === "android"}
+                keyboardShouldPersistTaps="handled"
+                initialNumToRender={Platform.OS === "android" ? 8 : 10}
+                maxToRenderPerBatch={Platform.OS === "android" ? 6 : 10}
+                updateCellsBatchingPeriod={Platform.OS === "android" ? 100 : 50}
+                windowSize={Platform.OS === "android" ? 6 : 10}
+                contentContainerStyle={styles.listContent}
+                stickySectionHeadersEnabled={false}
               />
-            }
-            contentContainerStyle={styles.listContent}
-            stickySectionHeadersEnabled={false}
-          />
-        ) : (
-          <BlurView intensity={20} style={styles.emptyState}>
-            <View style={styles.emptyIconContainer}>
-              <View
-                style={[
-                  styles.emptyIconGradient,
-                  { backgroundColor: theme.primary },
-                ]}
-              >
-                <Ionicons name="chatbubbles-outline" size={32} color="white" />
-              </View>
-            </View>
-            <Text style={styles.emptyStateTitle}>No conversations yet</Text>
-            <Text style={styles.emptyStateText}>
-              Start a conversation by contacting a seller from a ticket listing
-            </Text>
-            <TouchableOpacity
-              style={styles.browseButton}
-              onPress={() => (router.push as any)("/(tabs)/")}
-            >
-              <View
-                style={[
-                  styles.browseButtonGradient,
-                  { backgroundColor: theme.primary },
-                ]}
-              >
-                <Ionicons name="search-outline" size={16} color="white" />
-                <Text style={styles.browseButtonText}>Browse Tickets</Text>
-              </View>
-            </TouchableOpacity>
-          </BlurView>
-        )}
-      </View>
+            ) : (
+              <BlurView intensity={20} style={styles.emptyState}>
+                <View style={styles.emptyIconContainer}>
+                  <View
+                    style={[
+                      styles.emptyIconGradient,
+                      { backgroundColor: theme.primary },
+                    ]}
+                  >
+                    <Ionicons
+                      name="chatbubbles-outline"
+                      size={32}
+                      color="white"
+                    />
+                  </View>
+                </View>
+                <Text style={styles.emptyStateTitle}>No conversations yet</Text>
+                <Text style={styles.emptyStateText}>
+                  Start a conversation by contacting a seller from a ticket
+                  listing
+                </Text>
+                <TouchableOpacity
+                  style={styles.browseButton}
+                  onPress={() => (router.push as any)("/(tabs)/")}
+                >
+                  <View
+                    style={[
+                      styles.browseButtonGradient,
+                      { backgroundColor: theme.primary },
+                    ]}
+                  >
+                    <Ionicons name="search-outline" size={16} color="white" />
+                    <Text style={styles.browseButtonText}>Browse Tickets</Text>
+                  </View>
+                </TouchableOpacity>
+              </BlurView>
+            )}
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -1009,40 +916,68 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+  // Floating elements for visual depth
+  floatingElement1: {
+    position: "absolute",
+    top: "15%",
+    left: "10%",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
-  headerLeft: {
-    flexDirection: "row",
+  floatingElement2: {
+    position: "absolute",
+    bottom: "30%",
+    right: "15%",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  // ScrollView structure like other tabs
+  scrollView: {
+    flex: 1,
+  },
+  // Header Section (Gradient)
+  headerSection: {
     alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    position: "relative",
   },
   logoContainer: {
-    marginRight: 12,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 16,
   },
   logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "800",
     color: "white",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.9)",
+    textAlign: "center",
+    paddingHorizontal: 20,
+    lineHeight: 22,
   },
   notificationButton: {
+    position: "absolute",
+    top: 60,
+    right: 20,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -1051,47 +986,123 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 1000,
+    elevation: 5,
   },
-  statsContainer: {
+  // Content Section (White)
+  contentSection: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
     paddingHorizontal: 20,
-    marginBottom: 24,
+    flex: 1,
   },
-  statsCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    overflow: "hidden",
-  },
-  statsGradient: {
+  // Compact Stats
+  compactStatsContainer: {
     flexDirection: "row",
-    padding: 20,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  statItem: {
+  compactStatItem: {
     flex: 1,
     alignItems: "center",
-    gap: 8,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
   },
-  statIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  compactStatIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "white",
+  compactStatNumber: {
+    fontSize: 16,
+    fontWeight: "700",
   },
-  statLabel: {
+  compactStatLabel: {
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "rgba(255, 255, 255, 0.9)",
     fontWeight: "500",
   },
-  statDivider: {
+  compactStatDivider: {
     width: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    marginHorizontal: 16,
+    height: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    marginHorizontal: 8,
+  },
+  // Compact Filter Styles
+  compactFilterContainer: {
+    marginBottom: 20,
+  },
+  compactSegmentedControl: {
+    flexDirection: "row",
+    backgroundColor: "#f1f5f9",
+    borderRadius: 16,
+    padding: 4,
+    height: 44,
+    position: "relative",
+  },
+  compactSegmentIndicator: {
+    position: "absolute",
+    top: 4,
+    height: 36,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  compactSegmentButton: {
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 12,
+    zIndex: 2,
+  },
+  compactSegmentContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  compactSegmentLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  compactSegmentBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  compactSegmentBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    lineHeight: 13,
+  },
+  // Conversations List
+  conversationsListContainer: {
+    flex: 1,
+  },
+  // Legacy styles for compatibility
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   conversationsContainer: {
     flex: 1,
@@ -1241,6 +1252,10 @@ const styles = StyleSheet.create({
     color: "#1e293b",
     flex: 1,
   },
+  trustedBadgeContainer: {
+    marginBottom: 4,
+    alignSelf: "flex-start",
+  },
   unreadText: {
     fontWeight: "700",
     color: "#0f172a",
@@ -1357,154 +1372,93 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  // Enhanced Segmented Control Filter Styles
+  // Enhanced Segmented Control Filter Styles - Compact Version
   enhancedFilterContainer: {
-    paddingHorizontal: 20,
     marginBottom: 20,
     zIndex: 100,
   },
   segmentedControlBlur: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
+    borderColor: "#e2e8f0",
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
     marginBottom: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "#f8fafc",
   },
   segmentedControl: {
     flexDirection: "row",
     position: "relative",
-    padding: 6,
-    height: 64,
-    backgroundColor: "rgba(248, 250, 252, 0.8)",
+    padding: 4,
+    height: 44,
+    backgroundColor: "#f8fafc",
   },
   segmentIndicator: {
     position: "absolute",
-    top: 6,
-    left: 6,
-    bottom: 6,
-    borderRadius: 16,
+    top: 4,
+    left: 4,
+    bottom: 4,
+    borderRadius: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   segmentButton: {
-    height: 52,
+    height: 36,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 16,
+    borderRadius: 12,
     zIndex: 2,
   },
   segmentContent: {
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 3,
+    gap: 2,
     paddingHorizontal: 2,
   },
   segmentIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 2,
   },
   segmentLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     letterSpacing: 0.1,
     textAlign: "center",
     flexShrink: 1,
   },
   segmentBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    minWidth: 20,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 8,
+    minWidth: 16,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 2,
+    marginLeft: 1,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.3)",
   },
   segmentBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
-    lineHeight: 13,
-  },
-  filterBottomRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    lineHeight: 12,
   },
   filterDescription: {
-    fontSize: 13,
-    fontWeight: "500",
-    letterSpacing: 0.1,
-    flex: 1,
-  },
-  // Sectioning Toggle Styles
-  sectioningToggleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  sectioningLabel: {
     fontSize: 12,
-    fontWeight: "600",
-    opacity: 0.9,
-  },
-  sectioningToggle: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  toggleBlur: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.4)",
-    overflow: "hidden",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-  },
-  toggleContent: {
-    flexDirection: "row",
-    position: "relative",
-    padding: 2,
-    width: 140,
-    height: 32,
-  },
-  toggleIndicator: {
-    position: "absolute",
-    top: 2,
-    left: 2,
-    width: 66,
-    height: 28,
-    borderRadius: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  toggleOption: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-    zIndex: 2,
-    paddingHorizontal: 4,
-  },
-  toggleText: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.1,
+    fontWeight: "500",
+    color: "#64748b",
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });
