@@ -1,4 +1,4 @@
-package com.mycollegetix.app
+package com.mycollegetix.newapp
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

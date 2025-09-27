@@ -1,4 +1,4 @@
-package com.mycollegetix.app
+package com.mycollegetix.newapp
 
 import android.app.Application
 import android.content.res.Configuration

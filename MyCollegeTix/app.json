@@ -41,8 +41,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.mycollegetix.app",
-      "versionCode": 21,
+      "package": "com.mycollegetix.newapp",
+      "versionCode": 22,
       "softwareKeyboardLayoutMode": "adjustResize",
       "navigationBar": {
         "visible": "leanback",
