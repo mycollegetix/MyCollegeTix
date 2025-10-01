@@ -416,18 +416,17 @@
             />
           </a>
 
-          <div class="coming-soon-btn" id="androidBtn">
-            <div class="coming-soon-content">
-              <img
-                src="GetItOnGooglePlay_Badge_Web_color_English.png"
-                alt="Get it on Google Play"
-                class="badge-img grayed-out"
-              />
-              <div class="coming-soon-overlay">
-                <span class="coming-soon-text">Android Coming Soon</span>
-              </div>
-            </div>
-          </div>
+          <a
+            href="https://play.google.com/store/apps/details?id=com.mycollegetix.newapp&pcampaignid=web_share"
+            class="download-btn"
+            id="androidBtn"
+          >
+            <img
+              src="GetItOnGooglePlay_Badge_Web_color_English.png"
+              alt="Get it on Google Play"
+              class="badge-img"
+            />
+          </a>
         </div>
       </div>
 
@@ -490,11 +489,11 @@
               "https://apps.apple.com/us/app/mycollegetix/id6748928832";
           }, 1500);
         } else if (device === "android") {
-          // Show manual download for Android (coming soon)
+          // Redirect to Google Play Store
           setTimeout(() => {
-            autoRedirectEl.style.display = "none";
-            manualDownloadEl.classList.add("show");
-          }, 2000);
+            window.location.href =
+              "https://play.google.com/store/apps/details?id=com.mycollegetix.newapp&pcampaignid=web_share";
+          }, 1500);
         } else {
           // Show manual download options
           setTimeout(() => {
