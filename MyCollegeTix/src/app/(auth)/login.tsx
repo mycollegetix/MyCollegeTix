@@ -28,30 +28,18 @@ export default function OAuthLoginScreen() {
   const [loginError, setLoginError] = useState("");
 
   const handleGoogleSignIn = async () => {
-    if (!termsAccepted) {
-      Alert.alert(
-        "Terms Required",
-        "Please accept the Terms of Service and Privacy Policy to continue."
-      );
-      return;
-    }
-
     setIsGoogleLoading(true);
     setLoginError("");
 
     try {
       console.log("🚀 Starting Google sign in process...");
+      console.log("📋 Terms accepted:", termsAccepted);
+
       const { error } = await signInWithGoogle(termsAccepted);
 
       if (error) {
         console.error("Google sign in error:", error);
-
-        // Check if error is about terms not being accepted
-        if (error.message.includes("terms")) {
-          setLoginError("Please accept the Terms of Service to continue.");
-        } else {
-          setLoginError(`Google sign in failed: ${error.message}`);
-        }
+        setLoginError(`Google sign in failed: ${error.message}`);
       } else {
         console.log("✅ Google sign in process completed");
         // Navigation handled by AuthProvider
@@ -65,30 +53,18 @@ export default function OAuthLoginScreen() {
   };
 
   const handleMicrosoftSignIn = async () => {
-    if (!termsAccepted) {
-      Alert.alert(
-        "Terms Required",
-        "Please accept the Terms of Service and Privacy Policy to continue."
-      );
-      return;
-    }
-
     setIsMicrosoftLoading(true);
     setLoginError("");
 
     try {
       console.log("🚀 Starting Microsoft sign in process...");
+      console.log("📋 Terms accepted:", termsAccepted);
+
       const { error } = await signInWithMicrosoft(termsAccepted);
 
       if (error) {
         console.error("Microsoft sign in error:", error);
-
-        // Check if error is about terms not being accepted
-        if (error.message.includes("terms")) {
-          setLoginError("Please accept the Terms of Service to continue.");
-        } else {
-          setLoginError(`Microsoft sign in failed: ${error.message}`);
-        }
+        setLoginError(`Microsoft sign in failed: ${error.message}`);
       } else {
         console.log("✅ Microsoft sign in process completed");
         // Navigation handled by AuthProvider
@@ -229,8 +205,9 @@ export default function OAuthLoginScreen() {
                 color="#6b7280"
               />
               <Text style={styles.infoText}>
-                By signing in, you'll automatically be registered if you're a
-                new user. Your college will be detected from your email domain.
+                New users: Please check the box above to accept our terms.
+                {"\n"}
+                Returning users: Sign in directly. Your college will be detected from your email domain.
               </Text>
             </View>
           </View>
