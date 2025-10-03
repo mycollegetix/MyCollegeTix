@@ -20,6 +20,7 @@ import { BlurView } from "expo-blur";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { supabase } from "@/src/lib/supabase";
 import { GoogleSignInButton } from "@/src/components/GoogleSignInButton";
+import { MicrosoftSignInButton } from "@/src/components/MicrosoftSignInButton";
 
 const { width, height } = Dimensions.get("window");
 
@@ -37,8 +38,9 @@ export default function LoginScreen() {
   const [isResendLoading, setIsResendLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, signInWithMicrosoft } = useAuth();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isMicrosoftLoading, setIsMicrosoftLoading] = useState(false);
   const [showOAuthComplete, setShowOAuthComplete] = useState(false);
 
   const handleLogin = async () => {
@@ -337,7 +339,7 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     setLoginError("");
-    
+
     try {
       console.log("🚀 Starting Google sign in process...");
       const { error } = await signInWithGoogle();
@@ -353,6 +355,28 @@ export default function LoginScreen() {
       setLoginError("An unexpected error occurred with Google sign in.");
     } finally {
       setIsGoogleLoading(false);
+    }
+  };
+
+  const handleMicrosoftSignIn = async () => {
+    setIsMicrosoftLoading(true);
+    setLoginError("");
+
+    try {
+      console.log("🚀 Starting Microsoft sign in process...");
+      const { error } = await signInWithMicrosoft();
+      if (error) {
+        console.error("Microsoft sign in error:", error);
+        setLoginError(`Microsoft sign in failed: ${error.message}`);
+      } else {
+        console.log("✅ Microsoft sign in process completed");
+        setShowOAuthComplete(true);
+      }
+    } catch (error) {
+      console.error("Unexpected Microsoft sign in error:", error);
+      setLoginError("An unexpected error occurred with Microsoft sign in.");
+    } finally {
+      setIsMicrosoftLoading(false);
     }
   };
 
@@ -631,10 +655,18 @@ export default function LoginScreen() {
                 style={styles.googleButton}
               />
 
+              {/* Microsoft Sign In Button */}
+              <MicrosoftSignInButton
+                onPress={handleMicrosoftSignIn}
+                loading={isMicrosoftLoading}
+                disabled={isMicrosoftLoading}
+                style={styles.microsoftButton}
+              />
+
               {/* Production Note */}
               <View style={styles.productionNote}>
                 <Text style={styles.productionNoteText}>
-                  🚀 Production-ready Google OAuth implementation
+                  🚀 Production-ready OAuth implementation
                 </Text>
                 <Text style={styles.productionNoteSubtext}>
                   Will work in built apps with proper redirect handling
@@ -1226,6 +1258,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   googleButton: {
+    marginBottom: 12,
+  },
+  microsoftButton: {
     marginBottom: 20,
   },
   oauthCompleteContainer: {

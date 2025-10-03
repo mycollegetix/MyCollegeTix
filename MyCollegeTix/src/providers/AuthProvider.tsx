@@ -7,6 +7,7 @@ import { College } from "@/src/types/database.types";
 import { AccountService } from "@/src/services/accountService";
 import { ipTrackingService } from "@/src/services/ipTrackingService";
 import { googleAuthService } from "@/src/services/googleAuthService";
+import { microsoftAuthService } from "@/src/services/microsoftAuthService";
 
 // Interface definitions
 export interface UserProfile {
@@ -31,6 +32,7 @@ interface AuthContextType {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
+  signInWithMicrosoft: () => Promise<{ error: any }>;
   signUp: (
     email: string,
     password: string,
@@ -284,33 +286,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async () => {
     try {
       console.log("🔐 Starting Google sign-in flow...");
-      
+
       const result = await googleAuthService.signInWithGoogle();
-      
+
       if (result.error) {
         console.error("❌ Google sign-in failed:", result.error.message);
         return { error: result.error };
       }
-      
+
       if (result.cancelled) {
         console.log("ℹ️ Google sign-in was cancelled by user");
         return { error: new Error("Sign-in was cancelled") };
       }
-      
+
       if (result.user) {
         console.log("✅ Google sign-in successful for:", result.user.email);
         // The session is already set by googleAuthService, so we just return success
         // The auth state change listener will handle the rest
         return { error: null };
       }
-      
+
       // This should not happen, but handle it just in case
       console.error("❌ Unexpected Google sign-in result");
       return { error: new Error("Unexpected authentication result") };
-      
+
     } catch (error: any) {
       console.error("💥 Unexpected Google sign-in error:", error);
       return { error: new Error(`Google sign-in failed: ${error.message}`) };
+    }
+  };
+
+  const signInWithMicrosoft = async () => {
+    try {
+      console.log("🔐 Starting Microsoft sign-in flow...");
+
+      const result = await microsoftAuthService.signInWithMicrosoft();
+
+      if (result.error) {
+        console.error("❌ Microsoft sign-in failed:", result.error.message);
+        return { error: result.error };
+      }
+
+      if (result.cancelled) {
+        console.log("ℹ️ Microsoft sign-in was cancelled by user");
+        return { error: new Error("Sign-in was cancelled") };
+      }
+
+      if (result.user) {
+        console.log("✅ Microsoft sign-in successful for:", result.user.email);
+        // The session is already set by microsoftAuthService, so we just return success
+        // The auth state change listener will handle the rest
+        return { error: null };
+      }
+
+      // This should not happen, but handle it just in case
+      console.error("❌ Unexpected Microsoft sign-in result");
+      return { error: new Error("Unexpected authentication result") };
+
+    } catch (error: any) {
+      console.error("💥 Unexpected Microsoft sign-in error:", error);
+      return { error: new Error(`Microsoft sign-in failed: ${error.message}`) };
     }
   };
 
@@ -318,7 +353,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await Promise.all([
         supabase.auth.signOut(),
-        googleAuthService.signOut()
+        googleAuthService.signOut(),
+        microsoftAuthService.signOut()
       ]);
       setSession(null);
       setUser(null);
@@ -345,6 +381,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     signIn,
     signInWithGoogle,
+    signInWithMicrosoft,
     signUp,
     signOut,
     refreshProfile,
