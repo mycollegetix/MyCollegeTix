@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, View, ActivityIndicator, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Svg, { Rect } from 'react-native-svg';
 import { useAuth } from '@/src/providers/AuthProvider';
 
 interface MicrosoftSignInButtonProps {
@@ -83,10 +83,17 @@ export function MicrosoftSignInButton({
         {isLoading ? (
           <ActivityIndicator size="small" color="#737373" style={styles.icon} />
         ) : (
-          <Ionicons name="logo-microsoft" size={20} color="#00A4EF" style={styles.icon} />
+          <View style={styles.iconContainer}>
+            <Svg width="21" height="21" viewBox="0 0 21 21">
+              <Rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+              <Rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+              <Rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+              <Rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+            </Svg>
+          </View>
         )}
         <Text style={[styles.text, isLoading && styles.loadingText]}>
-          {isLoading ? 'Signing in with Microsoft...' : 'Continue with Microsoft'}
+          {isLoading ? 'Signing in with Microsoft...' : 'Sign in with Microsoft'}
         </Text>
       </View>
     </TouchableOpacity>
@@ -128,6 +135,11 @@ const styles = StyleSheet.create({
   },
   icon: {
     marginRight: 12,
+  },
+  iconContainer: {
+    marginRight: 12,
+    width: 21,
+    height: 21,
   },
   text: {
     fontSize: 16,
