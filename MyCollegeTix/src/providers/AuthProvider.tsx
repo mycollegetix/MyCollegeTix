@@ -1,10 +1,12 @@
 // src/providers/AuthProvider.tsx - Simple fix for registration
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
+import { AppState } from "react-native";
 import { supabase } from "@/src/lib/supabase";
 import { College } from "@/src/types/database.types";
 import { AccountService } from "@/src/services/accountService";
 import { ipTrackingService } from "@/src/services/ipTrackingService";
+import { googleAuthService } from "@/src/services/googleAuthService";
 
 // Interface definitions
 export interface UserProfile {
@@ -28,6 +30,7 @@ interface AuthContextType {
   profile: ProfileWithCollege | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
   signUp: (
     email: string,
     password: string,
@@ -75,8 +78,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth();
 
+    // Handle app state changes (when user returns from browser)
+    const handleAppStateChange = async (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        console.log("📱 App became active, checking for new session...");
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) {
+            console.error("❌ Error checking session on app resume:", error);
+            return;
+          }
+          
+          if (session && !user) {
+            console.log("✅ New session found on app resume!");
+            setSession(session);
+            setUser(session.user);
+            if (session.user) {
+              await loadUserProfile(session.user.id);
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error refreshing session:", error);
+        }
+      }
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
     const {
-      data: { subscription },
+      data: { subscription: authSubscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("🔄 Auth event:", event);
 
@@ -97,7 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      authSubscription.unsubscribe();
+      appStateSubscription?.remove();
     };
   }, []);
 
@@ -250,9 +281,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      console.log("🔐 Starting Google sign-in flow...");
+      
+      const result = await googleAuthService.signInWithGoogle();
+      
+      if (result.error) {
+        console.error("❌ Google sign-in failed:", result.error.message);
+        return { error: result.error };
+      }
+      
+      if (result.cancelled) {
+        console.log("ℹ️ Google sign-in was cancelled by user");
+        return { error: new Error("Sign-in was cancelled") };
+      }
+      
+      if (result.user) {
+        console.log("✅ Google sign-in successful for:", result.user.email);
+        // The session is already set by googleAuthService, so we just return success
+        // The auth state change listener will handle the rest
+        return { error: null };
+      }
+      
+      // This should not happen, but handle it just in case
+      console.error("❌ Unexpected Google sign-in result");
+      return { error: new Error("Unexpected authentication result") };
+      
+    } catch (error: any) {
+      console.error("💥 Unexpected Google sign-in error:", error);
+      return { error: new Error(`Google sign-in failed: ${error.message}`) };
+    }
+  };
+
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      await Promise.all([
+        supabase.auth.signOut(),
+        googleAuthService.signOut()
+      ]);
       setSession(null);
       setUser(null);
       setProfile(null);
@@ -277,6 +344,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     isLoading,
     signIn,
+    signInWithGoogle,
     signUp,
     signOut,
     refreshProfile,
