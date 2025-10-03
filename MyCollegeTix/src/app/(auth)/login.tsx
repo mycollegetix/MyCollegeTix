@@ -9,7 +9,7 @@ import {
   Image,
   Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -24,7 +24,6 @@ export default function OAuthLoginScreen() {
 
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isMicrosoftLoading, setIsMicrosoftLoading] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loginError, setLoginError] = useState("");
 
   const handleGoogleSignIn = async () => {
@@ -33,9 +32,9 @@ export default function OAuthLoginScreen() {
 
     try {
       console.log("🚀 Starting Google sign in process...");
-      console.log("📋 Terms accepted:", termsAccepted);
 
-      const { error } = await signInWithGoogle(termsAccepted);
+      // User agrees to terms by clicking sign in (shown on login screen)
+      const { error } = await signInWithGoogle(true);
 
       if (error) {
         console.error("Google sign in error:", error);
@@ -58,9 +57,9 @@ export default function OAuthLoginScreen() {
 
     try {
       console.log("🚀 Starting Microsoft sign in process...");
-      console.log("📋 Terms accepted:", termsAccepted);
 
-      const { error } = await signInWithMicrosoft(termsAccepted);
+      // User agrees to terms by clicking sign in (shown on login screen)
+      const { error } = await signInWithMicrosoft(true);
 
       if (error) {
         console.error("Microsoft sign in error:", error);
@@ -148,53 +147,29 @@ export default function OAuthLoginScreen() {
               style={styles.oauthButton}
             />
 
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Before Registration</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Terms of Service Checkbox */}
-            <View style={styles.termsContainer}>
-              <TouchableOpacity
-                style={styles.checkboxContainer}
-                onPress={() => setTermsAccepted(!termsAccepted)}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    termsAccepted && styles.checkboxChecked,
-                  ]}
+            {/* Terms Notice */}
+            <View style={styles.termsNotice}>
+              <Text style={styles.termsNoticeText}>
+                By signing in, you agree to our{" "}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => {
+                    Alert.alert("Terms of Service", "Terms page coming soon");
+                  }}
                 >
-                  {termsAccepted && (
-                    <Ionicons name="checkmark" size={16} color="#fff" />
-                  )}
-                </View>
-                <Text style={styles.termsText}>
-                  I agree to the{" "}
-                  <Text
-                    style={styles.termsLink}
-                    onPress={() => {
-                      // TODO: Navigate to Terms of Service
-                      Alert.alert("Terms of Service", "Terms page coming soon");
-                    }}
-                  >
-                    Terms of Service
-                  </Text>{" "}
-                  and{" "}
-                  <Text
-                    style={styles.termsLink}
-                    onPress={() => {
-                      // TODO: Navigate to Privacy Policy
-                      Alert.alert("Privacy Policy", "Privacy page coming soon");
-                    }}
-                  >
-                    Privacy Policy
-                  </Text>
+                  Terms of Service
+                </Text>{" "}
+                and{" "}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => {
+                    Alert.alert("Privacy Policy", "Privacy page coming soon");
+                  }}
+                >
+                  Privacy Policy
                 </Text>
-              </TouchableOpacity>
+                .
+              </Text>
             </View>
 
             {/* Info Note */}
@@ -205,11 +180,21 @@ export default function OAuthLoginScreen() {
                 color="#6b7280"
               />
               <Text style={styles.infoText}>
-                New users: Please check the box above to accept our terms.
-                {"\n"}
-                Returning users: Sign in directly. Your college will be detected from your email domain.
+                Sign in with your college email. Your college will be automatically detected.
               </Text>
             </View>
+
+            {/* Dev/Testing Login Link */}
+            {process.env.EXPO_PUBLIC_SHOW_DEV_LOGIN === 'true' && (
+              <Link href="/(auth)/login-old-backup" asChild>
+                <TouchableOpacity style={styles.devLoginButton}>
+                  <Ionicons name="code-outline" size={18} color="#6b7280" />
+                  <Text style={styles.devLoginText}>
+                    Testing? Use Email/Password Login
+                  </Text>
+                </TouchableOpacity>
+              </Link>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -334,49 +319,15 @@ const styles = StyleSheet.create({
   oauthButton: {
     marginBottom: 12,
   },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 24,
+  termsNotice: {
+    marginTop: 20,
+    marginBottom: 16,
+    paddingHorizontal: 8,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#e5e7eb",
-  },
-  dividerText: {
-    paddingHorizontal: 16,
+  termsNoticeText: {
     fontSize: 13,
     color: "#6b7280",
-    fontWeight: "500",
-  },
-  termsContainer: {
-    marginBottom: 20,
-  },
-  checkboxContainer: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: "#d1d5db",
-    backgroundColor: "white",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 2,
-  },
-  checkboxChecked: {
-    backgroundColor: "#18453b",
-    borderColor: "#18453b",
-  },
-  termsText: {
-    flex: 1,
-    fontSize: 14,
-    color: "#374151",
+    textAlign: "center",
     lineHeight: 20,
   },
   termsLink: {
@@ -399,5 +350,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#1e40af",
     lineHeight: 18,
+  },
+  devLoginButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginTop: 16,
+  },
+  devLoginText: {
+    fontSize: 13,
+    color: '#6b7280',
+    fontWeight: '500',
   },
 });

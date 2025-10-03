@@ -8,6 +8,7 @@ import { AccountService } from "@/src/services/accountService";
 import { ipTrackingService } from "@/src/services/ipTrackingService";
 import { googleAuthService } from "@/src/services/googleAuthService";
 import { microsoftAuthService } from "@/src/services/microsoftAuthService";
+import { TermsAcceptanceModal } from "@/src/components/TermsAcceptanceModal";
 
 // Interface definitions
 export interface UserProfile {
@@ -54,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<ProfileWithCollege | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -180,6 +182,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         setProfile(fullProfile);
+
+        // Check if user needs to accept terms
+        if (!profileData.accepted_terms) {
+          console.log("⚠️ User has not accepted terms, showing modal");
+          setShowTermsModal(true);
+        }
 
         // Track user IP address on login/profile load with smart throttling
         ipTrackingService.trackUserIP(userId, { trigger: 'login' }).then((result) => {
@@ -376,6 +384,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return await AccountService.deleteUserAccount();
   };
 
+  const handleTermsAccept = async () => {
+    console.log("✅ User accepted terms");
+    setShowTermsModal(false);
+    // Refresh profile to get updated accepted_terms value
+    if (user) {
+      await loadUserProfile(user.id);
+    }
+  };
+
+  const handleTermsDecline = async () => {
+    console.log("❌ User declined terms, signing out");
+    setShowTermsModal(false);
+    await signOut();
+  };
+
   const value = {
     user,
     session,
@@ -390,7 +413,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     deleteAccount,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {user && (
+        <TermsAcceptanceModal
+          visible={showTermsModal}
+          userId={user.id}
+          onAccept={handleTermsAccept}
+          onDecline={handleTermsDecline}
+        />
+      )}
+    </AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => {
