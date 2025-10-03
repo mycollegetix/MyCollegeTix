@@ -44,9 +44,10 @@ class GoogleAuthService {
    * 4. User is redirected back to app with auth tokens
    * 5. App processes tokens and creates session
    */
-  async signInWithGoogle(): Promise<GoogleAuthResult> {
+  async signInWithGoogle(termsAccepted: boolean = false): Promise<GoogleAuthResult> {
     try {
       console.log('🔐 Starting Google OAuth flow...');
+      console.log('📋 Terms accepted:', termsAccepted);
 
       // Start OAuth flow with Supabase
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -56,6 +57,9 @@ class GoogleAuthService {
           queryParams: {
             access_type: 'offline',
             prompt: 'select_account',
+          },
+          data: {
+            accepted_terms: termsAccepted,
           },
         },
       });

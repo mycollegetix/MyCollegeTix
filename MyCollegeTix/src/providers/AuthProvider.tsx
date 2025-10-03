@@ -19,6 +19,8 @@ export interface UserProfile {
   email: string;
   is_admin: boolean;
   college_id: string | null;
+  accepted_terms: boolean;
+  accepted_terms_at: string | null;
 }
 
 export interface ProfileWithCollege extends UserProfile {
@@ -31,8 +33,8 @@ interface AuthContextType {
   profile: ProfileWithCollege | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signInWithGoogle: () => Promise<{ error: any }>;
-  signInWithMicrosoft: () => Promise<{ error: any }>;
+  signInWithGoogle: (termsAccepted?: boolean) => Promise<{ error: any }>;
+  signInWithMicrosoft: (termsAccepted?: boolean) => Promise<{ error: any }>;
   signUp: (
     email: string,
     password: string,
@@ -283,11 +285,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (termsAccepted: boolean = false) => {
     try {
       console.log("🔐 Starting Google sign-in flow...");
 
-      const result = await googleAuthService.signInWithGoogle();
+      const result = await googleAuthService.signInWithGoogle(termsAccepted);
 
       if (result.error) {
         console.error("❌ Google sign-in failed:", result.error.message);
@@ -316,11 +318,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signInWithMicrosoft = async () => {
+  const signInWithMicrosoft = async (termsAccepted: boolean = false) => {
     try {
       console.log("🔐 Starting Microsoft sign-in flow...");
 
-      const result = await microsoftAuthService.signInWithMicrosoft();
+      const result = await microsoftAuthService.signInWithMicrosoft(termsAccepted);
 
       if (result.error) {
         console.error("❌ Microsoft sign-in failed:", result.error.message);

@@ -43,9 +43,10 @@ class MicrosoftAuthService {
    * 4. User is redirected back to app with auth tokens
    * 5. App processes tokens and creates session
    */
-  async signInWithMicrosoft(): Promise<MicrosoftAuthResult> {
+  async signInWithMicrosoft(termsAccepted: boolean = false): Promise<MicrosoftAuthResult> {
     try {
       console.log('🔐 Starting Microsoft OAuth flow...');
+      console.log('📋 Terms accepted:', termsAccepted);
 
       // Start OAuth flow with Supabase
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -53,6 +54,9 @@ class MicrosoftAuthService {
         options: {
           redirectTo: this.redirectUri,
           scopes: 'email openid profile',
+          data: {
+            accepted_terms: termsAccepted,
+          },
         },
       });
 
