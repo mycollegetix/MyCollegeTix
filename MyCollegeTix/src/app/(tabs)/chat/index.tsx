@@ -265,9 +265,14 @@ export default function ChatListScreen() {
         (conv) => conv.archived || conv.is_expired
       );
 
-      // Sort conversations within event by most recent
+      // Sort conversations: unread first, then by most recent
       const sortConversations = (convs: ConversationWithDetails[]) =>
         convs.sort((a, b) => {
+          // Prioritize unread conversations
+          if (a.unread_count > 0 && b.unread_count === 0) return -1;
+          if (a.unread_count === 0 && b.unread_count > 0) return 1;
+
+          // Then sort by most recent
           const aTime = a.last_message_at
             ? new Date(a.last_message_at).getTime()
             : 0;
@@ -315,6 +320,11 @@ export default function ChatListScreen() {
         sections.push({
           title: "Other Conversations",
           data: activeNoEvent.sort((a, b) => {
+            // Prioritize unread conversations
+            if (a.unread_count > 0 && b.unread_count === 0) return -1;
+            if (a.unread_count === 0 && b.unread_count > 0) return 1;
+
+            // Then sort by most recent
             const aTime = a.last_message_at
               ? new Date(a.last_message_at).getTime()
               : 0;
@@ -603,7 +613,14 @@ export default function ChatListScreen() {
           hasUnread &&
             !isExpired && [
               styles.unreadConversation,
-              { borderColor: theme.primary },
+              {
+                borderColor: theme.primary,
+                borderWidth: 2,
+                backgroundColor: `${theme.primary}08`,
+                shadowColor: theme.primary,
+                shadowOpacity: 0.2,
+                shadowRadius: 12,
+              },
             ],
           isExpired && styles.expiredConversation,
         ]}
@@ -616,6 +633,13 @@ export default function ChatListScreen() {
               style={[
                 styles.avatar,
                 { backgroundColor: isExpired ? "#94a3b8" : theme.primary },
+                hasUnread && !isExpired && {
+                  shadowColor: theme.primary,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.5,
+                  shadowRadius: 8,
+                  elevation: 6,
+                },
               ]}
             >
               <Text
@@ -627,7 +651,20 @@ export default function ChatListScreen() {
                 {otherParticipant.full_name.charAt(0).toUpperCase()}
               </Text>
             </View>
-            {hasUnread && !isExpired && <View style={styles.onlineIndicator} />}
+            {hasUnread && !isExpired && (
+              <View
+                style={[
+                  styles.onlineIndicator,
+                  {
+                    backgroundColor: theme.secondary,
+                    shadowColor: theme.secondary,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.6,
+                    shadowRadius: 4,
+                  },
+                ]}
+              />
+            )}
             {isExpired && (
               <View style={styles.expiredIndicator}>
                 <Ionicons name="time-outline" size={8} color="#94a3b8" />
@@ -1197,7 +1234,8 @@ const styles = StyleSheet.create({
   },
   unreadConversation: {
     backgroundColor: "#fefffe",
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
+    elevation: 4,
   },
   expiredConversation: {
     backgroundColor: "#f8fafc",

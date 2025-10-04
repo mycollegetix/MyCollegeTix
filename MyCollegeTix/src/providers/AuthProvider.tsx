@@ -118,6 +118,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!mounted) return;
 
+      // Ignore spurious SIGNED_OUT events if we actually have a valid session
+      if (event === "SIGNED_OUT" && session) {
+        console.log("⚠️ Ignoring spurious SIGNED_OUT event - session still valid");
+        return;
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
 
