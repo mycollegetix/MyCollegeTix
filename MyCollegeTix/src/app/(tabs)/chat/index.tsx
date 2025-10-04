@@ -664,6 +664,21 @@ export default function ChatListScreen() {
               </View>
             )}
 
+            {/* Ticket Price */}
+            {item.ticket?.price && (
+              <View style={styles.priceContainer}>
+                <Text
+                  style={[
+                    styles.priceText,
+                    { color: isExpired ? "#64748b" : theme.primary },
+                    hasUnread && !isExpired && styles.unreadText,
+                  ]}
+                >
+                  ${item.ticket.price.toFixed(2)}
+                </Text>
+              </View>
+            )}
+
             <View style={styles.messagePreview}>
               <Text
                 style={[
@@ -1255,6 +1270,14 @@ const styles = StyleSheet.create({
   trustedBadgeContainer: {
     marginBottom: 4,
     alignSelf: "flex-start",
+  },
+  priceContainer: {
+    marginBottom: 4,
+  },
+  priceText: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   unreadText: {
     fontWeight: "700",
