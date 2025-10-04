@@ -2,6 +2,7 @@ import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase } from '@/src/lib/supabase';
+import { isEmailAllowed, getEmailDeniedMessage } from '@/src/utils/emailValidation';
 
 // Ensure auth session is properly completed
 WebBrowser.maybeCompleteAuthSession();
@@ -160,10 +161,24 @@ class GoogleAuthService {
       const user = data.session.user;
       console.log('✅ Google OAuth successful for user:', user.email);
 
+      // Validate email domain before allowing access
+      const userEmail = user.email || '';
+      if (!isEmailAllowed(userEmail)) {
+        console.error('❌ Email not allowed:', userEmail);
+
+        // Sign out the user immediately
+        await supabase.auth.signOut();
+
+        const errorMessage = getEmailDeniedMessage(userEmail);
+        return { error: new Error(errorMessage) };
+      }
+
+      console.log('✅ Email validated:', userEmail);
+
       // Extract user information
       const googleUser: GoogleUser = {
         id: user.id,
-        email: user.email || '',
+        email: userEmail,
         name: user.user_metadata?.full_name || user.user_metadata?.name || '',
         picture: user.user_metadata?.avatar_url || user.user_metadata?.picture,
       };
