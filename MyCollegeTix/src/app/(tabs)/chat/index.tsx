@@ -151,34 +151,38 @@ export default function ChatListScreen() {
   // Load trust status for all conversation participants
   useEffect(() => {
     const loadTrustStatuses = async () => {
-      if (conversations.length > 0) {
-        const participantIds = conversations.map(conv => {
-          const otherParticipant = conv.participant_1_id === user?.id
-            ? conv.participant_2
-            : conv.participant_1;
-          return otherParticipant.id;
-        });
-
-        // Get unique participant IDs
-        const uniqueIds = [...new Set(participantIds)];
-        
-        // Check trust status for each participant
-        const trustPromises = uniqueIds.map(async (userId) => {
-          const isTrusted = await TrustService.isUserTrusted(userId);
-          return { userId, isTrusted };
-        });
-
-        const trustResults = await Promise.all(trustPromises);
-        const newTrustedUsers = new Set<string>();
-        
-        trustResults.forEach(({ userId, isTrusted }) => {
-          if (isTrusted) {
-            newTrustedUsers.add(userId);
-          }
-        });
-
-        setTrustedUsers(newTrustedUsers);
+      // Don't load trust statuses if user is not logged in
+      if (!user?.id || conversations.length === 0) {
+        setTrustedUsers(new Set());
+        return;
       }
+
+      const participantIds = conversations.map(conv => {
+        const otherParticipant = conv.participant_1_id === user.id
+          ? conv.participant_2
+          : conv.participant_1;
+        return otherParticipant.id;
+      });
+
+      // Get unique participant IDs
+      const uniqueIds = [...new Set(participantIds)];
+
+      // Check trust status for each participant
+      const trustPromises = uniqueIds.map(async (userId) => {
+        const isTrusted = await TrustService.isUserTrusted(userId);
+        return { userId, isTrusted };
+      });
+
+      const trustResults = await Promise.all(trustPromises);
+      const newTrustedUsers = new Set<string>();
+
+      trustResults.forEach(({ userId, isTrusted }) => {
+        if (isTrusted) {
+          newTrustedUsers.add(userId);
+        }
+      });
+
+      setTrustedUsers(newTrustedUsers);
     };
 
     loadTrustStatuses();

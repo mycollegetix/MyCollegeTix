@@ -58,10 +58,6 @@ export default function TabLayout() {
               shadowRadius: 3.84,
             },
             headerShown: false,
-            // Prevent tabs from unmounting when switching
-            lazy: false,
-            // Keep screens mounted to preserve state
-            unmountOnBlur: false,
           }}
         >
         <Tabs.Screen

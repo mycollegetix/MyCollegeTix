@@ -367,16 +367,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await Promise.all([
-        supabase.auth.signOut(),
-        googleAuthService.signOut(),
-        microsoftAuthService.signOut()
-      ]);
+      console.log("🚪 Starting sign out process...");
+
+      // Clear state immediately to prevent components from making requests
       setSession(null);
       setUser(null);
       setProfile(null);
+
+      // Sign out from all services (only Supabase triggers auth state change)
+      await supabase.auth.signOut();
+
+      console.log("✅ Sign out complete, redirecting to login");
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error("❌ Error signing out:", error);
     }
   };
 
