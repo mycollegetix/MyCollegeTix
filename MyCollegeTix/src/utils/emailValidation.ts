@@ -7,7 +7,6 @@
 const ALLOWED_DOMAINS = [
   'msu.edu',      // Michigan State University
   'umich.edu',    // University of Michigan
-  'gmail.com',    // Gmail (restricted to test accounts only)
 ];
 
 // Test accounts (only for gmail.com domain)
@@ -43,18 +42,13 @@ export function isEmailAllowed(email: string): boolean {
     return false;
   }
 
-  // Check if domain is in allowed list
-  if (!ALLOWED_DOMAINS.includes(domain)) {
-    return false;
-  }
-
-  // For gmail.com, must be in the test account list
+  // Special case: Allow specific Gmail test accounts
   if (domain === 'gmail.com') {
     return ALLOWED_TEST_EMAILS.includes(emailLower);
   }
 
-  // All other allowed domains are accepted
-  return true;
+  // Check if domain is in allowed college domains
+  return ALLOWED_DOMAINS.includes(domain);
 }
 
 /**

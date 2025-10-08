@@ -38,7 +38,18 @@ export default function OAuthLoginScreen() {
 
       if (error) {
         console.error("Google sign in error:", error);
-        setLoginError(`Google sign in failed: ${error.message}`);
+
+        // Check if this is a database/email validation error
+        const errorMessage = error.message.toLowerCase();
+        if (errorMessage.includes('database error') ||
+            errorMessage.includes('saving new user') ||
+            errorMessage.includes('limited to students') ||
+            errorMessage.includes('college email') ||
+            errorMessage.includes('email domain')) {
+          setLoginError('Access is currently limited to students from Michigan State University and University of Michigan. Please use your college email (.edu) to sign up.');
+        } else {
+          setLoginError(`Google sign in failed: ${error.message}`);
+        }
       } else {
         console.log("✅ Google sign in process completed");
         // Navigation handled by AuthProvider
