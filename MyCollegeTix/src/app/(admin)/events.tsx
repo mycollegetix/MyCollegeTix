@@ -555,10 +555,13 @@ export default function EventManagement() {
 
   const EventCard = ({ event }: { event: Event }) => {
     const isSelected = selectedEvents.has(event.id);
-    const eventDate = new Date(event.event_date);
+    // Parse date as local date to avoid timezone issues
+    const eventDateStr = event.event_date.split('T')[0]; // Get YYYY-MM-DD
+    const [year, month, day] = eventDateStr.split('-').map(Number);
+    const eventDate = new Date(year, month - 1, day); // Create local date
+
     // Event expires at 11:59 PM on the event day, not immediately when date passes
-    const endOfEventDay = new Date(eventDate);
-    endOfEventDay.setHours(23, 59, 59, 999);
+    const endOfEventDay = new Date(year, month - 1, day, 23, 59, 59, 999);
     const isExpired = endOfEventDay < new Date();
 
     return (
@@ -731,7 +734,7 @@ export default function EventManagement() {
 
   const saveEventChanges = async () => {
     if (!editingEvent) return;
-    
+
     try {
       const { error } = await supabase
         .from('events')
@@ -750,7 +753,7 @@ export default function EventManagement() {
             }
             return date;
           })(),
-          game_time: editForm.game_time,
+          game_time: editForm.game_time || null, // Always save game_time, set to null if empty
           location: editForm.location,
           venue: editForm.venue,
           sport: editForm.sport,
@@ -762,37 +765,20 @@ export default function EventManagement() {
           updated_at: new Date().toISOString()
         })
         .eq('id', editingEvent.id);
-        
+
       if (error) throw error;
-      
+
       // Update local state
-      setEvents(prev => prev.map(event => 
-        event.id === editingEvent.id 
+      setEvents(prev => prev.map(event =>
+        event.id === editingEvent.id
           ? { ...event, ...editForm }
           : event
       ));
-      
+
       setEditModalVisible(false);
       setEditingEvent(null);
-      
-      // Check if event was auto-expired
-      const updatedEvent = { ...editingEvent, ...editForm };
-      const eventDate = new Date(updatedEvent.event_date);
-      const now = new Date();
-      
-      // Set expiry to 11:59 PM on the event day instead of immediately when date passes
-      const endOfEventDay = new Date(eventDate);
-      endOfEventDay.setHours(23, 59, 59, 999);
-      
-      if (endOfEventDay < now && updatedEvent.status !== 'completed' && updatedEvent.status !== 'cancelled') {
-        Alert.alert(
-          'Event Updated & Auto-Expired', 
-          'The event was successfully updated. Since the event date is in the past, it has been automatically marked as completed.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert('Success', 'Event updated successfully');
-      }
+
+      Alert.alert('Success', 'Event updated successfully');
     } catch (error) {
       console.error('Error updating event:', error);
       Alert.alert('Error', 'Failed to update event');

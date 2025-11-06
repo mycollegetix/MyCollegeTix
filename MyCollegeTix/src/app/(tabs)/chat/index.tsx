@@ -151,34 +151,38 @@ export default function ChatListScreen() {
   // Load trust status for all conversation participants
   useEffect(() => {
     const loadTrustStatuses = async () => {
-      if (conversations.length > 0) {
-        const participantIds = conversations.map(conv => {
-          const otherParticipant = conv.participant_1_id === user?.id
-            ? conv.participant_2
-            : conv.participant_1;
-          return otherParticipant.id;
-        });
-
-        // Get unique participant IDs
-        const uniqueIds = [...new Set(participantIds)];
-        
-        // Check trust status for each participant
-        const trustPromises = uniqueIds.map(async (userId) => {
-          const isTrusted = await TrustService.isUserTrusted(userId);
-          return { userId, isTrusted };
-        });
-
-        const trustResults = await Promise.all(trustPromises);
-        const newTrustedUsers = new Set<string>();
-        
-        trustResults.forEach(({ userId, isTrusted }) => {
-          if (isTrusted) {
-            newTrustedUsers.add(userId);
-          }
-        });
-
-        setTrustedUsers(newTrustedUsers);
+      // Don't load trust statuses if user is not logged in
+      if (!user?.id || conversations.length === 0) {
+        setTrustedUsers(new Set());
+        return;
       }
+
+      const participantIds = conversations.map(conv => {
+        const otherParticipant = conv.participant_1_id === user.id
+          ? conv.participant_2
+          : conv.participant_1;
+        return otherParticipant.id;
+      });
+
+      // Get unique participant IDs
+      const uniqueIds = [...new Set(participantIds)];
+
+      // Check trust status for each participant
+      const trustPromises = uniqueIds.map(async (userId) => {
+        const isTrusted = await TrustService.isUserTrusted(userId);
+        return { userId, isTrusted };
+      });
+
+      const trustResults = await Promise.all(trustPromises);
+      const newTrustedUsers = new Set<string>();
+
+      trustResults.forEach(({ userId, isTrusted }) => {
+        if (isTrusted) {
+          newTrustedUsers.add(userId);
+        }
+      });
+
+      setTrustedUsers(newTrustedUsers);
     };
 
     loadTrustStatuses();
@@ -265,9 +269,14 @@ export default function ChatListScreen() {
         (conv) => conv.archived || conv.is_expired
       );
 
-      // Sort conversations within event by most recent
+      // Sort conversations: unread first, then by most recent
       const sortConversations = (convs: ConversationWithDetails[]) =>
         convs.sort((a, b) => {
+          // Prioritize unread conversations
+          if (a.unread_count > 0 && b.unread_count === 0) return -1;
+          if (a.unread_count === 0 && b.unread_count > 0) return 1;
+
+          // Then sort by most recent
           const aTime = a.last_message_at
             ? new Date(a.last_message_at).getTime()
             : 0;
@@ -315,6 +324,11 @@ export default function ChatListScreen() {
         sections.push({
           title: "Other Conversations",
           data: activeNoEvent.sort((a, b) => {
+            // Prioritize unread conversations
+            if (a.unread_count > 0 && b.unread_count === 0) return -1;
+            if (a.unread_count === 0 && b.unread_count > 0) return 1;
+
+            // Then sort by most recent
             const aTime = a.last_message_at
               ? new Date(a.last_message_at).getTime()
               : 0;
@@ -603,7 +617,14 @@ export default function ChatListScreen() {
           hasUnread &&
             !isExpired && [
               styles.unreadConversation,
-              { borderColor: theme.primary },
+              {
+                borderColor: theme.primary,
+                borderWidth: 2,
+                backgroundColor: `${theme.primary}08`,
+                shadowColor: theme.primary,
+                shadowOpacity: 0.2,
+                shadowRadius: 12,
+              },
             ],
           isExpired && styles.expiredConversation,
         ]}
@@ -616,6 +637,13 @@ export default function ChatListScreen() {
               style={[
                 styles.avatar,
                 { backgroundColor: isExpired ? "#94a3b8" : theme.primary },
+                hasUnread && !isExpired && {
+                  shadowColor: theme.primary,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.5,
+                  shadowRadius: 8,
+                  elevation: 6,
+                },
               ]}
             >
               <Text
@@ -627,7 +655,20 @@ export default function ChatListScreen() {
                 {otherParticipant.full_name.charAt(0).toUpperCase()}
               </Text>
             </View>
-            {hasUnread && !isExpired && <View style={styles.onlineIndicator} />}
+            {hasUnread && !isExpired && (
+              <View
+                style={[
+                  styles.onlineIndicator,
+                  {
+                    backgroundColor: theme.secondary,
+                    shadowColor: theme.secondary,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.6,
+                    shadowRadius: 4,
+                  },
+                ]}
+              />
+            )}
             {isExpired && (
               <View style={styles.expiredIndicator}>
                 <Ionicons name="time-outline" size={8} color="#94a3b8" />
@@ -661,6 +702,21 @@ export default function ChatListScreen() {
             {isParticipantTrusted && (
               <View style={styles.trustedBadgeContainer}>
                 <TrustedBadge size="small" />
+              </View>
+            )}
+
+            {/* Ticket Price */}
+            {item.ticket?.price && (
+              <View style={styles.priceContainer}>
+                <Text
+                  style={[
+                    styles.priceText,
+                    { color: isExpired ? "#64748b" : theme.primary },
+                    hasUnread && !isExpired && styles.unreadText,
+                  ]}
+                >
+                  ${item.ticket.price.toFixed(2)}
+                </Text>
               </View>
             )}
 
@@ -1182,7 +1238,8 @@ const styles = StyleSheet.create({
   },
   unreadConversation: {
     backgroundColor: "#fefffe",
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
+    elevation: 4,
   },
   expiredConversation: {
     backgroundColor: "#f8fafc",
@@ -1255,6 +1312,14 @@ const styles = StyleSheet.create({
   trustedBadgeContainer: {
     marginBottom: 4,
     alignSelf: "flex-start",
+  },
+  priceContainer: {
+    marginBottom: 4,
+  },
+  priceText: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   unreadText: {
     fontWeight: "700",

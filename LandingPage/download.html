@@ -19,8 +19,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Download mycollegetix</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
-    <link rel="shortcut icon" href="favicon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png" />
+    <link rel="shortcut icon" href="favicon.png" />
     <style>
       * {
         margin: 0;
@@ -175,8 +175,6 @@
         transform: scale(1.05);
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
       }
-
-
 
       .subtitle {
         color: #6b7280;
@@ -370,7 +368,9 @@
       <div class="nav-content">
         <a href="index.html" class="nav-logo">
           <img src="mycollegetixlogo.png" alt="mycollegetix Logo" />
-          <span class="nav-logo-text"><span style="color: #FFD700;">my</span>collegetix</span>
+          <span class="nav-logo-text"
+            ><span style="color: #ffd700">my</span>collegetix</span
+          >
         </a>
         <div class="nav-links">
           <a href="index.html">Home</a>
@@ -416,18 +416,17 @@
             />
           </a>
 
-          <div class="coming-soon-btn" id="androidBtn">
-            <div class="coming-soon-content">
-              <img
-                src="GetItOnGooglePlay_Badge_Web_color_English.png"
-                alt="Get it on Google Play"
-                class="badge-img grayed-out"
-              />
-              <div class="coming-soon-overlay">
-                <span class="coming-soon-text">Android Coming Soon</span>
-              </div>
-            </div>
-          </div>
+          <a
+            href="https://play.google.com/store/apps/details?id=com.mycollegetix.newapp&pcampaignid=web_share"
+            class="download-btn"
+            id="androidBtn"
+          >
+            <img
+              src="GetItOnGooglePlay_Badge_Web_color_English.png"
+              alt="Get it on Google Play"
+              class="badge-img"
+            />
+          </a>
         </div>
       </div>
 
@@ -490,11 +489,11 @@
               "https://apps.apple.com/us/app/mycollegetix/id6748928832";
           }, 1500);
         } else if (device === "android") {
-          // Show manual download for Android (coming soon)
+          // Redirect to Google Play Store
           setTimeout(() => {
-            autoRedirectEl.style.display = "none";
-            manualDownloadEl.classList.add("show");
-          }, 2000);
+            window.location.href =
+              "https://play.google.com/store/apps/details?id=com.mycollegetix.newapp&pcampaignid=web_share";
+          }, 1500);
         } else {
           // Show manual download options
           setTimeout(() => {
