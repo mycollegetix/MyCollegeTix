@@ -1,10 +1,14 @@
 // src/providers/AuthProvider.tsx - Simple fix for registration
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
+import { AppState } from "react-native";
 import { supabase } from "@/src/lib/supabase";
 import { College } from "@/src/types/database.types";
 import { AccountService } from "@/src/services/accountService";
 import { ipTrackingService } from "@/src/services/ipTrackingService";
+import { googleAuthService } from "@/src/services/googleAuthService";
+import { microsoftAuthService } from "@/src/services/microsoftAuthService";
+import { TermsAcceptanceModal } from "@/src/components/TermsAcceptanceModal";
 
 // Interface definitions
 export interface UserProfile {
@@ -16,6 +20,8 @@ export interface UserProfile {
   email: string;
   is_admin: boolean;
   college_id: string | null;
+  accepted_terms: boolean;
+  accepted_terms_at: string | null;
 }
 
 export interface ProfileWithCollege extends UserProfile {
@@ -28,6 +34,8 @@ interface AuthContextType {
   profile: ProfileWithCollege | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: (termsAccepted?: boolean) => Promise<{ error: any }>;
+  signInWithMicrosoft: (termsAccepted?: boolean) => Promise<{ error: any }>;
   signUp: (
     email: string,
     password: string,
@@ -47,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<ProfileWithCollege | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -75,12 +84,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth();
 
+    // Handle app state changes (when user returns from browser)
+    const handleAppStateChange = async (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        console.log("📱 App became active, checking for new session...");
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) {
+            console.error("❌ Error checking session on app resume:", error);
+            return;
+          }
+          
+          if (session && !user) {
+            console.log("✅ New session found on app resume!");
+            setSession(session);
+            setUser(session.user);
+            if (session.user) {
+              await loadUserProfile(session.user.id);
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error refreshing session:", error);
+        }
+      }
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
     const {
-      data: { subscription },
+      data: { subscription: authSubscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("🔄 Auth event:", event);
 
       if (!mounted) return;
+
+      // Ignore spurious SIGNED_OUT events if we actually have a valid session
+      if (event === "SIGNED_OUT" && session) {
+        console.log("⚠️ Ignoring spurious SIGNED_OUT event - session still valid");
+        return;
+      }
 
       setSession(session);
       setUser(session?.user ?? null);
@@ -97,7 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      authSubscription.unsubscribe();
+      appStateSubscription?.remove();
     };
   }, []);
 
@@ -145,6 +188,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         setProfile(fullProfile);
+
+        // Check if user needs to accept terms
+        if (!profileData.accepted_terms) {
+          console.log("⚠️ User has not accepted terms, showing modal");
+          setShowTermsModal(true);
+        }
 
         // Track user IP address on login/profile load with smart throttling
         ipTrackingService.trackUserIP(userId, { trigger: 'login' }).then((result) => {
@@ -250,14 +299,87 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async (termsAccepted: boolean = false) => {
+    try {
+      console.log("🔐 Starting Google sign-in flow...");
+
+      const result = await googleAuthService.signInWithGoogle(termsAccepted);
+
+      if (result.error) {
+        console.error("❌ Google sign-in failed:", result.error.message);
+        return { error: result.error };
+      }
+
+      if (result.cancelled) {
+        console.log("ℹ️ Google sign-in was cancelled by user");
+        return { error: new Error("Sign-in was cancelled") };
+      }
+
+      if (result.user) {
+        console.log("✅ Google sign-in successful for:", result.user.email);
+        // The session is already set by googleAuthService, so we just return success
+        // The auth state change listener will handle the rest
+        return { error: null };
+      }
+
+      // This should not happen, but handle it just in case
+      console.error("❌ Unexpected Google sign-in result");
+      return { error: new Error("Unexpected authentication result") };
+
+    } catch (error: any) {
+      console.error("💥 Unexpected Google sign-in error:", error);
+      return { error: new Error(`Google sign-in failed: ${error.message}`) };
+    }
+  };
+
+  const signInWithMicrosoft = async (termsAccepted: boolean = false) => {
+    try {
+      console.log("🔐 Starting Microsoft sign-in flow...");
+
+      const result = await microsoftAuthService.signInWithMicrosoft(termsAccepted);
+
+      if (result.error) {
+        console.error("❌ Microsoft sign-in failed:", result.error.message);
+        return { error: result.error };
+      }
+
+      if (result.cancelled) {
+        console.log("ℹ️ Microsoft sign-in was cancelled by user");
+        return { error: new Error("Sign-in was cancelled") };
+      }
+
+      if (result.user) {
+        console.log("✅ Microsoft sign-in successful for:", result.user.email);
+        // The session is already set by microsoftAuthService, so we just return success
+        // The auth state change listener will handle the rest
+        return { error: null };
+      }
+
+      // This should not happen, but handle it just in case
+      console.error("❌ Unexpected Microsoft sign-in result");
+      return { error: new Error("Unexpected authentication result") };
+
+    } catch (error: any) {
+      console.error("💥 Unexpected Microsoft sign-in error:", error);
+      return { error: new Error(`Microsoft sign-in failed: ${error.message}`) };
+    }
+  };
+
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      console.log("🚪 Starting sign out process...");
+
+      // Clear state immediately to prevent components from making requests
       setSession(null);
       setUser(null);
       setProfile(null);
+
+      // Sign out from all services (only Supabase triggers auth state change)
+      await supabase.auth.signOut();
+
+      console.log("✅ Sign out complete, redirecting to login");
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error("❌ Error signing out:", error);
     }
   };
 
@@ -271,19 +393,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return await AccountService.deleteUserAccount();
   };
 
+  const handleTermsAccept = async () => {
+    console.log("✅ User accepted terms");
+    setShowTermsModal(false);
+    // Refresh profile to get updated accepted_terms value
+    if (user) {
+      await loadUserProfile(user.id);
+    }
+  };
+
+  const handleTermsDecline = async () => {
+    console.log("❌ User declined terms, signing out");
+    setShowTermsModal(false);
+    await signOut();
+  };
+
   const value = {
     user,
     session,
     profile,
     isLoading,
     signIn,
+    signInWithGoogle,
+    signInWithMicrosoft,
     signUp,
     signOut,
     refreshProfile,
     deleteAccount,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {user && (
+        <TermsAcceptanceModal
+          visible={showTermsModal}
+          userId={user.id}
+          onAccept={handleTermsAccept}
+          onDecline={handleTermsDecline}
+        />
+      )}
+    </AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => {

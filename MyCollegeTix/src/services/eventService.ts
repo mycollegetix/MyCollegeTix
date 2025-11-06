@@ -14,11 +14,15 @@ export class EventService {
     collegeId?: string;
   } = {}): Promise<{ data: Event[]; error: any }> {
     try {
+      // Get start of today (midnight) to show all events for today and future
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
       let query = supabase
         .from("events")
         .select("*")
         .eq("status", "available")
-        .gte("event_date", new Date().toISOString())
+        .gte("event_date", startOfToday.toISOString())
         .order("event_date", { ascending: true });
 
       // Filter by college if specified (multi-tenant support)
@@ -83,6 +87,10 @@ export class EventService {
     onlySeasonPass?: boolean;
   } = {}): Promise<{ data: EventWithColleges[]; error: any }> {
     try {
+      // Get start of today (midnight) to show all events for today and future
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
       let query = supabase
         .from("events")
         .select(
@@ -105,7 +113,7 @@ export class EventService {
         `
         )
         .eq("status", "available")
-        .gte("event_date", new Date().toISOString())
+        .gte("event_date", startOfToday.toISOString())
         .order("event_date", { ascending: true });
 
       // Multi-tenant filtering logic
@@ -230,12 +238,16 @@ export class EventService {
     collegeId?: string
   ): Promise<{ data: Event[]; error: any }> {
     try {
+      // Get start of today (midnight) to show all events for today and future
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
       let query = supabase
         .from("events")
         .select("*")
         .eq("status", "available")
         .ilike("sport", `%${sport}%`)
-        .gte("event_date", new Date().toISOString())
+        .gte("event_date", startOfToday.toISOString())
         .order("event_date", { ascending: true });
 
       // Filter by college if specified
@@ -262,6 +274,10 @@ export class EventService {
     limit: number = 10
   ): Promise<{ data: EventWithColleges[]; error: any }> {
     try {
+      // Get start of today (midnight) to show all events for today and future
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
       const { data, error } = await supabase
         .from("events")
         .select(
@@ -285,7 +301,7 @@ export class EventService {
         )
         .eq("status", "available")
         .or(`home_college_id.eq.${collegeId},away_college_id.eq.${collegeId}`)
-        .gte("event_date", new Date().toISOString())
+        .gte("event_date", startOfToday.toISOString())
         .order("event_date", { ascending: true })
         .limit(limit);
 

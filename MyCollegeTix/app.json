@@ -2,7 +2,7 @@
   "expo": {
     "name": "MyCollegeTix",
     "slug": "msu-tickets",
-    "version": "1.5.0",
+    "version": "1.5.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mycollegetix",
@@ -26,7 +26,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mycollegetix.app",
-      "buildNumber": "1.4",
+      "buildNumber": "1.6",
       "requireFullScreen": false,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload ticket images",
@@ -41,8 +41,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.mycollegetix.app",
-      "versionCode": 19,
+      "package": "com.mycollegetix.newapp",
+      "versionCode": 27,
       "softwareKeyboardLayoutMode": "adjustResize",
       "navigationBar": {
         "visible": "leanback",
@@ -88,7 +88,8 @@
           "defaultChannel": "default"
         }
       ],
-      "./plugins/android-signing.js"
+      "./plugins/android-signing.js",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

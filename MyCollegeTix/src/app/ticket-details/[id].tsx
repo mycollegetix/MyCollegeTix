@@ -21,6 +21,7 @@ import { useChat } from "@/src/providers/ChatProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import WatchlistButton from "@/src/components/WatchlistButton";
 import { TicketTransferButton } from "@/src/components/TicketTransferButton";
+import UserProfileCard from "@/src/components/UserProfileCard";
 import { formatEventDateSeparate } from "@/src/utils/dateUtils";
 import { supabase } from "@/src/lib/supabase";
 
@@ -30,7 +31,7 @@ export default function TicketDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const { getOrCreateConversation } = useChat();
+  const { getOrCreateConversation, conversations } = useChat();
   const theme = useTheme();
 
   const [ticket, setTicket] = useState<TicketWithSeller | null>(null);
@@ -46,15 +47,15 @@ export default function TicketDetailsScreen() {
 
   const checkIfPurchased = async () => {
     if (!id || !user?.id) return;
-    
+
     try {
       const { data, error } = await supabase
-        .from('ticket_sales')
-        .select('id')
-        .eq('ticket_id', id)
-        .eq('buyer_id', user.id)
+        .from("ticket_sales")
+        .select("id")
+        .eq("ticket_id", id)
+        .eq("buyer_id", user.id)
         .single();
-        
+
       setIsPurchasedByUser(!!data && !error);
     } catch (error) {
       // No purchase found, which is fine
@@ -89,7 +90,6 @@ export default function TicketDetailsScreen() {
     }
   };
 
-
   const handleContactSeller = async () => {
     if (!ticket || !user) {
       console.error("❌ Missing ticket or user data");
@@ -102,35 +102,43 @@ export default function TicketDetailsScreen() {
       return;
     }
 
-    console.log("🗨️ Starting conversation with seller...");
+    console.log("🗨️ Checking for existing conversation with seller...");
     console.log("🔍 Current user:", user.id);
     console.log("🔍 Seller ID:", ticket.seller.id);
     console.log("🔍 Ticket ID:", ticket.id);
 
     try {
-      console.log("🔄 Calling getOrCreateConversation...");
-      const conversationId = await getOrCreateConversation(
-        ticket.seller.id,
-        ticket.id
-      );
+      // First, check if there's already a conversation for this ticket with this seller
+      const existingConversation = conversations.find(conv => {
+        const otherParticipant = conv.participant_1_id === user.id 
+          ? conv.participant_2 
+          : conv.participant_1;
+        
+        const isWithCorrectSeller = otherParticipant?.id === ticket.seller.id;
+        const isForCorrectTicket = conv.ticket_id === ticket.id;
+        
+        return isWithCorrectSeller && isForCorrectTicket;
+      });
 
-      console.log("🔍 Conversation result:", conversationId);
-
-      if (conversationId) {
-        console.log("✅ Conversation created/found:", conversationId);
-        (router.push as any)(`/(tabs)/chat/${conversationId}`);
-      } else {
-        throw new Error("Failed to create conversation - no ID returned");
+      if (existingConversation) {
+        console.log("✅ Found existing conversation:", existingConversation.id);
+        // Navigate directly to the existing conversation
+        (router.push as any)(`/(tabs)/chat/${existingConversation.id}`);
+        return;
       }
+
+      console.log("📝 No existing conversation found, showing new conversation screen");
+      // Navigate to new conversation screen only if no existing conversation
+      (router.push as any)(`/(tabs)/chat/new?sellerId=${ticket.seller.id}&ticketId=${ticket.id}&sellerName=${encodeURIComponent(ticket.seller.full_name)}&ticketTitle=${encodeURIComponent(ticket.title)}`);
     } catch (error) {
-      console.error("❌ Error starting conversation:", error);
-      Alert.alert("Error", "Unable to start conversation. Please try again.");
+      console.error("❌ Error handling contact seller:", error);
+      Alert.alert("Error", "Unable to open chat. Please try again.");
     }
   };
 
   // Use shared utility function for consistent date/time formatting
   const formatEventDate = (dateString: string, gameTime?: string | null) => {
-    return formatEventDateSeparate(dateString, gameTime, 'long');
+    return formatEventDateSeparate(dateString, gameTime, "long");
   };
 
   const getSportFromTitle = (title: string): string => {
@@ -196,7 +204,10 @@ export default function TicketDetailsScreen() {
   }
 
   const sport = getSportFromTitle(ticket.title);
-  const { dateStr, timeStr } = formatEventDate(ticket.event_date, ticket.event?.game_time);
+  const { dateStr, timeStr } = formatEventDate(
+    ticket.event_date,
+    ticket.event?.game_time
+  );
   const isOwnTicket = user?.id === ticket.seller.id;
   const isAvailable = ticket.status === "available";
 
@@ -340,92 +351,107 @@ export default function TicketDetailsScreen() {
             </View>
           )}
 
-          {/* Seller Info */}
+          {/* Enhanced Seller Info with Trust & Reviews */}
           {ticket.seller && (
             <View style={styles.sellerSection}>
               <Text style={[styles.sectionTitle, { color: theme.primary }]}>
                 Seller Information
               </Text>
-              <View style={styles.sellerCard}>
-                <View
-                  style={[
-                    styles.sellerAvatar,
-                    { backgroundColor: theme.primary },
-                  ]}
-                >
-                  <Text style={styles.sellerInitials}>
-                    {ticket.seller.full_name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.sellerInfo}>
-                  <Text style={styles.sellerName}>
-                    {ticket.seller.full_name}
-                  </Text>
-                  <Text style={styles.sellerUsername}>
-                    @{ticket.seller.username}
-                  </Text>
-                </View>
+
+              {/* Use UserProfileCard for enhanced seller info */}
+              <View style={styles.sellerProfileContainer}>
+                <UserProfileCard
+                  userId={ticket.seller.id}
+                  username={ticket.seller.username}
+                  fullName={ticket.seller.full_name}
+                  collegeName={ticket.seller.college?.name}
+                  showFullProfile={true}
+                  style={styles.sellerProfileCard}
+                />
+
+                {/* Contact Button - Only show for other users */}
                 {!isOwnTicket && (
-                  <TouchableOpacity
-                    style={[
-                      styles.contactButton,
-                      { borderColor: theme.primary },
-                    ]}
-                    onPress={handleContactSeller}
-                  >
-                    <Ionicons
-                      name="chatbubble-outline"
-                      size={16}
-                      color={theme.primary}
-                    />
-                    <Text
+                  <View style={styles.contactSellerContainer}>
+                    <TouchableOpacity
                       style={[
-                        styles.contactButtonText,
-                        { color: theme.primary },
+                        styles.enhancedContactButton,
+                        {
+                          backgroundColor: theme.primary,
+                          shadowColor: theme.primary,
+                        },
                       ]}
+                      onPress={handleContactSeller}
                     >
-                      Message
-                    </Text>
-                  </TouchableOpacity>
+                      <LinearGradient
+                        colors={[theme.primary, `${theme.primary}E6`]}
+                        style={styles.contactButtonGradient}
+                      >
+                        <View style={styles.contactButtonContent}>
+                          <Ionicons
+                            name="chatbubble-outline"
+                            size={18}
+                            color="white"
+                          />
+                          <Text style={styles.enhancedContactButtonText}>
+                            Message Seller
+                          </Text>
+                          <Ionicons
+                            name="arrow-forward"
+                            size={16}
+                            color="rgba(255,255,255,0.8)"
+                          />
+                        </View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
             </View>
           )}
 
           {/* Transfer Portal Section - Only show for own available tickets */}
-          {isOwnTicket && ticket.status === 'available' && (ticket.home_college_id || ticket.away_college_id) && (
-            <View style={styles.transferSection}>
-              <Text style={[styles.sectionTitle, { color: theme.primary }]}>
-                Ticket Transfer Portal
-              </Text>
-              <View style={styles.transferCard}>
-                <View style={styles.transferInfo}>
-                  <Ionicons name="shield-checkmark" size={20} color={theme.primary} />
-                  <View style={styles.transferText}>
-                    <Text style={styles.transferTitle}>
-                      Official Transfer Portal
-                    </Text>
-                    <Text style={styles.transferDescription}>
-                      Use your college's official portal to securely transfer this ticket to a buyer
-                    </Text>
+          {isOwnTicket &&
+            ticket.status === "available" &&
+            (ticket.home_college_id || ticket.away_college_id) && (
+              <View style={styles.transferSection}>
+                <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                  Ticket Transfer Portal
+                </Text>
+                <View style={styles.transferCard}>
+                  <View style={styles.transferInfo}>
+                    <Ionicons
+                      name="shield-checkmark"
+                      size={20}
+                      color={theme.primary}
+                    />
+                    <View style={styles.transferText}>
+                      <Text style={styles.transferTitle}>
+                        Official Transfer Portal
+                      </Text>
+                      <Text style={styles.transferDescription}>
+                        Use your college's official portal to securely transfer
+                        this ticket to a buyer
+                      </Text>
+                    </View>
                   </View>
+                  <TicketTransferButton
+                    collegeId={
+                      ticket.home_college_id || ticket.away_college_id || ""
+                    }
+                    ticketInfo={{
+                      title: ticket.title,
+                      eventDate: `${dateStr} at ${timeStr}`,
+                      section: ticket.section ?? undefined,
+                      row: ticket.row_number ?? undefined,
+                      seat: ticket.seat_number ?? undefined,
+                    }}
+                    variant="secondary"
+                    size="medium"
+                    style={styles.transferButton}
+                  />
                 </View>
-                <TicketTransferButton
-                  collegeId={ticket.home_college_id || ticket.away_college_id}
-                  ticketInfo={{
-                    title: ticket.title,
-                    eventDate: formatEventDateSeparate(ticket.event_date).fullDateTime,
-                    section: ticket.section,
-                    row: ticket.row_number,
-                    seat: ticket.seat_number,
-                  }}
-                  variant="secondary"
-                  size="medium"
-                  style={styles.transferButton}
-                />
               </View>
-            </View>
-          )}
+            )}
 
           {/* Price Section */}
           <View style={styles.priceSection}>
@@ -665,9 +691,63 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     height: 56,
   },
+
+  // Enhanced Seller Section Styles
   sellerSection: {
     marginBottom: 32,
   },
+  sellerProfileContainer: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  sellerProfileCard: {
+    backgroundColor: "transparent",
+    shadowOpacity: 0,
+    elevation: 0,
+    marginHorizontal: 0,
+    marginBottom: 0,
+  },
+  contactSellerContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#e2e8f0",
+  },
+  enhancedContactButton: {
+    borderRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  contactButtonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  contactButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  enhancedContactButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: -0.1,
+  },
+
+  // Legacy seller card styles (keeping for compatibility)
   sellerCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -717,6 +797,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+
   priceSection: {
     paddingTop: 24,
     borderTopWidth: 1,

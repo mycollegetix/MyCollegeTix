@@ -1,4 +1,4 @@
-// src/app/(tabs)/chat/index.tsx - FIXED with proper theme usage and no linear gradients
+// src/app/(tabs)/chat/index.tsx - Enhanced with event sectioning
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   StyleSheet,
@@ -12,23 +12,33 @@ import {
   SectionList,
   Platform,
   Animated,
+  ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { useChat } from "@/src/providers/ChatProvider";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ConversationWithDetails } from "@/src/types/database.types";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
+import { TrustService } from "@/src/services/trustService";
+import TrustedBadge from "@/src/components/TrustedBadge";
 
 interface ConversationSection {
   title: string;
   data: ConversationWithDetails[];
   key: string;
+  eventId?: string | null;
+  eventTitle?: string | null;
+  eventDate?: string | null;
+  isEventSection?: boolean;
 }
 
-type ConversationFilter = "all" | "buyer" | "seller";
+type ConversationFilter = "all" | "seller" | "buyer";
+type SectioningMode = "events"; // Always use event-based grouping
 
 interface FilterOption {
   value: ConversationFilter;
@@ -49,36 +59,40 @@ export default function ChatListScreen() {
     markAsRead,
   } = useChat();
 
-  // Filter state - Enhanced with segmented control
+  // Enhanced state management
   const [currentFilter, setCurrentFilter] = useState<ConversationFilter>("all");
+  const [sectioningMode, setSectioningMode] =
+    useState<SectioningMode>("events");
   const slideAnimation = useRef(new Animated.Value(0)).current;
   const fadeAnimation = useRef(new Animated.Value(1)).current;
+  const [trustedUsers, setTrustedUsers] = useState<Set<string>>(new Set());
 
-  // Initialize animation position based on current filter
+  // Initialize animations
   useEffect(() => {
-    const index = filterOptions.findIndex(option => option.value === currentFilter);
+    const index = filterOptions.findIndex(
+      (option) => option.value === currentFilter
+    );
     slideAnimation.setValue(index);
   }, []);
 
-  // Enhanced filter options with shorter labels for segmented control
   const filterOptions: FilterOption[] = [
     {
       value: "all",
       label: "All",
-      description: "Show all conversations",
+      description: "",
       icon: "chatbubbles-outline",
-    },
-    {
-      value: "buyer",
-      label: "Buying",
-      description: "Conversations where I'm inquiring about tickets",
-      icon: "person-outline",
     },
     {
       value: "seller",
       label: "Selling",
       description: "Conversations where I'm selling tickets",
       icon: "storefront-outline",
+    },
+    {
+      value: "buyer",
+      label: "Buying",
+      description: "Conversations where I'm inquiring about tickets",
+      icon: "person-outline",
     },
   ];
 
@@ -89,22 +103,21 @@ export default function ChatListScreen() {
     if (!user?.id || !conversation.ticket) return "unknown";
 
     if (conversation.ticket.seller_id === user.id) {
-      return "seller"; // Current user owns the ticket
+      return "seller";
     } else if (
       conversation.participant_1_id === user.id ||
       conversation.participant_2_id === user.id
     ) {
-      return "buyer"; // Current user is inquiring about the ticket
+      return "buyer";
     }
 
     return "unknown";
   };
 
-  // Enhanced animation functions for segmented control
+  // Enhanced animation functions
   const selectFilter = (filter: ConversationFilter, index: number) => {
     if (filter === currentFilter) return;
 
-    // Fade out content briefly for smooth transition
     Animated.sequence([
       Animated.timing(fadeAnimation, {
         toValue: 0.7,
@@ -118,7 +131,6 @@ export default function ChatListScreen() {
       }),
     ]).start();
 
-    // Slide indicator to new position
     Animated.spring(slideAnimation, {
       toValue: index,
       tension: 120,
@@ -129,20 +141,59 @@ export default function ChatListScreen() {
     setCurrentFilter(filter);
   };
 
-  // ✅ OPTIMIZED: Load conversations only once on mount
+  // Since we only have status mode now, this function is no longer needed
+  // Keeping the function stub in case we want to add other grouping options in the future
+
   useEffect(() => {
     loadConversations();
   }, []);
 
-  // ✅ REMOVED: useFocusEffect that was causing infinite loops
-  // Real-time subscriptions will handle updates automatically
+  // Load trust status for all conversation participants
+  useEffect(() => {
+    const loadTrustStatuses = async () => {
+      // Don't load trust statuses if user is not logged in
+      if (!user?.id || conversations.length === 0) {
+        setTrustedUsers(new Set());
+        return;
+      }
+
+      const participantIds = conversations.map(conv => {
+        const otherParticipant = conv.participant_1_id === user.id
+          ? conv.participant_2
+          : conv.participant_1;
+        return otherParticipant.id;
+      });
+
+      // Get unique participant IDs
+      const uniqueIds = [...new Set(participantIds)];
+
+      // Check trust status for each participant
+      const trustPromises = uniqueIds.map(async (userId) => {
+        const isTrusted = await TrustService.isUserTrusted(userId);
+        return { userId, isTrusted };
+      });
+
+      const trustResults = await Promise.all(trustPromises);
+      const newTrustedUsers = new Set<string>();
+
+      trustResults.forEach(({ userId, isTrusted }) => {
+        if (isTrusted) {
+          newTrustedUsers.add(userId);
+        }
+      });
+
+      setTrustedUsers(newTrustedUsers);
+    };
+
+    loadTrustStatuses();
+  }, [conversations, user?.id]);
 
   // Calculate counts for each filter option
   const filterCounts = useMemo(() => {
     const counts = {
       all: conversations.length,
-      buyer: 0,
       seller: 0,
+      buyer: 0,
     };
 
     conversations.forEach((conversation) => {
@@ -166,35 +217,163 @@ export default function ChatListScreen() {
     });
   }, [conversations, currentFilter, user?.id]);
 
-  // ✅ ORGANIZE: Separate conversations into sections with filtering
+  // Event-based grouping - organizes conversations by individual events
   const conversationSections = useMemo((): ConversationSection[] => {
-    
-    const activeConversations: ConversationWithDetails[] = [];
-    const expiredConversations: ConversationWithDetails[] = [];
+    // Group by events
+    const eventGroups = new Map<string, ConversationWithDetails[]>();
+    const noEventConversations: ConversationWithDetails[] = [];
 
     filteredConversations.forEach((conv) => {
-      if (conv.archived || conv.is_expired) {
-        expiredConversations.push(conv);
+      if (conv.ticket?.event_id && conv.ticket?.title) {
+        const eventKey = `${conv.ticket.event_id}-${conv.ticket.title}`;
+        if (!eventGroups.has(eventKey)) {
+          eventGroups.set(eventKey, []);
+        }
+        eventGroups.get(eventKey)!.push(conv);
       } else {
-        activeConversations.push(conv);
+        noEventConversations.push(conv);
       }
     });
 
     const sections: ConversationSection[] = [];
 
-    if (activeConversations.length > 0) {
-      sections.push({
-        title: "Active Conversations",
-        data: activeConversations,
-        key: "active",
-      });
+    // Sort event groups by most recent conversation
+    const sortedEventGroups = Array.from(eventGroups.entries()).sort((a, b) => {
+      const aLatest = Math.max(
+        ...a[1].map((conv) =>
+          conv.last_message_at ? new Date(conv.last_message_at).getTime() : 0
+        )
+      );
+      const bLatest = Math.max(
+        ...b[1].map((conv) =>
+          conv.last_message_at ? new Date(conv.last_message_at).getTime() : 0
+        )
+      );
+      return bLatest - aLatest;
+    });
+
+    // Separate active and expired events for proper sorting
+    const activeEventSections: ConversationSection[] = [];
+    const expiredEventSections: ConversationSection[] = [];
+
+    // Create sections for each event
+    sortedEventGroups.forEach(([eventKey, conversations]) => {
+      const firstConv = conversations[0];
+      const ticket = firstConv.ticket;
+
+      // Separate active and expired within each event
+      const activeConvs = conversations.filter(
+        (conv) => !conv.archived && !conv.is_expired
+      );
+      const expiredConvs = conversations.filter(
+        (conv) => conv.archived || conv.is_expired
+      );
+
+      // Sort conversations: unread first, then by most recent
+      const sortConversations = (convs: ConversationWithDetails[]) =>
+        convs.sort((a, b) => {
+          // Prioritize unread conversations
+          if (a.unread_count > 0 && b.unread_count === 0) return -1;
+          if (a.unread_count === 0 && b.unread_count > 0) return 1;
+
+          // Then sort by most recent
+          const aTime = a.last_message_at
+            ? new Date(a.last_message_at).getTime()
+            : 0;
+          const bTime = b.last_message_at
+            ? new Date(b.last_message_at).getTime()
+            : 0;
+          return bTime - aTime;
+        });
+
+      if (activeConvs.length > 0) {
+        activeEventSections.push({
+          title: ticket?.title || "Unknown Event",
+          data: sortConversations(activeConvs),
+          key: `event-active-${eventKey}`,
+          eventId: ticket?.event_id,
+          eventTitle: ticket?.title,
+          eventDate: ticket?.event_date,
+          isEventSection: true,
+        });
+      }
+
+      if (expiredConvs.length > 0) {
+        expiredEventSections.push({
+          title: `${ticket?.title || "Unknown Event"} (Expired)`,
+          data: sortConversations(expiredConvs),
+          key: `event-expired-${eventKey}`,
+          eventId: ticket?.event_id,
+          eventTitle: ticket?.title,
+          eventDate: ticket?.event_date,
+          isEventSection: true,
+        });
+      }
+    });
+
+    // Add active sections first
+    sections.push(...activeEventSections);
+
+    // Add conversations without events (active only first)
+    if (noEventConversations.length > 0) {
+      const activeNoEvent = noEventConversations.filter(
+        (conv) => !conv.archived && !conv.is_expired
+      );
+
+      if (activeNoEvent.length > 0) {
+        sections.push({
+          title: "Other Conversations",
+          data: activeNoEvent.sort((a, b) => {
+            // Prioritize unread conversations
+            if (a.unread_count > 0 && b.unread_count === 0) return -1;
+            if (a.unread_count === 0 && b.unread_count > 0) return 1;
+
+            // Then sort by most recent
+            const aTime = a.last_message_at
+              ? new Date(a.last_message_at).getTime()
+              : 0;
+            const bTime = b.last_message_at
+              ? new Date(b.last_message_at).getTime()
+              : 0;
+            return bTime - aTime;
+          }),
+          key: "no-event-active",
+          isEventSection: false,
+        });
+      }
     }
 
-    if (expiredConversations.length > 0) {
+    // Combine all expired conversations into a single section at the bottom
+    const allExpiredConversations: ConversationWithDetails[] = [];
+
+    // Add all expired conversations from events
+    expiredEventSections.forEach((section) => {
+      allExpiredConversations.push(...section.data);
+    });
+
+    // Add expired conversations without events
+    if (noEventConversations.length > 0) {
+      const expiredNoEvent = noEventConversations.filter(
+        (conv) => conv.archived || conv.is_expired
+      );
+      allExpiredConversations.push(...expiredNoEvent);
+    }
+
+    // Create single expired section if we have any expired conversations
+    if (allExpiredConversations.length > 0) {
       sections.push({
         title: "Expired Events",
-        data: expiredConversations,
-        key: "expired",
+        data: allExpiredConversations.sort((a, b) => {
+          const aTime = a.last_message_at
+            ? new Date(a.last_message_at).getTime()
+            : 0;
+          const bTime = b.last_message_at
+            ? new Date(b.last_message_at).getTime()
+            : 0;
+          return bTime - aTime;
+        }),
+        key: "all-expired",
+        isEventSection: false,
       });
     }
 
@@ -224,199 +403,212 @@ export default function ChatListScreen() {
     return date.toLocaleDateString();
   };
 
+  const formatEventDate = (dateString: string | null) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
   const handleConversationPress = (conversation: ConversationWithDetails) => {
     setCurrentConversation(conversation);
     (router.push as any)(`/(tabs)/chat/${conversation.id}`);
   };
 
+  // Removed sectioning toggle since we only use status-based grouping now
 
-  // Enhanced segmented control filter component
-  const renderEnhancedFilter = () => {
-    const screenWidth = Dimensions.get('window').width;
-    const containerPadding = 40; // 20px on each side
-    const controlPadding = 12; // 6px on each side inside control
-    const availableWidth = screenWidth - containerPadding - controlPadding;
+  // Compact filter component (matches Browse/Tickets pattern)
+  const renderCompactFilter = () => {
+    const screenWidth = Dimensions.get("window").width;
+    const containerPadding = 40;
+    const availableWidth = screenWidth - containerPadding;
     const segmentWidth = availableWidth / filterOptions.length;
-    
+
     return (
-      <View style={styles.enhancedFilterContainer}>
-        <BlurView intensity={25} style={styles.segmentedControlBlur}>
-          <View style={styles.segmentedControl}>
-            {/* Animated sliding background indicator */}
-            <Animated.View
-              style={[
-                styles.segmentIndicator,
-                {
-                  width: segmentWidth,
-                  backgroundColor: theme.primary,
-                  transform: [
-                    {
-                      translateX: slideAnimation.interpolate({
-                        inputRange: [0, 1, 2],
-                        outputRange: [0, segmentWidth, segmentWidth * 2],
-                        extrapolate: 'clamp',
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-            
-            {/* Filter segments */}
-            {filterOptions.map((option, index) => {
-              const isActive = currentFilter === option.value;
-              const count = filterCounts[option.value as keyof typeof filterCounts];
-              
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.segmentButton,
-                    { width: segmentWidth },
-                  ]}
-                  onPress={() => selectFilter(option.value, index)}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${option.label} conversations, ${count} total`}
-                  accessibilityState={{ selected: isActive }}
+      <View style={styles.compactFilterContainer}>
+        <View style={styles.compactSegmentedControl}>
+          <Animated.View
+            style={[
+              styles.compactSegmentIndicator,
+              {
+                width: segmentWidth - 4,
+                backgroundColor: theme.primary,
+                transform: [
+                  {
+                    translateX: slideAnimation.interpolate({
+                      inputRange: [0, 1, 2],
+                      outputRange: [2, segmentWidth + 2, segmentWidth * 2 + 2],
+                      extrapolate: "clamp",
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+
+          {filterOptions.map((option, index) => {
+            const isActive = currentFilter === option.value;
+            const count =
+              filterCounts[option.value as keyof typeof filterCounts];
+
+            return (
+              <TouchableOpacity
+                key={option.value}
+                style={[styles.segmentButton, { width: segmentWidth }]}
+                onPress={() => selectFilter(option.value, index)}
+                activeOpacity={0.7}
+              >
+                <Animated.View
+                  style={[styles.segmentContent, { opacity: fadeAnimation }]}
                 >
                   <Animated.View
                     style={[
-                      styles.segmentContent,
-                      { opacity: fadeAnimation }
+                      styles.segmentIconContainer,
+                      {
+                        backgroundColor: isActive
+                          ? "rgba(255, 255, 255, 0.35)"
+                          : "rgba(30, 41, 59, 0.08)",
+                      },
                     ]}
                   >
-                    {/* Icon with subtle animation */}
+                    <Ionicons
+                      name={option.icon}
+                      size={14}
+                      color={isActive ? "white" : "#1e293b"}
+                    />
+                  </Animated.View>
+
+                  <Text
+                    style={[
+                      styles.segmentLabel,
+                      {
+                        color: isActive ? "white" : "#1e293b",
+                        fontWeight: isActive ? "800" : "700",
+                      },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+
+                  {count > 0 && (
                     <Animated.View
                       style={[
-                        styles.segmentIconContainer,
+                        styles.segmentBadge,
                         {
-                          backgroundColor: isActive 
-                            ? 'rgba(255, 255, 255, 0.35)' 
-                            : 'rgba(30, 41, 59, 0.08)',
+                          backgroundColor: isActive
+                            ? "rgba(255, 255, 255, 0.3)"
+                            : theme.secondary,
+                          borderColor: isActive
+                            ? "rgba(255, 255, 255, 0.5)"
+                            : "rgba(30, 41, 59, 0.1)",
                         },
                       ]}
                     >
-                      <Ionicons
-                        name={option.icon}
-                        size={16}
-                        color={isActive ? 'white' : '#1e293b'}
-                      />
-                    </Animated.View>
-                    
-                    {/* Label with dynamic styling */}
-                    <Text
-                      style={[
-                        styles.segmentLabel,
-                        {
-                          color: isActive ? 'white' : '#1e293b',
-                          fontWeight: isActive ? '800' : '700',
-                        },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                    
-                    {/* Animated count badge */}
-                    {count > 0 && (
-                      <Animated.View
+                      <Text
                         style={[
-                          styles.segmentBadge,
+                          styles.segmentBadgeText,
                           {
-                            backgroundColor: isActive 
-                              ? 'rgba(255, 255, 255, 0.3)' 
-                              : theme.secondary,
-                            borderColor: isActive 
-                              ? 'rgba(255, 255, 255, 0.5)' 
-                              : 'rgba(30, 41, 59, 0.1)',
-                            transform: [
-                              {
-                                scale: fadeAnimation.interpolate({
-                                  inputRange: [0.7, 1],
-                                  outputRange: [0.9, 1],
-                                  extrapolate: 'clamp',
-                                }),
-                              },
-                            ],
+                            color: isActive ? "white" : "#1e293b",
                           },
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.segmentBadgeText,
-                            {
-                              color: isActive ? 'white' : '#1e293b',
-                            },
-                          ]}
-                        >
-                          {count > 99 ? '99+' : count}
-                        </Text>
-                      </Animated.View>
-                    )}
-                  </Animated.View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </BlurView>
-        
-        {/* Subtle description text */}
-        <Text style={[styles.filterDescription, { color: theme.text }]}>
-          {filterOptions.find(opt => opt.value === currentFilter)?.description}
-        </Text>
+                        {count > 99 ? "99+" : count}
+                      </Text>
+                    </Animated.View>
+                  )}
+                </Animated.View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     );
   };
 
-
+  // Enhanced section header with event information
   const renderSectionHeader = ({
     section,
   }: {
     section: ConversationSection;
-  }) => (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionHeaderContent}>
-        <Ionicons
-          name={section.key === "active" ? "chatbubbles" : "time-outline"}
-          size={16}
-          color={section.key === "active" ? theme.primary : "#94a3b8"}
-        />
-        <Text
-          style={[
-            styles.sectionHeaderText,
-            section.key === "expired" && styles.expiredSectionText,
-          ]}
-        >
-          {section.title}
-        </Text>
-        <View
-          style={[
-            styles.sectionCount,
-            {
-              backgroundColor:
-                section.key === "active" ? theme.primary : "#94a3b8",
-            },
-            section.key === "expired" && styles.expiredSectionCount,
-          ]}
-        >
-          <Text
+  }) => {
+    const isExpired = section.key.includes("expired");
+    const isEventSection = section.isEventSection;
+
+    return (
+      <View
+        style={[
+          styles.sectionHeader,
+          isEventSection && styles.eventSectionHeader,
+        ]}
+      >
+        <View style={styles.sectionHeaderContent}>
+          <Ionicons
+            name={
+              isEventSection
+                ? isExpired
+                  ? "calendar-outline"
+                  : "calendar"
+                : section.key === "active"
+                ? "chatbubbles"
+                : "time-outline"
+            }
+            size={16}
+            color={
+              isEventSection
+                ? isExpired
+                  ? "#94a3b8"
+                  : theme.primary
+                : section.key === "active"
+                ? theme.primary
+                : "#94a3b8"
+            }
+          />
+          <View style={styles.sectionTitleContainer}>
+            <Text
+              style={[
+                styles.sectionHeaderText,
+                isExpired && styles.expiredSectionText,
+                isEventSection && styles.eventSectionTitle,
+              ]}
+            >
+              {section.title}
+            </Text>
+            {isEventSection && section.eventDate && !isExpired && (
+              <Text style={[styles.eventDate, { color: theme.primary }]}>
+                {formatEventDate(section.eventDate)}
+              </Text>
+            )}
+          </View>
+          <View
             style={[
-              styles.sectionCountText,
-              section.key === "expired" && styles.expiredSectionCountText,
+              styles.sectionCount,
+              {
+                backgroundColor: isEventSection
+                  ? isExpired
+                    ? "#94a3b8"
+                    : theme.primary
+                  : section.key === "active"
+                  ? theme.primary
+                  : "#94a3b8",
+              },
             ]}
           >
-            {section.data.length}
-          </Text>
+            <Text style={styles.sectionCountText}>{section.data.length}</Text>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderConversation = ({ item }: { item: ConversationWithDetails }) => {
     const otherParticipant = getOtherParticipant(item);
     const hasUnread = item.unread_count > 0;
     const lastMessageTime = formatLastMessageTime(item.last_message_at);
     const isExpired = item.archived || item.is_expired;
+    const isParticipantTrusted = trustedUsers.has(otherParticipant.id);
 
     return (
       <TouchableOpacity
@@ -425,7 +617,14 @@ export default function ChatListScreen() {
           hasUnread &&
             !isExpired && [
               styles.unreadConversation,
-              { borderColor: theme.primary },
+              {
+                borderColor: theme.primary,
+                borderWidth: 2,
+                backgroundColor: `${theme.primary}08`,
+                shadowColor: theme.primary,
+                shadowOpacity: 0.2,
+                shadowRadius: 12,
+              },
             ],
           isExpired && styles.expiredConversation,
         ]}
@@ -438,6 +637,13 @@ export default function ChatListScreen() {
               style={[
                 styles.avatar,
                 { backgroundColor: isExpired ? "#94a3b8" : theme.primary },
+                hasUnread && !isExpired && {
+                  shadowColor: theme.primary,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.5,
+                  shadowRadius: 8,
+                  elevation: 6,
+                },
               ]}
             >
               <Text
@@ -449,7 +655,20 @@ export default function ChatListScreen() {
                 {otherParticipant.full_name.charAt(0).toUpperCase()}
               </Text>
             </View>
-            {hasUnread && !isExpired && <View style={styles.onlineIndicator} />}
+            {hasUnread && !isExpired && (
+              <View
+                style={[
+                  styles.onlineIndicator,
+                  {
+                    backgroundColor: theme.secondary,
+                    shadowColor: theme.secondary,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.6,
+                    shadowRadius: 4,
+                  },
+                ]}
+              />
+            )}
             {isExpired && (
               <View style={styles.expiredIndicator}>
                 <Ionicons name="time-outline" size={8} color="#94a3b8" />
@@ -466,7 +685,7 @@ export default function ChatListScreen() {
                   hasUnread && !isExpired && styles.unreadText,
                   isExpired && styles.expiredText,
                 ]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {otherParticipant.full_name}
               </Text>
@@ -478,6 +697,28 @@ export default function ChatListScreen() {
                 </Text>
               )}
             </View>
+
+            {/* Trusted Badge Line */}
+            {isParticipantTrusted && (
+              <View style={styles.trustedBadgeContainer}>
+                <TrustedBadge size="small" />
+              </View>
+            )}
+
+            {/* Ticket Price */}
+            {item.ticket?.price && (
+              <View style={styles.priceContainer}>
+                <Text
+                  style={[
+                    styles.priceText,
+                    { color: isExpired ? "#64748b" : theme.primary },
+                    hasUnread && !isExpired && styles.unreadText,
+                  ]}
+                >
+                  ${item.ticket.price.toFixed(2)}
+                </Text>
+              </View>
+            )}
 
             <View style={styles.messagePreview}>
               <Text
@@ -499,8 +740,8 @@ export default function ChatListScreen() {
               )}
             </View>
 
-            {/* Ticket reference if applicable */}
-            {item.ticket && (
+            {/* Ticket reference - only show when not in event sectioning mode */}
+            {item.ticket && sectioningMode !== "events" && (
               <View style={styles.ticketReference}>
                 <Ionicons
                   name="ticket-outline"
@@ -509,13 +750,11 @@ export default function ChatListScreen() {
                 />
                 <Text
                   style={[
-                    [
-                      styles.ticketText,
-                      { color: isExpired ? "#94a3b8" : theme.primary },
-                    ],
+                    styles.ticketText,
+                    { color: isExpired ? "#94a3b8" : theme.primary },
                     isExpired && styles.expiredTicketText,
                   ]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {item.ticket.title}
                   {isExpired && " (Expired)"}
@@ -535,174 +774,189 @@ export default function ChatListScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.primary }]}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      <View style={[styles.background, { backgroundColor: theme.primary }]} />
+      {/* Linear Gradient Background */}
+      <LinearGradient
+        colors={[theme.primary, `${theme.primary}CC`, `${theme.primary}99`]}
+        style={styles.background}
+      />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View
-            style={[styles.logoContainer, { backgroundColor: theme.secondary }]}
+      {/* Floating elements for premium feel */}
+      <View
+        style={[
+          styles.floatingElement1,
+          { backgroundColor: `${theme.secondary}08` },
+        ]}
+      />
+      <View
+        style={[
+          styles.floatingElement2,
+          { backgroundColor: "rgba(255, 255, 255, 0.05)" },
+        ]}
+      />
+
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        keyboardDismissMode={
+          Platform.OS === "android" ? "on-drag" : "interactive"
+        }
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={loadConversations}
+            tintColor={theme.secondary}
+            colors={[theme.secondary]}
+          />
+        }
+      >
+        {/* Premium Header Section */}
+        <View style={styles.headerSection}>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => (router.push as any)("/notifications/")}
           >
-            <View style={styles.logo}>
-              <Ionicons name="chatbubbles" size={20} color={theme.primary} />
-            </View>
+            <NotificationBadge
+              iconName="notifications-outline"
+              iconSize={24}
+              iconColor={theme.secondary}
+            />
+          </TouchableOpacity>
+
+          <View style={styles.logoContainer}>
+            <LinearGradient
+              colors={[theme.secondary, `${theme.secondary}DD`]}
+              style={styles.logo}
+            >
+              <Ionicons name="chatbubbles" size={32} color={theme.primary} />
+            </LinearGradient>
           </View>
           <Text style={styles.headerTitle}>Messages</Text>
+          <Text style={styles.headerSubtitle}>
+            Connect with buyers and sellers for ticket exchanges
+          </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={() => (router.push as any)("/notifications/")}
-        >
-          <NotificationBadge
-            iconName="notifications-outline"
-            iconSize={24}
-            iconColor={theme.secondary}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats */}
-      <View style={styles.statsContainer}>
-        <BlurView intensity={30} style={styles.statsCard}>
-          <View
-            style={[
-              styles.statsGradient,
-              { backgroundColor: `${theme.primary}20` },
-            ]}
+        {/* Premium Content Section */}
+        <View style={styles.contentSection}>
+          {/* Compact Stats Row */}
+          <LinearGradient
+            colors={[theme.primary, `${theme.primary}E6`]}
+            style={styles.compactStatsContainer}
           >
-            <View style={styles.statItem}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: `${theme.secondary}20` },
-                ]}
+            <View style={styles.compactStatItem}>
+              <Ionicons name="chatbubbles" size={18} color={theme.secondary} />
+              <Text
+                style={[styles.compactStatNumber, { color: "white" }]}
               >
-                <Ionicons
-                  name="chatbubbles"
-                  size={20}
-                  color={theme.secondary}
-                />
-              </View>
-              <Text style={styles.statNumber}>
-                {conversationSections.find((s) => s.key === "active")?.data
-                  .length || 0}
+                {conversationSections
+                  .filter((s) => !s.key.includes("expired"))
+                  .reduce((sum, s) => sum + s.data.length, 0)}
               </Text>
-              <Text style={styles.statLabel}>Active</Text>
+              <Text style={styles.compactStatLabel}>Active</Text>
             </View>
 
-            <View style={styles.statDivider} />
+            <View style={styles.compactStatDivider} />
 
-            <View style={styles.statItem}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: "rgba(239, 68, 68, 0.2)" },
-                ]}
-              >
-                <Ionicons name="mail-unread" size={20} color="#ef4444" />
-              </View>
-              <Text style={[styles.statNumber, { color: "#ef4444" }]}>
+            <View style={styles.compactStatItem}>
+              <Ionicons name="mail-unread" size={18} color={theme.secondary} />
+              <Text style={[styles.compactStatNumber, { color: "white" }]}>
                 {conversations
                   .filter((conv) => !conv.archived && !conv.is_expired)
                   .reduce((sum, conv) => sum + conv.unread_count, 0)}
               </Text>
-              <Text style={styles.statLabel}>Unread</Text>
+              <Text style={styles.compactStatLabel}>Unread</Text>
             </View>
 
-            <View style={styles.statDivider} />
+            <View style={styles.compactStatDivider} />
 
-            <View style={styles.statItem}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: "rgba(148, 163, 184, 0.2)" },
-                ]}
-              >
-                <Ionicons name="time-outline" size={20} color="#94a3b8" />
-              </View>
-              <Text style={[styles.statNumber, { color: "#94a3b8" }]}>
-                {conversationSections.find((s) => s.key === "expired")?.data
-                  .length || 0}
+            <View style={styles.compactStatItem}>
+              <Ionicons name="calendar-outline" size={18} color={theme.secondary} />
+              <Text style={[styles.compactStatNumber, { color: "white" }]}>
+                {
+                  new Set(
+                    conversations
+                      .filter((c) => c.ticket?.event_id)
+                      .map((c) => c.ticket?.event_id)
+                  ).size
+                }
               </Text>
-              <Text style={styles.statLabel}>Expired</Text>
+              <Text style={styles.compactStatLabel}>Events</Text>
             </View>
-          </View>
-        </BlurView>
-      </View>
+          </LinearGradient>
 
-      {/* Enhanced Segmented Filter Control */}
-      {renderEnhancedFilter()}
+          {/* Enhanced Filter Controls */}
+          {renderCompactFilter()}
 
-      {/* Conversations List */}
-      <View style={styles.conversationsContainer}>
-        {loading ? (
-          <BlurView intensity={20} style={styles.loadingState}>
-            <Text style={styles.loadingText}>Loading conversations...</Text>
-          </BlurView>
-        ) : conversations.length > 0 ? (
-          <SectionList
-            sections={conversationSections}
-            renderItem={renderConversation}
-            renderSectionHeader={renderSectionHeader}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            scrollEventThrottle={16}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={Platform.OS === "android" ? "on-drag" : "interactive"}
-            removeClippedSubviews={Platform.OS === 'android'}
-            nestedScrollEnabled={Platform.OS === 'android'}
-            initialNumToRender={Platform.OS === 'android' ? 8 : 10}
-            maxToRenderPerBatch={Platform.OS === 'android' ? 6 : 10}
-            updateCellsBatchingPeriod={Platform.OS === 'android' ? 100 : 50}
-            windowSize={Platform.OS === 'android' ? 6 : 10}
-            refreshControl={
-              <RefreshControl
-                refreshing={loading}
-                onRefresh={loadConversations}
-                tintColor={theme.primary}
-                colors={[theme.primary]}
+          {/* Conversations List */}
+          <View style={styles.conversationsListContainer}>
+            {loading ? (
+              <BlurView intensity={20} style={styles.loadingState}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={styles.loadingText}>Loading conversations...</Text>
+              </BlurView>
+            ) : conversations.length > 0 ? (
+              <SectionList
+                sections={conversationSections}
+                renderItem={renderConversation}
+                renderSectionHeader={renderSectionHeader}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled={true}
+                removeClippedSubviews={Platform.OS === "android"}
+                keyboardShouldPersistTaps="handled"
+                initialNumToRender={Platform.OS === "android" ? 8 : 10}
+                maxToRenderPerBatch={Platform.OS === "android" ? 6 : 10}
+                updateCellsBatchingPeriod={Platform.OS === "android" ? 100 : 50}
+                windowSize={Platform.OS === "android" ? 6 : 10}
+                contentContainerStyle={styles.listContent}
+                stickySectionHeadersEnabled={false}
               />
-            }
-            contentContainerStyle={styles.listContent}
-            stickySectionHeadersEnabled={false}
-          />
-        ) : (
-          <BlurView intensity={20} style={styles.emptyState}>
-            <View style={styles.emptyIconContainer}>
-              <View
-                style={[
-                  styles.emptyIconGradient,
-                  { backgroundColor: theme.primary },
-                ]}
-              >
-                <Ionicons name="chatbubbles-outline" size={32} color="white" />
-              </View>
-            </View>
-            <Text style={styles.emptyStateTitle}>No conversations yet</Text>
-            <Text style={styles.emptyStateText}>
-              Start a conversation by contacting a seller from a ticket listing
-            </Text>
-            <TouchableOpacity
-              style={styles.browseButton}
-              onPress={() => (router.push as any)("/(tabs)/")}
-            >
-              <View
-                style={[
-                  styles.browseButtonGradient,
-                  { backgroundColor: theme.primary },
-                ]}
-              >
-                <Ionicons name="search-outline" size={16} color="white" />
-                <Text style={styles.browseButtonText}>Browse Tickets</Text>
-              </View>
-            </TouchableOpacity>
-          </BlurView>
-        )}
-      </View>
+            ) : (
+              <BlurView intensity={20} style={styles.emptyState}>
+                <View style={styles.emptyIconContainer}>
+                  <View
+                    style={[
+                      styles.emptyIconGradient,
+                      { backgroundColor: theme.primary },
+                    ]}
+                  >
+                    <Ionicons
+                      name="chatbubbles-outline"
+                      size={32}
+                      color="white"
+                    />
+                  </View>
+                </View>
+                <Text style={styles.emptyStateTitle}>No conversations yet</Text>
+                <Text style={styles.emptyStateText}>
+                  Start a conversation by contacting a seller from a ticket
+                  listing
+                </Text>
+                <TouchableOpacity
+                  style={styles.browseButton}
+                  onPress={() => (router.push as any)("/(tabs)/")}
+                >
+                  <View
+                    style={[
+                      styles.browseButtonGradient,
+                      { backgroundColor: theme.primary },
+                    ]}
+                  >
+                    <Ionicons name="search-outline" size={16} color="white" />
+                    <Text style={styles.browseButtonText}>Browse Tickets</Text>
+                  </View>
+                </TouchableOpacity>
+              </BlurView>
+            )}
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -718,40 +972,68 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+  // Floating elements for visual depth
+  floatingElement1: {
+    position: "absolute",
+    top: "15%",
+    left: "10%",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
-  headerLeft: {
-    flexDirection: "row",
+  floatingElement2: {
+    position: "absolute",
+    bottom: "30%",
+    right: "15%",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  // ScrollView structure like other tabs
+  scrollView: {
+    flex: 1,
+  },
+  // Header Section (Gradient)
+  headerSection: {
     alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    position: "relative",
   },
   logoContainer: {
-    marginRight: 12,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 16,
   },
   logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "800",
     color: "white",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.9)",
+    textAlign: "center",
+    paddingHorizontal: 20,
+    lineHeight: 22,
   },
   notificationButton: {
+    position: "absolute",
+    top: 60,
+    right: 20,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -760,47 +1042,123 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 1000,
+    elevation: 5,
   },
-  statsContainer: {
+  // Content Section (White)
+  contentSection: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
     paddingHorizontal: 20,
-    marginBottom: 24,
+    flex: 1,
   },
-  statsCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    overflow: "hidden",
-  },
-  statsGradient: {
+  // Compact Stats
+  compactStatsContainer: {
     flexDirection: "row",
-    padding: 20,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  statItem: {
+  compactStatItem: {
     flex: 1,
     alignItems: "center",
-    gap: 8,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
   },
-  statIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  compactStatIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "white",
+  compactStatNumber: {
+    fontSize: 16,
+    fontWeight: "700",
   },
-  statLabel: {
+  compactStatLabel: {
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "rgba(255, 255, 255, 0.9)",
     fontWeight: "500",
   },
-  statDivider: {
+  compactStatDivider: {
     width: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    marginHorizontal: 16,
+    height: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    marginHorizontal: 8,
+  },
+  // Compact Filter Styles
+  compactFilterContainer: {
+    marginBottom: 20,
+  },
+  compactSegmentedControl: {
+    flexDirection: "row",
+    backgroundColor: "#f1f5f9",
+    borderRadius: 16,
+    padding: 4,
+    height: 44,
+    position: "relative",
+  },
+  compactSegmentIndicator: {
+    position: "absolute",
+    top: 4,
+    height: 36,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  compactSegmentButton: {
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 12,
+    zIndex: 2,
+  },
+  compactSegmentContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  compactSegmentLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  compactSegmentBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  compactSegmentBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    lineHeight: 13,
+  },
+  // Conversations List
+  conversationsListContainer: {
+    flex: 1,
+  },
+  // Legacy styles for compatibility
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   conversationsContainer: {
     flex: 1,
@@ -813,22 +1171,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  // ✅ Section header styles
+  // Section header styles
   sectionHeader: {
     paddingVertical: 12,
     paddingHorizontal: 4,
     marginBottom: 8,
+  },
+  eventSectionHeader: {
+    paddingVertical: 16,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
   },
   sectionHeaderContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
+  sectionTitleContainer: {
+    flex: 1,
+  },
   sectionHeaderText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#1e293b",
-    flex: 1,
+  },
+  eventSectionTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  eventDate: {
+    fontSize: 13,
+    fontWeight: "600",
+    opacity: 0.8,
   },
   expiredSectionText: {
     color: "#64748b",
@@ -840,15 +1216,9 @@ const styles = StyleSheet.create({
     minWidth: 24,
     alignItems: "center",
   },
-  expiredSectionCount: {
-    backgroundColor: "#94a3b8",
-  },
   sectionCountText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "white",
-  },
-  expiredSectionCountText: {
     color: "white",
   },
   conversationCard: {
@@ -868,9 +1238,9 @@ const styles = StyleSheet.create({
   },
   unreadConversation: {
     backgroundColor: "#fefffe",
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
+    elevation: 4,
   },
-  // ✅ Expired conversation styles
   expiredConversation: {
     backgroundColor: "#f8fafc",
     borderColor: "#e2e8f0",
@@ -911,7 +1281,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "white",
   },
-  // ✅ Expired indicator
   expiredIndicator: {
     position: "absolute",
     top: -2,
@@ -940,11 +1309,22 @@ const styles = StyleSheet.create({
     color: "#1e293b",
     flex: 1,
   },
+  trustedBadgeContainer: {
+    marginBottom: 4,
+    alignSelf: "flex-start",
+  },
+  priceContainer: {
+    marginBottom: 4,
+  },
+  priceText: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
   unreadText: {
     fontWeight: "700",
     color: "#0f172a",
   },
-  // ✅ Expired text styles
   expiredText: {
     color: "#64748b",
     fontWeight: "500",
@@ -992,7 +1372,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     flex: 1,
   },
-  // ✅ Expired ticket text
   expiredTicketText: {
     fontStyle: "italic",
   },
@@ -1058,94 +1437,93 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  // ✅ Enhanced Segmented Control Filter Styles
+  // Enhanced Segmented Control Filter Styles - Compact Version
   enhancedFilterContainer: {
-    paddingHorizontal: 20,
     marginBottom: 20,
     zIndex: 100,
   },
   segmentedControlBlur: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
+    borderColor: "#e2e8f0",
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
     marginBottom: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "#f8fafc",
   },
   segmentedControl: {
     flexDirection: "row",
     position: "relative",
-    padding: 6,
-    height: 64,
-    backgroundColor: "rgba(248, 250, 252, 0.8)",
+    padding: 4,
+    height: 44,
+    backgroundColor: "#f8fafc",
   },
   segmentIndicator: {
     position: "absolute",
-    top: 6,
-    left: 6,
-    bottom: 6,
-    borderRadius: 16,
+    top: 4,
+    left: 4,
+    bottom: 4,
+    borderRadius: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   segmentButton: {
-    height: 52,
+    height: 36,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 16,
+    borderRadius: 12,
     zIndex: 2,
   },
   segmentContent: {
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 3,
+    gap: 2,
     paddingHorizontal: 2,
   },
   segmentIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 2,
   },
   segmentLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     letterSpacing: 0.1,
     textAlign: "center",
     flexShrink: 1,
   },
   segmentBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    minWidth: 20,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 8,
+    minWidth: 16,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 2,
+    marginLeft: 1,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.3)",
   },
   segmentBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
-    lineHeight: 13,
+    lineHeight: 12,
   },
   filterDescription: {
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.8)",
-    textAlign: "center",
+    fontSize: 12,
     fontWeight: "500",
-    letterSpacing: 0.1,
+    color: "#64748b",
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });
