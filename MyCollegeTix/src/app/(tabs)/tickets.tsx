@@ -35,6 +35,7 @@ import SellerRatingModal, {
   SellerRatingData,
 } from "@/src/components/SellerRatingModal";
 import { TicketSaleService } from "@/src/services/ticketSaleService";
+import { useStripePayment } from "@/src/hooks/useStripePayment";
 
 type OrderType = "selling" | "bought" | "watchlist";
 
@@ -84,6 +85,10 @@ interface OrderItem {
   // Rating information
   needsSellerRating?: boolean;
   ratingCount?: number;
+  // Escrow/Stripe order fields
+  escrow_status?: string;
+  escrow_order_id?: string;
+  transfer_deadline?: string;
 }
 
 interface EditFormData {
@@ -133,6 +138,10 @@ export default function TicketsScreen() {
   const [cancelledTicketsExpanded, setCancelledTicketsExpanded] =
     useState(false);
 
+  // Stripe payment hook for confirming receipt
+  const { confirmReceipt } = useStripePayment();
+  const [confirmingTransfer, setConfirmingTransfer] = useState(false);
+
   // Filter options for segmented control
   const filterOptions: FilterOption[] = [
     {
@@ -164,7 +173,9 @@ export default function TicketsScreen() {
 
   // Initialize animation position based on current filter
   useEffect(() => {
-    const index = filterOptions.findIndex(option => option.value === activeTab);
+    const index = filterOptions.findIndex(
+      (option) => option.value === activeTab
+    );
     slideAnimation.setValue(index);
   }, []);
 
@@ -175,8 +186,10 @@ export default function TicketsScreen() {
 
   const checkForPendingRatings = () => {
     // Find the first ticket that needs a seller rating
-    const ticketNeedingRating = purchases.find(ticket => ticket.needsSellerRating);
-    
+    const ticketNeedingRating = purchases.find(
+      (ticket) => ticket.needsSellerRating
+    );
+
     if (ticketNeedingRating && !sellerRatingModalVisible) {
       // Automatically show the rating modal for the first pending rating
       setSelectedTicketForRating(ticketNeedingRating);
@@ -402,7 +415,104 @@ export default function TicketsScreen() {
         }) || [];
 
       console.log(`✅ Loaded ${purchases.length} purchases from ticket_sales`);
-      return purchases;
+
+      // Also load Stripe escrow orders
+      const { data: stripeOrders, error: ordersError } = await supabase
+        .from("orders")
+        .select(`
+          id,
+          status,
+          escrow_status,
+          amount,
+          buyer_id,
+          seller_id,
+          ticket_id,
+          transfer_deadline,
+          created_at,
+          ticket:tickets (
+            id,
+            title,
+            description,
+            event_date,
+            location,
+            sport,
+            section,
+            row_number,
+            seat_number,
+            ticket_type,
+            home_college_id,
+            away_college_id,
+            event:events (
+              id,
+              is_season_pass
+            )
+          ),
+          seller:profiles!orders_seller_id_fkey (
+            id,
+            full_name,
+            username
+          )
+        `)
+        .eq("buyer_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (ordersError) {
+        console.error("Error loading Stripe orders:", ordersError);
+      }
+
+      // Transform Stripe orders to OrderItem format
+      const stripeOrderItems: OrderItem[] = (stripeOrders || []).map((order: any): OrderItem => {
+        const ticket = order.ticket;
+        const seller = order.seller;
+
+        return {
+          id: ticket?.id || order.id,
+          title: ticket?.title || "Ticket Purchase",
+          description: ticket?.description || "",
+          price: order.amount / 100, // Convert from cents
+          event_date: ticket?.event_date || order.created_at,
+          location: ticket?.location || "Location TBD",
+          sport: ticket?.sport || undefined,
+          section: ticket?.section || undefined,
+          row_number: ticket?.row_number || undefined,
+          seat_number: ticket?.seat_number || undefined,
+          status: order.escrow_status === "payment_held" ? "awaiting_transfer" :
+                  order.escrow_status === "completed" ? "completed" : "purchased",
+          created_at: order.created_at,
+          order_id: order.id,
+          home_college_id: ticket?.home_college_id || undefined,
+          away_college_id: ticket?.away_college_id || undefined,
+          type: "purchase" as const,
+          ticket_type: ticket?.ticket_type || undefined,
+          event: ticket?.event || undefined,
+          seller_name: seller?.full_name || seller?.username || "Seller",
+          seller_id: order.seller_id,
+          payment_method: "Stripe",
+          // Escrow fields
+          escrow_status: order.escrow_status,
+          escrow_order_id: order.id,
+          transfer_deadline: order.transfer_deadline,
+        };
+      });
+
+      console.log(`✅ Loaded ${stripeOrderItems.length} Stripe escrow orders`);
+      console.log('🔍 Stripe orders escrow_status:', stripeOrderItems.map(o => ({ id: o.escrow_order_id, escrow_status: o.escrow_status })));
+
+      // Combine both sources, avoiding duplicates based on ticket_id
+      // Use a Map to dedupe by ticket id, preferring Stripe orders (more recent/authoritative)
+      const allPurchases = new Map<string, OrderItem>();
+
+      // Add ticket_sales purchases first
+      for (const purchase of purchases) {
+        allPurchases.set(purchase.id, purchase);
+      }
+
+      // Override with Stripe orders (they take precedence)
+      for (const order of stripeOrderItems) {
+        allPurchases.set(order.id, order);
+      }
+
+      return Array.from(allPurchases.values());
     } catch (error) {
       console.error("Error in loadUserPurchases:", error);
       return [];
@@ -543,12 +653,12 @@ export default function TicketsScreen() {
     }).start();
 
     setActiveTab(filter);
-    
+
     // Refresh data when switching to bought or selling tabs
     if (filter === "bought" || filter === "selling") {
       onRefresh();
     }
-    
+
     // Check for pending ratings when switching to bought tab
     if (filter === "bought") {
       setTimeout(() => {
@@ -559,7 +669,7 @@ export default function TicketsScreen() {
 
   const handleTabChange = useCallback(
     (tab: OrderType) => {
-      const index = filterOptions.findIndex(option => option.value === tab);
+      const index = filterOptions.findIndex((option) => option.value === tab);
       selectFilter(tab, index);
     },
     [onRefresh]
@@ -596,6 +706,12 @@ export default function TicketsScreen() {
           color: "#3b82f6",
           icon: "receipt",
           text: "Purchased",
+        };
+      case "awaiting_transfer":
+        return {
+          color: "#f59e0b",
+          icon: "time-outline",
+          text: "Awaiting Transfer",
         };
       case "pending":
         return {
@@ -660,10 +776,10 @@ export default function TicketsScreen() {
       Alert.alert("Success", "Rating submitted successfully!");
       setSellerRatingModalVisible(false);
       setSelectedTicketForRating(null);
-      
+
       // Refresh the data to remove the rating button and check for more pending ratings
       await loadData();
-      
+
       // After refreshing data, check if there are more ratings needed
       setTimeout(() => {
         checkForPendingRatings();
@@ -798,6 +914,47 @@ export default function TicketsScreen() {
     );
   };
 
+  // Confirm ticket transfer received (for Stripe escrow purchases)
+  const handleConfirmTransfer = async (item: OrderItem) => {
+    if (!item.escrow_order_id) {
+      Alert.alert("Error", "Order information not found");
+      return;
+    }
+
+    Alert.alert(
+      "Confirm Receipt",
+      "Have you received the ticket transfer? This will release the payment to the seller.",
+      [
+        { text: "Not Yet", style: "cancel" },
+        {
+          text: "Yes, I Received It",
+          style: "default",
+          onPress: async () => {
+            setConfirmingTransfer(true);
+            try {
+              const result = await confirmReceipt(item.escrow_order_id!);
+
+              if (result.success) {
+                Alert.alert(
+                  "Transfer Confirmed!",
+                  "Thank you for confirming. The seller will receive their payment.",
+                  [{ text: "OK", onPress: () => loadData() }]
+                );
+              } else {
+                Alert.alert("Error", result.error || "Failed to confirm receipt");
+              }
+            } catch (error) {
+              console.error("Error confirming transfer:", error);
+              Alert.alert("Error", "Failed to confirm receipt. Please try again.");
+            } finally {
+              setConfirmingTransfer(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const formatSaleDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -922,8 +1079,27 @@ export default function TicketsScreen() {
           </View>
         )}
 
-        {/* Purchase Information for purchased tickets */}
-        {item.status === "purchased" && item.type === "purchase" && (
+        {/* Actions - Show Confirm Transfer button for Stripe escrow orders awaiting confirmation */}
+        {item.type === "purchase" && item.escrow_status === "payment_held" && (
+          <View style={styles.orderActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.soldButton, confirmingTransfer && { opacity: 0.6 }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleConfirmTransfer(item);
+              }}
+              disabled={confirmingTransfer}
+            >
+              <Ionicons name="checkmark-circle" size={16} color="white" />
+              <Text style={styles.actionButtonText}>
+                {confirmingTransfer ? "Confirming..." : "Confirm Transfer"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Purchase Information for purchased tickets (includes Stripe escrow orders) */}
+        {item.type === "purchase" && (
           <View style={styles.purchaseInfoSection}>
             <View style={styles.purchaseInfoHeader}>
               <Ionicons name="receipt" size={16} color="#3b82f6" />
@@ -942,6 +1118,57 @@ export default function TicketsScreen() {
                 <Text style={styles.paymentMethod}>
                   Payment: {item.payment_method}
                 </Text>
+              )}
+              {/* Escrow status for Stripe orders */}
+              {item.escrow_status && (
+                <View style={styles.escrowStatusContainer}>
+                  <Ionicons
+                    name={
+                      item.escrow_status === "payment_held" ? "time" :
+                      item.escrow_status === "completed" ? "checkmark-circle" :
+                      "hourglass"
+                    }
+                    size={14}
+                    color={
+                      item.escrow_status === "payment_held" ? "#f59e0b" :
+                      item.escrow_status === "completed" ? "#10b981" :
+                      "#6b7280"
+                    }
+                  />
+                  <Text style={[
+                    styles.escrowStatusText,
+                    { color: item.escrow_status === "payment_held" ? "#f59e0b" :
+                             item.escrow_status === "completed" ? "#10b981" : "#6b7280" }
+                  ]}>
+                    {item.escrow_status === "payment_held" ? "Awaiting ticket transfer" :
+                     item.escrow_status === "completed" ? "Transfer confirmed" :
+                     item.escrow_status === "payout_pending" ? "Processing payout" :
+                     item.escrow_status}
+                  </Text>
+                </View>
+              )}
+              {item.transfer_deadline && item.escrow_status === "payment_held" && (
+                <Text style={styles.transferDeadline}>
+                  Transfer deadline: {formatSaleDate(item.transfer_deadline)}
+                </Text>
+              )}
+
+              {/* Instructions and Warning for awaiting transfer */}
+              {item.escrow_status === "payment_held" && (
+                <View style={styles.transferInstructions}>
+                  <View style={styles.instructionBox}>
+                    <Ionicons name="information-circle" size={16} color="#3b82f6" />
+                    <Text style={styles.instructionText}>
+                      The seller has been notified to transfer your ticket. Once you receive it, tap "Confirm Receipt" below.
+                    </Text>
+                  </View>
+                  <View style={styles.warningBox}>
+                    <Ionicons name="warning" size={16} color="#dc2626" />
+                    <Text style={styles.warningText}>
+                      Important: If the seller provides proof of transfer and you don't confirm within 48 hours, the transfer will be auto-confirmed.
+                    </Text>
+                  </View>
+                </View>
               )}
             </View>
 
@@ -975,7 +1202,7 @@ export default function TicketsScreen() {
               <Text style={styles.actionButtonText}>Edit</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.actionButton, styles.soldButton]}
               onPress={(e) => {
                 e.stopPropagation();
@@ -984,7 +1211,7 @@ export default function TicketsScreen() {
             >
               <Ionicons name="checkmark" size={16} color="white" />
               <Text style={styles.actionButtonText}>Mark Sold</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <TouchableOpacity
               style={[styles.actionButton, styles.cancelButton]}
@@ -1045,12 +1272,12 @@ export default function TicketsScreen() {
 
   // Enhanced segmented control filter component
   const renderEnhancedFilter = () => {
-    const screenWidth = Dimensions.get('window').width;
+    const screenWidth = Dimensions.get("window").width;
     const containerPadding = 40; // 20px on each side
     const controlPadding = 8; // 4px on each side inside control
     const availableWidth = screenWidth - containerPadding - controlPadding;
     const segmentWidth = availableWidth / filterOptions.length;
-    
+
     return (
       <View style={styles.enhancedFilterContainer}>
         <BlurView intensity={25} style={styles.segmentedControlBlur}>
@@ -1067,26 +1294,23 @@ export default function TicketsScreen() {
                       translateX: slideAnimation.interpolate({
                         inputRange: [0, 1, 2],
                         outputRange: [0, segmentWidth, segmentWidth * 2],
-                        extrapolate: 'clamp',
+                        extrapolate: "clamp",
                       }),
                     },
                   ],
                 },
               ]}
             />
-            
+
             {/* Filter segments */}
             {filterOptions.map((option, index) => {
               const isActive = activeTab === option.value;
               const stats = getTabStats(option.value);
-              
+
               return (
                 <TouchableOpacity
                   key={option.value}
-                  style={[
-                    styles.segmentButton,
-                    { width: segmentWidth },
-                  ]}
+                  style={[styles.segmentButton, { width: segmentWidth }]}
                   onPress={() => selectFilter(option.value, index)}
                   activeOpacity={0.7}
                   accessibilityRole="button"
@@ -1094,60 +1318,57 @@ export default function TicketsScreen() {
                   accessibilityState={{ selected: isActive }}
                 >
                   <Animated.View
-                    style={[
-                      styles.segmentContent,
-                      { opacity: fadeAnimation }
-                    ]}
+                    style={[styles.segmentContent, { opacity: fadeAnimation }]}
                   >
                     {/* Icon with subtle animation */}
                     <Animated.View
                       style={[
                         styles.segmentIconContainer,
                         {
-                          backgroundColor: isActive 
-                            ? 'rgba(255, 255, 255, 0.35)' 
-                            : 'rgba(30, 41, 59, 0.08)',
+                          backgroundColor: isActive
+                            ? "rgba(255, 255, 255, 0.35)"
+                            : "rgba(30, 41, 59, 0.08)",
                         },
                       ]}
                     >
                       <Ionicons
                         name={option.icon}
                         size={16}
-                        color={isActive ? 'white' : '#1e293b'}
+                        color={isActive ? "white" : "#1e293b"}
                       />
                     </Animated.View>
-                    
+
                     {/* Label with dynamic styling */}
                     <Text
                       style={[
                         styles.segmentLabel,
                         {
-                          color: isActive ? 'white' : '#1e293b',
-                          fontWeight: isActive ? '800' : '700',
+                          color: isActive ? "white" : "#1e293b",
+                          fontWeight: isActive ? "800" : "700",
                         },
                       ]}
                     >
                       {option.label}
                     </Text>
-                    
+
                     {/* Animated count badge */}
                     {stats.count > 0 && (
                       <Animated.View
                         style={[
                           styles.segmentBadge,
                           {
-                            backgroundColor: isActive 
-                              ? 'rgba(255, 255, 255, 0.3)' 
+                            backgroundColor: isActive
+                              ? "rgba(255, 255, 255, 0.3)"
                               : theme.secondary,
-                            borderColor: isActive 
-                              ? 'rgba(255, 255, 255, 0.5)' 
-                              : 'rgba(30, 41, 59, 0.1)',
+                            borderColor: isActive
+                              ? "rgba(255, 255, 255, 0.5)"
+                              : "rgba(30, 41, 59, 0.1)",
                             transform: [
                               {
                                 scale: fadeAnimation.interpolate({
                                   inputRange: [0.7, 1],
                                   outputRange: [0.9, 1],
-                                  extrapolate: 'clamp',
+                                  extrapolate: "clamp",
                                 }),
                               },
                             ],
@@ -1158,11 +1379,11 @@ export default function TicketsScreen() {
                           style={[
                             styles.segmentBadgeText,
                             {
-                              color: isActive ? 'white' : '#1e293b',
+                              color: isActive ? "white" : "#1e293b",
                             },
                           ]}
                         >
-                          {stats.count > 99 ? '99+' : stats.count}
+                          {stats.count > 99 ? "99+" : stats.count}
                         </Text>
                       </Animated.View>
                     )}
@@ -1594,7 +1815,7 @@ export default function TicketsScreen() {
           onClose={() => {
             setSellerRatingModalVisible(false);
             setSelectedTicketForRating(null);
-            
+
             // Check for more pending ratings after closing without rating
             setTimeout(() => {
               checkForPendingRatings();
@@ -2288,5 +2509,58 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#92400e",
+  },
+  // Escrow status styles
+  escrowStatusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  escrowStatusText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  transferDeadline: {
+    fontSize: 12,
+    color: "#6b7280",
+    fontStyle: "italic",
+    marginTop: 2,
+  },
+  // Transfer instructions and warning styles
+  transferInstructions: {
+    marginTop: 12,
+    gap: 8,
+  },
+  instructionBox: {
+    flexDirection: "row",
+    backgroundColor: "#eff6ff",
+    padding: 10,
+    borderRadius: 8,
+    gap: 8,
+    alignItems: "flex-start",
+  },
+  instructionText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#1e40af",
+    lineHeight: 18,
+  },
+  warningBox: {
+    flexDirection: "row",
+    backgroundColor: "#fef2f2",
+    padding: 10,
+    borderRadius: 8,
+    gap: 8,
+    alignItems: "flex-start",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#991b1b",
+    lineHeight: 18,
+    fontWeight: "500",
   },
 });

@@ -27,6 +27,7 @@ import { Event } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { useNotifications } from "@/src/providers/NotificationProvider";
+import { usePayment } from "@/src/providers/PaymentProvider";
 import { formatEventDateTime } from "@/src/utils/dateUtils";
 
 const { width, height } = Dimensions.get("window");
@@ -83,6 +84,10 @@ export default function SellScreen() {
 
   const { profile } = useAuth();
   const { refreshNotifications } = useNotifications();
+  const { stripeAccountStatus, isStripeReady } = usePayment();
+
+  // Check if seller needs to complete Stripe onboarding
+  const needsStripeSetup = !stripeAccountStatus?.onboardingCompleted;
 
   // Load available events when sport changes
   useEffect(() => {
@@ -410,6 +415,32 @@ export default function SellScreen() {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
           >
+            {/* Stripe Onboarding Banner */}
+            {needsStripeSetup && (
+              <TouchableOpacity
+                style={[
+                  styles.stripeSetupBanner,
+                  { backgroundColor: theme.secondary, borderColor: theme.primary },
+                ]}
+                onPress={() => router.push("/stripe/onboarding" as any)}
+              >
+                <View style={styles.stripeSetupContent}>
+                  <View style={[styles.stripeSetupIconContainer, { backgroundColor: theme.primary }]}>
+                    <Ionicons name="card-outline" size={24} color={theme.secondary} />
+                  </View>
+                  <View style={styles.stripeSetupText}>
+                    <Text style={[styles.stripeSetupTitle, { color: theme.primary }]}>
+                      Set Up Payments
+                    </Text>
+                    <Text style={[styles.stripeSetupSubtitle, { color: theme.primary }]}>
+                      Complete setup to receive payments when your tickets sell
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={24} color={theme.primary} />
+                </View>
+              </TouchableOpacity>
+            )}
+
             {/* Event Selection */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: theme.primary }]}>
@@ -1394,5 +1425,43 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
+  },
+  // Stripe Setup Banner Styles
+  stripeSetupBanner: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  stripeSetupContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  stripeSetupIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  stripeSetupText: {
+    flex: 1,
+    marginRight: 8,
+  },
+  stripeSetupTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  stripeSetupSubtitle: {
+    fontSize: 13,
+    opacity: 0.8,
+    lineHeight: 18,
   },
 });
