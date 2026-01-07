@@ -247,6 +247,55 @@ export function useStripePayment() {
     [user]
   );
 
+  /**
+   * Mark transfer as sent (seller action)
+   * Called when seller has transferred the ticket on their end
+   */
+  const markTransferSent = useCallback(
+    async (orderId: string): Promise<{ success: boolean; error?: string }> => {
+      if (!user) {
+        return { success: false, error: "You must be logged in" };
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error("No active session");
+        }
+
+        const { data, error: fnError } = await supabase.functions.invoke(
+          "mark-transfer-sent",
+          {
+            body: { orderId },
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+
+        if (fnError) {
+          throw new Error(fnError.message || "Failed to mark transfer");
+        }
+
+        if (!data.success) {
+          throw new Error(data.error || "Failed to mark transfer as sent");
+        }
+
+        return { success: true };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to mark transfer";
+        setError(message);
+        return { success: false, error: message };
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [user]
+  );
+
   return {
     isLoading,
     error,
@@ -254,6 +303,7 @@ export function useStripePayment() {
     completePayment,
     checkout,
     confirmReceipt,
+    markTransferSent,
     clearError: () => setError(null),
   };
 }

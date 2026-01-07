@@ -18,6 +18,7 @@ import { BlurView } from "expo-blur";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { useStripePayment } from "@/src/hooks/useStripePayment";
+import { usePendingOrders } from "@/src/hooks/usePendingOrders";
 import { EscrowService } from "@/src/services/escrowService";
 import { supabase } from "@/src/lib/supabase";
 
@@ -63,7 +64,9 @@ export default function OrderStatusScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const theme = useTheme();
-  const { confirmReceipt, isLoading: confirmLoading } = useStripePayment();
+  const { confirmReceipt, markTransferSent, isLoading: paymentLoading } = useStripePayment();
+  const { refresh: refreshPendingOrders } = usePendingOrders();
+  const [markingTransfer, setMarkingTransfer] = useState(false);
 
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,7 +78,8 @@ export default function OrderStatusScreen() {
     try {
       const { data, error } = await supabase
         .from("orders")
-        .select(`
+        .select(
+          `
           *,
           ticket:tickets!orders_ticket_id_fkey (
             id,
@@ -96,7 +100,8 @@ export default function OrderStatusScreen() {
             full_name,
             username
           )
-        `)
+        `
+        )
         .eq("id", orderId)
         .single();
 
@@ -125,10 +130,38 @@ export default function OrderStatusScreen() {
         .eq("order_id", orderId)
         .single();
 
-      setOrder({
-        ...data,
-        ticket_transfer: transfer ?? undefined,
-      });
+      const orderData: OrderDetails = {
+        id: data.id,
+        status: data.status,
+        escrow_status: data.escrow_status || "pending",
+        amount: data.amount,
+        transfer_deadline: data.transfer_deadline || "",
+        buyer_id: data.buyer_id,
+        seller_id: data.seller_id,
+        created_at: data.created_at,
+        ticket: {
+          id: data.ticket.id,
+          title: data.ticket.title,
+          event_date: data.ticket.event_date,
+          location: data.ticket.location,
+          section: data.ticket.section || "",
+          row_number: data.ticket.row_number || "",
+          seat_number: data.ticket.seat_number || "",
+        },
+        buyer: data.buyer,
+        seller: data.seller,
+        ticket_transfer: transfer
+          ? {
+              status: transfer.status,
+              transfer_method: transfer.transfer_method ?? undefined,
+              transfer_initiated_at:
+                transfer.transfer_initiated_at ?? undefined,
+              confirmed_at: transfer.confirmed_at ?? undefined,
+              confirmed_by: transfer.confirmed_by ?? undefined,
+            }
+          : undefined,
+      };
+      setOrder(orderData);
     } catch (err) {
       console.error("Error loading order:", err);
       Alert.alert("Error", "Failed to load order details");
@@ -161,8 +194,13 @@ export default function OrderStatusScreen() {
           onPress: async () => {
             const result = await confirmReceipt(order.id);
             if (result.success) {
-              Alert.alert("Success", "Receipt confirmed! Payment will be sent to the seller.");
+              Alert.alert(
+                "Success",
+                "Receipt confirmed! Payment will be sent to the seller."
+              );
               loadOrder();
+              // Refresh the pending orders count immediately
+              refreshPendingOrders();
             } else {
               Alert.alert("Error", result.error || "Failed to confirm receipt");
             }
@@ -185,7 +223,41 @@ export default function OrderStatusScreen() {
           style: "destructive",
           onPress: () => {
             // TODO: Navigate to dispute form
-            Alert.alert("Coming Soon", "Dispute filing will be available soon.");
+            Alert.alert(
+              "Coming Soon",
+              "Dispute filing will be available soon."
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const handleMarkTransferSent = async () => {
+    if (!order) return;
+
+    Alert.alert(
+      "Confirm Transfer",
+      "Have you transferred the ticket to the buyer? This will notify them to check their email or ticketing app.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes, I've Transferred It",
+          onPress: async () => {
+            setMarkingTransfer(true);
+            const result = await markTransferSent(order.id);
+            setMarkingTransfer(false);
+
+            if (result.success) {
+              Alert.alert(
+                "Success",
+                "Transfer marked as sent! The buyer has been notified to check for the ticket."
+              );
+              loadOrder();
+              refreshPendingOrders();
+            } else {
+              Alert.alert("Error", result.error || "Failed to mark transfer");
+            }
           },
         },
       ]
@@ -193,7 +265,10 @@ export default function OrderStatusScreen() {
   };
 
   const getStatusInfo = (escrowStatus: string) => {
-    const statusMap: Record<string, { color: string; icon: string; label: string; description: string }> = {
+    const statusMap: Record<
+      string,
+      { color: string; icon: string; label: string; description: string }
+    > = {
       payment_pending: {
         color: "#f59e0b",
         icon: "time-outline",
@@ -204,13 +279,15 @@ export default function OrderStatusScreen() {
         color: "#3b82f6",
         icon: "shield-checkmark-outline",
         label: "Payment Secured",
-        description: "Payment is held securely. Waiting for seller to transfer the ticket.",
+        description:
+          "Payment is held securely. Waiting for seller to transfer the ticket.",
       },
       transfer_pending: {
         color: "#8b5cf6",
         icon: "swap-horizontal-outline",
         label: "Transfer in Progress",
-        description: "Seller has initiated the ticket transfer. Please check your email or ticket account.",
+        description:
+          "Seller has initiated the ticket transfer. Please check your email or ticket account.",
       },
       payout_pending: {
         color: "#10b981",
@@ -238,12 +315,14 @@ export default function OrderStatusScreen() {
       },
     };
 
-    return statusMap[escrowStatus] || {
-      color: "#6b7280",
-      icon: "help-circle-outline",
-      label: "Unknown",
-      description: "Status unknown",
-    };
+    return (
+      statusMap[escrowStatus] || {
+        color: "#6b7280",
+        icon: "help-circle-outline",
+        label: "Unknown",
+        description: "Status unknown",
+      }
+    );
   };
 
   const formatDate = (dateString: string) => {
@@ -284,8 +363,18 @@ export default function OrderStatusScreen() {
   const statusInfo = getStatusInfo(order.escrow_status);
   const isBuyer = user.id === order.buyer_id;
   const isSeller = user.id === order.seller_id;
-  const canConfirm = isBuyer && ["payment_held", "transfer_pending"].includes(order.escrow_status);
-  const canDispute = isBuyer && ["payment_held", "transfer_pending"].includes(order.escrow_status);
+  const canConfirm =
+    isBuyer &&
+    ["payment_held", "transfer_pending"].includes(order.escrow_status);
+  const canDispute =
+    isBuyer &&
+    ["payment_held", "transfer_pending"].includes(order.escrow_status);
+  // Seller can mark transfer when payment is held (before they've sent it)
+  const canMarkTransfer =
+    isSeller && order.escrow_status === "payment_held";
+  // Seller has already marked transfer as sent
+  const transferSent =
+    isSeller && order.escrow_status === "transfer_pending";
 
   return (
     <View style={styles.container}>
@@ -312,46 +401,68 @@ export default function OrderStatusScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="white"
+          />
         }
       >
         <View style={styles.contentCard}>
           {/* Status Card */}
           <View style={[styles.statusCard, { borderColor: statusInfo.color }]}>
-            <View style={[styles.statusIconCircle, { backgroundColor: statusInfo.color }]}>
+            <View
+              style={[
+                styles.statusIconCircle,
+                { backgroundColor: statusInfo.color },
+              ]}
+            >
               <Ionicons name={statusInfo.icon as any} size={32} color="white" />
             </View>
             <Text style={styles.statusLabel}>{statusInfo.label}</Text>
-            <Text style={styles.statusDescription}>{statusInfo.description}</Text>
+            <Text style={styles.statusDescription}>
+              {statusInfo.description}
+            </Text>
           </View>
 
           {/* Transfer Deadline */}
-          {order.transfer_deadline && !["completed", "refunded"].includes(order.escrow_status) && (
-            <View style={[
-              styles.deadlineCard,
-              isDeadlinePassed(order.transfer_deadline) && styles.deadlineCardExpired
-            ]}>
-              <Ionicons
-                name="time-outline"
-                size={20}
-                color={isDeadlinePassed(order.transfer_deadline) ? "#ef4444" : "#f59e0b"}
-              />
-              <View style={styles.deadlineContent}>
-                <Text style={styles.deadlineLabel}>Transfer Deadline</Text>
-                <Text style={[
-                  styles.deadlineValue,
-                  isDeadlinePassed(order.transfer_deadline) && styles.deadlineValueExpired
-                ]}>
-                  {formatDate(order.transfer_deadline)}
-                </Text>
-                {isDeadlinePassed(order.transfer_deadline) && (
-                  <Text style={styles.deadlineExpiredNote}>
-                    Deadline has passed. You can request a refund.
+          {order.transfer_deadline &&
+            !["completed", "refunded"].includes(order.escrow_status) && (
+              <View
+                style={[
+                  styles.deadlineCard,
+                  isDeadlinePassed(order.transfer_deadline) &&
+                    styles.deadlineCardExpired,
+                ]}
+              >
+                <Ionicons
+                  name="time-outline"
+                  size={20}
+                  color={
+                    isDeadlinePassed(order.transfer_deadline)
+                      ? "#ef4444"
+                      : "#f59e0b"
+                  }
+                />
+                <View style={styles.deadlineContent}>
+                  <Text style={styles.deadlineLabel}>Transfer Deadline</Text>
+                  <Text
+                    style={[
+                      styles.deadlineValue,
+                      isDeadlinePassed(order.transfer_deadline) &&
+                        styles.deadlineValueExpired,
+                    ]}
+                  >
+                    {formatDate(order.transfer_deadline)}
                   </Text>
-                )}
+                  {isDeadlinePassed(order.transfer_deadline) && (
+                    <Text style={styles.deadlineExpiredNote}>
+                      Deadline has passed. You can request a refund.
+                    </Text>
+                  )}
+                </View>
               </View>
-            </View>
-          )}
+            )}
 
           {/* Ticket Info */}
           <View style={styles.section}>
@@ -368,12 +479,15 @@ export default function OrderStatusScreen() {
               </View>
               <View style={styles.ticketDetail}>
                 <Ionicons name="location-outline" size={16} color="#6b7280" />
-                <Text style={styles.ticketDetailText}>{order.ticket.location}</Text>
+                <Text style={styles.ticketDetailText}>
+                  {order.ticket.location}
+                </Text>
               </View>
               <View style={styles.ticketDetail}>
                 <Ionicons name="ticket-outline" size={16} color="#6b7280" />
                 <Text style={styles.ticketDetailText}>
-                  Section {order.ticket.section}, Row {order.ticket.row_number}, Seat {order.ticket.seat_number}
+                  Section {order.ticket.section}, Row {order.ticket.row_number},
+                  Seat {order.ticket.seat_number}
                 </Text>
               </View>
             </View>
@@ -385,9 +499,13 @@ export default function OrderStatusScreen() {
               {isBuyer ? "Seller" : "Buyer"}
             </Text>
             <View style={styles.partyCard}>
-              <View style={[styles.partyAvatar, { backgroundColor: theme.primary }]}>
+              <View
+                style={[styles.partyAvatar, { backgroundColor: theme.primary }]}
+              >
                 <Text style={styles.partyInitials}>
-                  {(isBuyer ? order.seller.full_name : order.buyer.full_name).charAt(0).toUpperCase()}
+                  {(isBuyer ? order.seller.full_name : order.buyer.full_name)
+                    .charAt(0)
+                    .toUpperCase()}
                 </Text>
               </View>
               <View style={styles.partyInfo}>
@@ -411,14 +529,18 @@ export default function OrderStatusScreen() {
                 <View style={styles.transferRow}>
                   <Text style={styles.transferLabel}>Status</Text>
                   <Text style={styles.transferValue}>
-                    {order.ticket_transfer.status.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                    {order.ticket_transfer.status
+                      .replace(/_/g, " ")
+                      .replace(/\b\w/g, (l) => l.toUpperCase())}
                   </Text>
                 </View>
                 {order.ticket_transfer.transfer_method && (
                   <View style={styles.transferRow}>
                     <Text style={styles.transferLabel}>Method</Text>
                     <Text style={styles.transferValue}>
-                      {order.ticket_transfer.transfer_method.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                      {order.ticket_transfer.transfer_method
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (l) => l.toUpperCase())}
                     </Text>
                   </View>
                 )}
@@ -456,14 +578,207 @@ export default function OrderStatusScreen() {
               </View>
               <View style={styles.paymentRow}>
                 <Text style={styles.paymentLabel}>Order Date</Text>
-                <Text style={styles.paymentValue}>{formatDate(order.created_at)}</Text>
+                <Text style={styles.paymentValue}>
+                  {formatDate(order.created_at)}
+                </Text>
               </View>
               <View style={styles.paymentRow}>
                 <Text style={styles.paymentLabel}>Order ID</Text>
-                <Text style={styles.paymentValue}>{order.id.slice(0, 8)}...</Text>
+                <Text style={styles.paymentValue}>
+                  {order.id.slice(0, 8)}...
+                </Text>
               </View>
             </View>
           </View>
+
+          {/* Seller Action Section - Transfer the ticket */}
+          {canMarkTransfer && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                Action Required
+              </Text>
+
+              {/* Instructions for seller */}
+              <View style={styles.instructionCard}>
+                <View style={styles.instructionHeader}>
+                  <Ionicons
+                    name="send"
+                    size={24}
+                    color="#3b82f6"
+                  />
+                  <Text style={styles.instructionTitle}>
+                    Transfer the Ticket
+                  </Text>
+                </View>
+                <Text style={styles.instructionText}>
+                  A buyer has purchased your ticket! Please transfer it to them using your school's ticketing system (e.g., Paciolan, Ticketmaster).
+                </Text>
+                <Text style={[styles.instructionText, { marginTop: 8 }]}>
+                  Once you've transferred the ticket, tap the button below to notify the buyer.
+                </Text>
+              </View>
+
+              {/* Buyer Info */}
+              <View style={styles.buyerInfoCard}>
+                <View style={styles.buyerInfoHeader}>
+                  <Ionicons name="person" size={20} color="#10b981" />
+                  <Text style={styles.buyerInfoTitle}>Buyer</Text>
+                </View>
+                <Text style={styles.buyerInfoName}>{order.buyer.full_name}</Text>
+                <Text style={styles.buyerInfoUsername}>@{order.buyer.username}</Text>
+              </View>
+
+              {/* Mark Transfer Button */}
+              <TouchableOpacity
+                style={[styles.markTransferButton, { backgroundColor: theme.primary }]}
+                onPress={handleMarkTransferSent}
+                disabled={markingTransfer || paymentLoading}
+              >
+                {markingTransfer ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-done" size={22} color="white" />
+                    <Text style={styles.markTransferButtonText}>
+                      I've Transferred the Ticket
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Seller Waiting Section - After marking transfer */}
+          {transferSent && (
+            <View style={styles.section}>
+              <View style={styles.transferSentCard}>
+                <Ionicons name="time" size={32} color="#8b5cf6" />
+                <Text style={styles.transferSentTitle}>Transfer Sent</Text>
+                <Text style={styles.transferSentText}>
+                  You've marked the ticket as transferred. Waiting for {order.buyer.full_name} to confirm receipt.
+                </Text>
+                <Text style={styles.transferSentSubtext}>
+                  Once they confirm, the payment will be released to your account.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Action Required Section - Only for buyers awaiting transfer */}
+          {canConfirm && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+                Action Required
+              </Text>
+
+              {/* Instructions */}
+              <View style={styles.instructionCard}>
+                <View style={styles.instructionHeader}>
+                  <Ionicons
+                    name="information-circle"
+                    size={24}
+                    color="#3b82f6"
+                  />
+                  <Text style={styles.instructionTitle}>
+                    Waiting for Your Ticket
+                  </Text>
+                </View>
+                <Text style={styles.instructionText}>
+                  The seller has been notified to transfer your ticket. Once you
+                  receive the ticket in your email or ticketing app, come back
+                  here and tap "Confirm Receipt" below.
+                </Text>
+              </View>
+
+              {/* Warning */}
+              <View style={styles.warningCard}>
+                <View style={styles.warningHeader}>
+                  <Ionicons name="warning" size={24} color="#dc2626" />
+                  <Text style={styles.warningTitle}>Important Notice</Text>
+                </View>
+                <Text style={styles.warningText}>
+                  You must confirm receipt once you receive your ticket. If the
+                  seller provides proof that they sent the ticket and you fail
+                  to confirm, you may be subject to a fine and the payment will
+                  be released to the seller.
+                </Text>
+                <Text style={styles.warningSubtext}>
+                  Only confirm after you have verified you can access the
+                  ticket.
+                </Text>
+              </View>
+
+              {/* Confirm Button */}
+              <TouchableOpacity
+                style={[
+                  styles.confirmReceiptButton,
+                  { backgroundColor: theme.primary },
+                ]}
+                onPress={handleConfirmReceipt}
+                disabled={paymentLoading}
+              >
+                {paymentLoading ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={22} color="white" />
+                    <Text style={styles.confirmReceiptButtonText}>
+                      I Received My Ticket - Confirm Receipt
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Completed Message */}
+          {order.escrow_status === "completed" && (
+            <View style={styles.section}>
+              <View style={styles.completedCard}>
+                <Ionicons name="checkmark-circle" size={48} color="#10b981" />
+                <Text style={styles.completedTitle}>Transaction Complete!</Text>
+                <Text style={styles.completedText}>
+                  {isBuyer
+                    ? "You confirmed receipt of your ticket. The payment has been released to the seller. Enjoy the event!"
+                    : "The buyer confirmed receipt. Payment has been sent to your account!"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.viewTicketsButton}
+                onPress={() =>
+                  router.replace(
+                    isSeller
+                      ? "/(tabs)/tickets?tab=selling" as any
+                      : "/(tabs)/tickets?tab=bought" as any
+                  )
+                }
+              >
+                <Ionicons name={isSeller ? "storefront-outline" : "ticket-outline"} size={20} color="#3b82f6" />
+                <Text style={styles.viewTicketsButtonText}>
+                  {isSeller ? "Back to My Listings" : "View My Tickets"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Navigation to Tickets */}
+          {order.escrow_status !== "completed" && (
+            <TouchableOpacity
+              style={styles.viewTicketsButton}
+              onPress={() =>
+                router.replace(
+                  isSeller
+                    ? "/(tabs)/tickets?tab=selling" as any
+                    : "/(tabs)/tickets?tab=bought" as any
+                )
+              }
+            >
+              <Ionicons name="arrow-back" size={20} color="#3b82f6" />
+              <Text style={styles.viewTicketsButtonText}>
+                {isSeller ? "Back to My Listings" : "Back to My Purchases"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -476,11 +791,15 @@ export default function OrderStatusScreen() {
                 style={styles.disputeButton}
                 onPress={handleFileDispute}
               >
-                <Ionicons name="alert-circle-outline" size={20} color="#ef4444" />
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={20}
+                  color="#ef4444"
+                />
                 <Text style={styles.disputeButtonText}>Report Issue</Text>
               </TouchableOpacity>
             )}
-            {canConfirm && (
+            {/* {canConfirm && (
               <TouchableOpacity
                 style={[styles.confirmButton, { backgroundColor: theme.primary }]}
                 onPress={handleConfirmReceipt}
@@ -495,7 +814,7 @@ export default function OrderStatusScreen() {
                   </>
                 )}
               </TouchableOpacity>
-            )}
+            )} */}
           </View>
         </BlurView>
       )}
@@ -768,5 +1087,194 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "white",
+  },
+  // Action Required section styles
+  instructionCard: {
+    backgroundColor: "#eff6ff",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  instructionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 10,
+  },
+  instructionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1e40af",
+  },
+  instructionText: {
+    fontSize: 14,
+    color: "#1e40af",
+    lineHeight: 20,
+  },
+  warningCard: {
+    backgroundColor: "#fef2f2",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  warningHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 10,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#991b1b",
+  },
+  warningText: {
+    fontSize: 14,
+    color: "#991b1b",
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  warningSubtext: {
+    fontSize: 13,
+    color: "#b91c1c",
+    fontStyle: "italic",
+  },
+  confirmReceiptButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 18,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  confirmReceiptButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "white",
+  },
+  completedCard: {
+    alignItems: "center",
+    backgroundColor: "#ecfdf5",
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "#a7f3d0",
+  },
+  completedTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#065f46",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  completedText: {
+    fontSize: 14,
+    color: "#047857",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  viewTicketsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    marginTop: 16,
+    borderRadius: 12,
+    backgroundColor: "#eff6ff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  viewTicketsButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#3b82f6",
+  },
+  // Seller UI styles
+  buyerInfoCard: {
+    backgroundColor: "#ecfdf5",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#a7f3d0",
+  },
+  buyerInfoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  buyerInfoTitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#10b981",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  buyerInfoName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#065f46",
+  },
+  buyerInfoUsername: {
+    fontSize: 14,
+    color: "#047857",
+    marginTop: 2,
+  },
+  markTransferButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 18,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  markTransferButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "white",
+  },
+  transferSentCard: {
+    alignItems: "center",
+    backgroundColor: "#f5f3ff",
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "#c4b5fd",
+  },
+  transferSentTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#5b21b6",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  transferSentText: {
+    fontSize: 14,
+    color: "#6d28d9",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  transferSentSubtext: {
+    fontSize: 13,
+    color: "#7c3aed",
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });

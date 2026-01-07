@@ -86,6 +86,8 @@ Deno.serve(async (req: Request) => {
 
         const orderId = paymentIntent.metadata.order_id
         const ticketId = paymentIntent.metadata.ticket_id
+        const sellerId = paymentIntent.metadata.seller_id
+        const buyerId = paymentIntent.metadata.buyer_id
 
         // Update escrow payment status
         await supabase
@@ -112,7 +114,7 @@ Deno.serve(async (req: Request) => {
           .from('tickets')
           .update({
             status: 'sold',
-            buyer_id: paymentIntent.metadata.buyer_id,
+            buyer_id: buyerId,
           })
           .eq('id', ticketId)
 
@@ -122,7 +124,63 @@ Deno.serve(async (req: Request) => {
           .update({ status: 'pending' }) // Now waiting for seller to transfer
           .eq('order_id', orderId)
 
-        // TODO: Send notification to seller
+        // Get ticket and buyer info for notification
+        const { data: ticket } = await supabase
+          .from('tickets')
+          .select('title')
+          .eq('id', ticketId)
+          .single()
+
+        const { data: buyer } = await supabase
+          .from('profiles')
+          .select('full_name, username')
+          .eq('id', buyerId)
+          .single()
+
+        const ticketTitle = ticket?.title || 'your ticket'
+        const buyerName = buyer?.full_name || buyer?.username || 'A buyer'
+
+        // Get seller info for buyer notification
+        const { data: seller } = await supabase
+          .from('profiles')
+          .select('full_name, username')
+          .eq('id', sellerId)
+          .single()
+
+        const sellerName = seller?.full_name || seller?.username || 'The seller'
+
+        // Send notification to seller
+        if (sellerId) {
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: sellerId,
+              title: 'Ticket Sold!',
+              message: `${buyerName} purchased "${ticketTitle}". Please transfer the ticket to complete the sale.`,
+              type: 'sale',
+              related_ticket_id: ticketId,
+              related_order_id: orderId,
+              read: false,
+            })
+          console.log(`📬 Notification sent to seller ${sellerId}`)
+        }
+
+        // Send notification to buyer
+        if (buyerId) {
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: buyerId,
+              title: 'Purchase Confirmed!',
+              message: `Your purchase of "${ticketTitle}" is confirmed! ${sellerName} will transfer the ticket to you soon.`,
+              type: 'purchase',
+              related_ticket_id: ticketId,
+              related_order_id: orderId,
+              read: false,
+            })
+          console.log(`📬 Notification sent to buyer ${buyerId}`)
+        }
+
         console.log(`✅ Order ${orderId} payment confirmed, awaiting ticket transfer`)
         break
       }

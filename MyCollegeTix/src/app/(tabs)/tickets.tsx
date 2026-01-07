@@ -19,7 +19,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { TicketService } from "@/src/services/ticketService";
 import { useTheme } from "@/src/providers/ThemeProvider";
@@ -89,6 +89,12 @@ interface OrderItem {
   escrow_status?: string;
   escrow_order_id?: string;
   transfer_deadline?: string;
+  // Buyer info (for sellers)
+  buyer_name?: string;
+  buyer_id?: string;
+  // Pending transfer requiring seller action
+  pending_transfer?: boolean;
+  sold_at?: string;
 }
 
 interface EditFormData {
@@ -98,9 +104,24 @@ interface EditFormData {
 
 export default function TicketsScreen() {
   const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const theme = useTheme();
   const { user, profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<OrderType>("selling");
+
+  // Set initial tab based on URL param or default to "selling"
+  const getInitialTab = (): OrderType => {
+    if (tab === "bought") return "bought";
+    if (tab === "watchlist") return "watchlist";
+    return "selling";
+  };
+  const [activeTab, setActiveTab] = useState<OrderType>(getInitialTab());
+
+  // Update tab when URL param changes
+  useEffect(() => {
+    if (tab === "bought") setActiveTab("bought");
+    else if (tab === "watchlist") setActiveTab("watchlist");
+  }, [tab]);
+
   const [purchases, setPurchases] = useState<OrderItem[]>([]);
   const [listings, setListings] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,14 +154,17 @@ export default function TicketsScreen() {
     useState<OrderItem | null>(null);
   const [savingRating, setSavingRating] = useState(false);
 
-  // Sold tickets dropdown state
+  // Dropdown states for collapsible sections
+  const [pendingTransfersExpanded, setPendingTransfersExpanded] = useState(true); // Default open for urgency
+  const [activeListingsExpanded, setActiveListingsExpanded] = useState(true);
   const [soldTicketsExpanded, setSoldTicketsExpanded] = useState(false);
   const [cancelledTicketsExpanded, setCancelledTicketsExpanded] =
     useState(false);
 
-  // Stripe payment hook for confirming receipt
-  const { confirmReceipt } = useStripePayment();
+  // Stripe payment hook for confirming receipt and marking transfer
+  const { confirmReceipt, markTransferSent } = useStripePayment();
   const [confirmingTransfer, setConfirmingTransfer] = useState(false);
+  const [markingTransferId, setMarkingTransferId] = useState<string | null>(null);
 
   // Filter options for segmented control
   const filterOptions: FilterOption[] = [
@@ -404,7 +428,7 @@ export default function TicketsScreen() {
             home_college_id: sale.tickets.home_college_id || undefined,
             away_college_id: sale.tickets.away_college_id || undefined,
             type: "purchase" as const,
-            ticket_type: sale.tickets.ticket_type || undefined,
+            ticket_type: (sale.tickets.ticket_type as "general_admission" | "student" | undefined) || undefined,
             event: sale.tickets.event || undefined,
             seller_name: sale.seller_name || undefined,
             seller_id: sale.seller_id || undefined,
@@ -469,7 +493,7 @@ export default function TicketsScreen() {
           id: ticket?.id || order.id,
           title: ticket?.title || "Ticket Purchase",
           description: ticket?.description || "",
-          price: order.amount / 100, // Convert from cents
+          price: order.amount, // Already in dollars
           event_date: ticket?.event_date || order.created_at,
           location: ticket?.location || "Location TBD",
           sport: ticket?.sport || undefined,
@@ -483,7 +507,7 @@ export default function TicketsScreen() {
           home_college_id: ticket?.home_college_id || undefined,
           away_college_id: ticket?.away_college_id || undefined,
           type: "purchase" as const,
-          ticket_type: ticket?.ticket_type || undefined,
+          ticket_type: (ticket?.ticket_type as "general_admission" | "student" | undefined) || undefined,
           event: ticket?.event || undefined,
           seller_name: seller?.full_name || seller?.username || "Seller",
           seller_id: order.seller_id,
@@ -512,7 +536,12 @@ export default function TicketsScreen() {
         allPurchases.set(order.id, order);
       }
 
-      return Array.from(allPurchases.values());
+      // Sort by most recent first
+      const sortedPurchases = Array.from(allPurchases.values()).sort((a, b) => {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+      return sortedPurchases;
     } catch (error) {
       console.error("Error in loadUserPurchases:", error);
       return [];
@@ -521,7 +550,7 @@ export default function TicketsScreen() {
 
   const loadUserListings = async (): Promise<OrderItem[]> => {
     try {
-      // Direct Supabase query instead of using TicketService
+      // Load tickets where user is the seller
       const { data, error } = await supabase
         .from("tickets")
         .select(
@@ -547,6 +576,7 @@ export default function TicketsScreen() {
         ),
         ticket_sales (
           buyer_name,
+          buyer_id,
           created_at,
           sale_price
         )
@@ -560,33 +590,94 @@ export default function TicketsScreen() {
         return [];
       }
 
-      return (data || []).map((ticket: any) => ({
-        id: ticket.id,
-        title: ticket.title,
-        description: ticket.description,
-        price: ticket.price,
-        event_date: ticket.event_date,
-        location: ticket.location,
-        sport: ticket.sport,
-        section: ticket.section,
-        row_number: ticket.row_number,
-        seat_number: ticket.seat_number,
-        status: ticket.status,
-        created_at: ticket.created_at,
-        home_college_id: ticket.home_college_id,
-        away_college_id: ticket.away_college_id,
-        ticket_type: ticket.ticket_type,
-        event: ticket.event,
-        type: "listing" as const,
-        sale:
-          ticket.ticket_sales && ticket.ticket_sales.length > 0
+      // Also load Stripe escrow orders where user is the SELLER
+      const { data: sellerOrders, error: ordersError } = await supabase
+        .from("orders")
+        .select(`
+          id,
+          status,
+          escrow_status,
+          amount,
+          buyer_id,
+          seller_id,
+          ticket_id,
+          transfer_deadline,
+          created_at,
+          buyer:profiles!orders_buyer_id_fkey (
+            id,
+            full_name,
+            username
+          )
+        `)
+        .eq("seller_id", user!.id)
+        .order("created_at", { ascending: false });
+
+      if (ordersError) {
+        console.error("Error loading seller orders:", ordersError);
+      }
+
+      // Create a map of ticket_id -> order info for Stripe sales
+      const stripeOrdersMap = new Map<string, any>();
+      for (const order of sellerOrders || []) {
+        stripeOrdersMap.set(order.ticket_id, order);
+      }
+
+      // Map tickets to OrderItems, enriching with Stripe order data if available
+      const listings = (data || []).map((ticket: any) => {
+        const stripeOrder = stripeOrdersMap.get(ticket.id);
+        const hasPendingTransfer = stripeOrder &&
+          ["payment_held", "transfer_pending"].includes(stripeOrder.escrow_status);
+
+        // Use Stripe order buyer info if available, otherwise fall back to ticket_sales
+        const buyerName = stripeOrder?.buyer?.full_name ||
+          (ticket.ticket_sales?.[0]?.buyer_name);
+        const buyerId = stripeOrder?.buyer_id ||
+          (ticket.ticket_sales?.[0]?.buyer_id);
+        const soldAt = stripeOrder?.created_at ||
+          (ticket.ticket_sales?.[0]?.created_at);
+        const salePrice = stripeOrder?.amount ||
+          (ticket.ticket_sales?.[0]?.sale_price) || ticket.price;
+
+        return {
+          id: ticket.id,
+          title: ticket.title,
+          description: ticket.description,
+          price: ticket.price,
+          event_date: ticket.event_date,
+          location: ticket.location,
+          sport: ticket.sport,
+          section: ticket.section,
+          row_number: ticket.row_number,
+          seat_number: ticket.seat_number,
+          status: ticket.status,
+          created_at: ticket.created_at,
+          home_college_id: ticket.home_college_id,
+          away_college_id: ticket.away_college_id,
+          ticket_type: ticket.ticket_type as "general_admission" | "student" | undefined,
+          event: ticket.event,
+          type: "listing" as const,
+          // Legacy sale info
+          sale: ticket.ticket_sales && ticket.ticket_sales.length > 0
             ? {
                 buyer_name: ticket.ticket_sales[0].buyer_name,
                 sale_date: ticket.ticket_sales[0].created_at,
                 sale_price: ticket.ticket_sales[0].sale_price,
               }
             : undefined,
-      }));
+          // Escrow/Stripe order fields
+          escrow_status: stripeOrder?.escrow_status,
+          escrow_order_id: stripeOrder?.id,
+          transfer_deadline: stripeOrder?.transfer_deadline,
+          // Buyer info
+          buyer_name: buyerName,
+          buyer_id: buyerId,
+          // Pending transfer flag for sellers
+          pending_transfer: hasPendingTransfer,
+          sold_at: soldAt,
+        };
+      });
+
+      return listings;
     } catch (error) {
       console.error("Error in loadUserListings:", error);
       return [];
@@ -619,6 +710,44 @@ export default function TicketsScreen() {
         (a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       ); // newest first
+  };
+
+  // Get tickets with pending transfers - these require seller action
+  const getPendingTransfers = (allListings: OrderItem[]) => {
+    return allListings
+      .filter((ticket) => ticket.pending_transfer === true)
+      .sort((a, b) => {
+        // Sort by transfer deadline (most urgent first)
+        if (a.transfer_deadline && b.transfer_deadline) {
+          return new Date(a.transfer_deadline).getTime() - new Date(b.transfer_deadline).getTime();
+        }
+        return 0;
+      });
+  };
+
+  // Calculate time remaining until deadline
+  const getTimeRemaining = (deadline: string): { text: string; urgent: boolean; expired: boolean } => {
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const diffMs = deadlineDate.getTime() - now.getTime();
+
+    if (diffMs <= 0) {
+      return { text: "OVERDUE", urgent: true, expired: true };
+    }
+
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (diffHours < 1) {
+      return { text: `${diffMinutes}m remaining`, urgent: true, expired: false };
+    } else if (diffHours < 4) {
+      return { text: `${diffHours}h ${diffMinutes}m remaining`, urgent: true, expired: false };
+    } else if (diffHours < 24) {
+      return { text: `${diffHours}h remaining`, urgent: false, expired: false };
+    } else {
+      const diffDays = Math.floor(diffHours / 24);
+      return { text: `${diffDays}d ${diffHours % 24}h remaining`, urgent: false, expired: false };
+    }
   };
 
   const onRefresh = useCallback(() => {
@@ -955,6 +1084,47 @@ export default function TicketsScreen() {
     );
   };
 
+  // Mark ticket as transferred (for sellers)
+  const handleMarkTransferSent = async (item: OrderItem) => {
+    if (!item.escrow_order_id) {
+      Alert.alert("Error", "Order information not found");
+      return;
+    }
+
+    Alert.alert(
+      "Confirm Transfer",
+      "Have you transferred the ticket to the buyer? This will notify them to check their email or ticketing app.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes, I've Transferred It",
+          style: "default",
+          onPress: async () => {
+            setMarkingTransferId(item.escrow_order_id!);
+            try {
+              const result = await markTransferSent(item.escrow_order_id!);
+
+              if (result.success) {
+                Alert.alert(
+                  "Transfer Marked!",
+                  "The buyer has been notified to check for the ticket.",
+                  [{ text: "OK", onPress: () => loadData() }]
+                );
+              } else {
+                Alert.alert("Error", result.error || "Failed to mark transfer");
+              }
+            } catch (error) {
+              console.error("Error marking transfer:", error);
+              Alert.alert("Error", "Failed to mark transfer. Please try again.");
+            } finally {
+              setMarkingTransferId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const formatSaleDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -1079,21 +1249,18 @@ export default function TicketsScreen() {
           </View>
         )}
 
-        {/* Actions - Show Confirm Transfer button for Stripe escrow orders awaiting confirmation */}
-        {item.type === "purchase" && item.escrow_status === "payment_held" && (
+        {/* View Order button for Stripe escrow orders - takes user to order details to confirm */}
+        {item.type === "purchase" && item.escrow_order_id && item.escrow_status === "payment_held" && (
           <View style={styles.orderActions}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.soldButton, confirmingTransfer && { opacity: 0.6 }]}
+              style={[styles.actionButton, styles.viewOrderButton]}
               onPress={(e) => {
                 e.stopPropagation();
-                handleConfirmTransfer(item);
+                router.push(`/orders/${item.escrow_order_id}` as any);
               }}
-              disabled={confirmingTransfer}
             >
-              <Ionicons name="checkmark-circle" size={16} color="white" />
-              <Text style={styles.actionButtonText}>
-                {confirmingTransfer ? "Confirming..." : "Confirm Transfer"}
-              </Text>
+              <Ionicons name="eye" size={16} color="white" />
+              <Text style={styles.actionButtonText}>View Order & Confirm</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1159,13 +1326,13 @@ export default function TicketsScreen() {
                   <View style={styles.instructionBox}>
                     <Ionicons name="information-circle" size={16} color="#3b82f6" />
                     <Text style={styles.instructionText}>
-                      The seller has been notified to transfer your ticket. Once you receive it, tap "Confirm Receipt" below.
+                      The seller has been notified to transfer your ticket. Once you receive it, tap to view order and confirm receipt.
                     </Text>
                   </View>
                   <View style={styles.warningBox}>
                     <Ionicons name="warning" size={16} color="#dc2626" />
                     <Text style={styles.warningText}>
-                      Important: If the seller provides proof of transfer and you don't confirm within 48 hours, the transfer will be auto-confirmed.
+                      Important: You must confirm once you receive your ticket. Failure to confirm after the seller provides proof may result in a fine.
                     </Text>
                   </View>
                 </View>
@@ -1399,9 +1566,13 @@ export default function TicketsScreen() {
 
   const currentData = activeTab === "bought" ? purchases : listings;
 
-  // For selling tab, separate active, sold, and cancelled tickets
+  // For selling tab, separate pending transfers, active, sold, and cancelled tickets
+  const pendingTransfers =
+    activeTab === "selling" ? getPendingTransfers(listings) : [];
   const activeListings =
-    activeTab === "selling" ? getActiveListings(listings) : [];
+    activeTab === "selling"
+      ? getActiveListings(listings).filter(t => !t.pending_transfer) // Exclude pending transfers from active
+      : [];
   const soldTickets = activeTab === "selling" ? getSoldTickets(listings) : [];
   const cancelledTickets =
     activeTab === "selling" ? getCancelledTickets(listings) : [];
@@ -1517,30 +1688,234 @@ export default function TicketsScreen() {
               ) : activeTab === "selling" ? (
                 // Special rendering for selling tab with sections
                 <>
-                  {/* Active Listings Section */}
+                  {/* URGENT: Pending Transfers Section - Always at TOP */}
+                  {pendingTransfers.length > 0 && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.pendingTransfersHeader}
+                        onPress={() =>
+                          setPendingTransfersExpanded(!pendingTransfersExpanded)
+                        }
+                      >
+                        <View style={styles.pendingTransfersHeaderContent}>
+                          <View style={styles.urgentIconContainer}>
+                            <Ionicons
+                              name="alert-circle"
+                              size={22}
+                              color="#dc2626"
+                            />
+                          </View>
+                          <View style={styles.pendingTransfersHeaderText}>
+                            <Text style={styles.pendingTransfersTitle}>
+                              Action Required
+                            </Text>
+                            <Text style={styles.pendingTransfersSubtitle}>
+                              {pendingTransfers.length} ticket{pendingTransfers.length !== 1 ? 's' : ''} awaiting transfer
+                            </Text>
+                          </View>
+                        </View>
+                        <Ionicons
+                          name={
+                            pendingTransfersExpanded ? "chevron-up" : "chevron-down"
+                          }
+                          size={20}
+                          color="#dc2626"
+                        />
+                      </TouchableOpacity>
+
+                      {pendingTransfersExpanded && (
+                        <>
+                          {/* Warning banner */}
+                          <View style={styles.transferWarningBanner}>
+                            <Ionicons name="warning" size={18} color="#92400e" />
+                            <Text style={styles.transferWarningText}>
+                              You MUST transfer these tickets to buyers. Failure to transfer will result in a refund and potential account penalties.
+                            </Text>
+                          </View>
+
+                          {/* Render pending transfer tickets with special styling */}
+                          {pendingTransfers.map((item) => {
+                            const timeRemaining = item.transfer_deadline
+                              ? getTimeRemaining(item.transfer_deadline)
+                              : null;
+
+                            return (
+                              <View key={`pending-${item.id}`} style={styles.pendingTransferCard}>
+                                {/* Urgency Banner */}
+                                <View style={[
+                                  styles.urgencyBanner,
+                                  timeRemaining?.expired && styles.urgencyBannerExpired,
+                                  timeRemaining?.urgent && !timeRemaining?.expired && styles.urgencyBannerUrgent,
+                                ]}>
+                                  <Ionicons
+                                    name={timeRemaining?.expired ? "alert" : "time"}
+                                    size={14}
+                                    color={timeRemaining?.expired ? "#7f1d1d" : timeRemaining?.urgent ? "#92400e" : "#1e40af"}
+                                  />
+                                  <Text style={[
+                                    styles.urgencyText,
+                                    timeRemaining?.expired && styles.urgencyTextExpired,
+                                    timeRemaining?.urgent && !timeRemaining?.expired && styles.urgencyTextUrgent,
+                                  ]}>
+                                    {timeRemaining?.text || "Transfer ASAP"}
+                                  </Text>
+                                </View>
+
+                                {/* Ticket Info */}
+                                <TouchableOpacity
+                                  style={styles.pendingTicketContent}
+                                  onPress={() => router.push(`/ticket-details/${item.id}`)}
+                                >
+                                  <View style={styles.pendingTicketHeader}>
+                                    <View style={[styles.sportBadge, { backgroundColor: theme.primary }]}>
+                                      <Text style={styles.sportBadgeText}>{item.sport || "Event"}</Text>
+                                    </View>
+                                    <View style={[styles.priceContainer, { backgroundColor: "#10b981" }]}>
+                                      <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
+                                    </View>
+                                  </View>
+
+                                  <Text style={styles.pendingTicketTitle} numberOfLines={2}>
+                                    {item.title}
+                                  </Text>
+
+                                  {/* Event Details Row */}
+                                  <View style={styles.pendingEventInfo}>
+                                    <Text style={styles.pendingEventDate}>
+                                      {new Date(item.event_date).toLocaleDateString("en-US", {
+                                        weekday: "short",
+                                        month: "short",
+                                        day: "numeric",
+                                      })} at {new Date(item.event_date).toLocaleTimeString("en-US", {
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                        hour12: true,
+                                      })}
+                                    </Text>
+                                    {item.section && (
+                                      <Text style={styles.pendingSeatInfo}>
+                                        Sec {item.section}, Row {item.row_number}, Seat {item.seat_number}
+                                      </Text>
+                                    )}
+                                  </View>
+
+                                  {/* Buyer Info */}
+                                  {item.buyer_name && (
+                                    <View style={styles.pendingBuyerInfo}>
+                                      <View style={styles.pendingBuyerIcon}>
+                                        <Ionicons name="person" size={16} color="#3b82f6" />
+                                      </View>
+                                      <View style={styles.pendingBuyerDetails}>
+                                        <Text style={styles.pendingBuyerLabel}>Sold to</Text>
+                                        <Text style={styles.pendingBuyerName}>{item.buyer_name}</Text>
+                                        {item.sold_at && (
+                                          <Text style={styles.pendingSoldDate}>
+                                            {formatSaleDate(item.sold_at)}
+                                          </Text>
+                                        )}
+                                      </View>
+                                    </View>
+                                  )}
+                                </TouchableOpacity>
+
+                                {/* Transfer Action */}
+                                <View style={styles.pendingTransferActions}>
+                                  {/* Step 1: Open Transfer Portal */}
+                                  {(item.home_college_id || item.away_college_id) && (
+                                    <TicketTransferButton
+                                      collegeId={item.home_college_id || item.away_college_id || ""}
+                                      ticketInfo={{
+                                        title: item.title,
+                                        eventDate: new Date(item.event_date).toLocaleDateString("en-US", {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        }),
+                                        section: item.section,
+                                        row: item.row_number,
+                                        seat: item.seat_number,
+                                      }}
+                                      variant="outline"
+                                      size="medium"
+                                      style={styles.transferPortalButton}
+                                    />
+                                  )}
+
+                                  {/* Step 2: Mark as Transferred */}
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.markTransferredButton,
+                                      { backgroundColor: theme.primary },
+                                    ]}
+                                    onPress={() => handleMarkTransferSent(item)}
+                                    disabled={markingTransferId === item.escrow_order_id}
+                                  >
+                                    {markingTransferId === item.escrow_order_id ? (
+                                      <ActivityIndicator size="small" color="white" />
+                                    ) : (
+                                      <>
+                                        <Ionicons name="checkmark-done" size={20} color="white" />
+                                        <Text style={styles.markTransferredButtonText}>
+                                          I've Transferred the Ticket
+                                        </Text>
+                                      </>
+                                    )}
+                                  </TouchableOpacity>
+
+                                  {/* View Order Details Link */}
+                                  <TouchableOpacity
+                                    style={styles.viewOrderDetailsButton}
+                                    onPress={() => router.push(`/orders/${item.escrow_order_id}` as any)}
+                                  >
+                                    <Text style={styles.viewOrderDetailsText}>View Order Details</Text>
+                                    <Ionicons name="chevron-forward" size={16} color="#3b82f6" />
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            );
+                          })}
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {/* Active Listings Section - Now Collapsible */}
                   {activeListings.length > 0 && (
                     <>
-                      <View style={styles.sectionHeader}>
+                      <TouchableOpacity
+                        style={styles.activeListingsHeader}
+                        onPress={() => setActiveListingsExpanded(!activeListingsExpanded)}
+                      >
+                        <View style={styles.activeListingsHeaderContent}>
+                          <Ionicons
+                            name="storefront"
+                            size={20}
+                            color={theme.primary}
+                          />
+                          <Text style={styles.activeListingsTitle}>Active Listings</Text>
+                          <Text style={styles.activeListingsCount}>
+                            ({activeListings.length})
+                          </Text>
+                        </View>
                         <Ionicons
-                          name="storefront"
+                          name={activeListingsExpanded ? "chevron-up" : "chevron-down"}
                           size={20}
-                          color={theme.primary}
+                          color="#6b7280"
                         />
-                        <Text style={styles.sectionTitle}>Active Listings</Text>
-                        <Text style={styles.sectionCount}>
-                          ({activeListings.length})
-                        </Text>
-                      </View>
-                      <FlatList
-                        data={activeListings}
-                        renderItem={renderOrder}
-                        keyExtractor={(item) => `active-${item.id}`}
-                        scrollEnabled={false}
-                        showsVerticalScrollIndicator={false}
-                        nestedScrollEnabled={true}
-                        removeClippedSubviews={Platform.OS === "android"}
-                        keyboardShouldPersistTaps="handled"
-                      />
+                      </TouchableOpacity>
+
+                      {activeListingsExpanded && (
+                        <FlatList
+                          data={activeListings}
+                          renderItem={renderOrder}
+                          keyExtractor={(item) => `active-${item.id}`}
+                          scrollEnabled={false}
+                          showsVerticalScrollIndicator={false}
+                          nestedScrollEnabled={true}
+                          removeClippedSubviews={Platform.OS === "android"}
+                          keyboardShouldPersistTaps="handled"
+                        />
+                      )}
                     </>
                   )}
 
@@ -2562,5 +2937,246 @@ const styles = StyleSheet.create({
     color: "#991b1b",
     lineHeight: 18,
     fontWeight: "500",
+  },
+  viewOrderButton: {
+    backgroundColor: "#3b82f6",
+  },
+  // Pending Transfers Section Styles
+  pendingTransfersHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "#fef2f2",
+    borderWidth: 2,
+    borderColor: "#fecaca",
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  pendingTransfersHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  urgentIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#fee2e2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  pendingTransfersHeaderText: {
+    flex: 1,
+  },
+  pendingTransfersTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#dc2626",
+  },
+  pendingTransfersSubtitle: {
+    fontSize: 13,
+    color: "#991b1b",
+    marginTop: 2,
+  },
+  transferWarningBanner: {
+    flexDirection: "row",
+    backgroundColor: "#fef3c7",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignItems: "flex-start",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#fcd34d",
+  },
+  transferWarningText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#92400e",
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  pendingTransferCard: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "#fecaca",
+    overflow: "hidden",
+    shadowColor: "#dc2626",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  urgencyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#dbeafe",
+    gap: 6,
+  },
+  urgencyBannerUrgent: {
+    backgroundColor: "#fef3c7",
+  },
+  urgencyBannerExpired: {
+    backgroundColor: "#fee2e2",
+  },
+  urgencyText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1e40af",
+  },
+  urgencyTextUrgent: {
+    color: "#92400e",
+  },
+  urgencyTextExpired: {
+    color: "#7f1d1d",
+  },
+  pendingTicketContent: {
+    padding: 12,
+  },
+  pendingTicketHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  pendingTicketTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  pendingEventInfo: {
+    marginBottom: 12,
+  },
+  pendingEventDate: {
+    fontSize: 14,
+    color: "#4b5563",
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  pendingSeatInfo: {
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  pendingBuyerInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f9ff",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#bae6fd",
+  },
+  pendingBuyerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#dbeafe",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  pendingBuyerDetails: {
+    flex: 1,
+  },
+  pendingBuyerLabel: {
+    fontSize: 11,
+    color: "#64748b",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  pendingBuyerName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1e40af",
+  },
+  pendingSoldDate: {
+    fontSize: 12,
+    color: "#3b82f6",
+    marginTop: 2,
+  },
+  pendingTransferActions: {
+    padding: 12,
+    paddingTop: 12,
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  transferPortalButton: {
+    marginBottom: 0,
+  },
+  markTransferredButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  markTransferredButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "white",
+  },
+  transferNowButton: {
+    marginBottom: 4,
+  },
+  viewOrderDetailsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    gap: 4,
+  },
+  viewOrderDetailsText: {
+    fontSize: 14,
+    color: "#3b82f6",
+    fontWeight: "600",
+  },
+  // Active Listings Collapsible Header Styles
+  activeListingsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#f8fafc",
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#e5e7eb",
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  activeListingsHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  activeListingsTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+    marginLeft: 8,
+    flex: 1,
+  },
+  activeListingsCount: {
+    fontSize: 14,
+    color: "#6b7280",
+    fontWeight: "500",
+    marginRight: 8,
   },
 });

@@ -162,6 +162,37 @@ Deno.serve(async (req: Request) => {
       .update({ status: 'paid_out' })
       .eq('id', escrowPayment.id)
 
+    // Get ticket and buyer info for notification
+    const { data: ticket } = await supabase
+      .from('tickets')
+      .select('title')
+      .eq('id', order.ticket_id)
+      .single()
+
+    const { data: buyerProfile } = await supabase
+      .from('profiles')
+      .select('full_name, username')
+      .eq('id', user.id)
+      .single()
+
+    const ticketTitle = ticket?.title || 'the ticket'
+    const buyerName = buyerProfile?.full_name || buyerProfile?.username || 'The buyer'
+    const amountDollars = (escrowPayment.amount_cents / 100).toFixed(2)
+
+    // Send notification to seller about payment release
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: order.seller_id,
+        title: 'Payment Released!',
+        message: `${buyerName} confirmed receipt of "${ticketTitle}". $${amountDollars} has been transferred to your account.`,
+        type: 'sale',
+        related_ticket_id: order.ticket_id,
+        related_order_id: orderId,
+        read: false,
+      })
+
+    console.log(`📬 Notification sent to seller ${order.seller_id}`)
     console.log(`✅ Receipt confirmed for order ${orderId}, transfer ${transfer.id} sent to seller`)
 
     return new Response(
