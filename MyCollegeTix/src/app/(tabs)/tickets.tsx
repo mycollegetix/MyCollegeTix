@@ -94,6 +94,8 @@ interface OrderItem {
   buyer_id?: string;
   // Pending transfer requiring seller action
   pending_transfer?: boolean;
+  // Awaiting buyer confirmation (seller has transferred)
+  awaiting_confirmation?: boolean;
   sold_at?: string;
 }
 
@@ -156,6 +158,7 @@ export default function TicketsScreen() {
 
   // Dropdown states for collapsible sections
   const [pendingTransfersExpanded, setPendingTransfersExpanded] = useState(true); // Default open for urgency
+  const [awaitingConfirmationExpanded, setAwaitingConfirmationExpanded] = useState(true); // Default open
   const [activeListingsExpanded, setActiveListingsExpanded] = useState(true);
   const [soldTicketsExpanded, setSoldTicketsExpanded] = useState(false);
   const [cancelledTicketsExpanded, setCancelledTicketsExpanded] =
@@ -625,8 +628,12 @@ export default function TicketsScreen() {
       // Map tickets to OrderItems, enriching with Stripe order data if available
       const listings = (data || []).map((ticket: any) => {
         const stripeOrder = stripeOrdersMap.get(ticket.id);
+        // pending_transfer = needs seller action (hasn't transferred yet)
         const hasPendingTransfer = stripeOrder &&
-          ["payment_held", "transfer_pending"].includes(stripeOrder.escrow_status);
+          stripeOrder.escrow_status === "payment_held";
+        // awaiting_confirmation = seller has transferred, waiting for buyer
+        const awaitingConfirmation = stripeOrder &&
+          stripeOrder.escrow_status === "transfer_pending";
 
         // Use Stripe order buyer info if available, otherwise fall back to ticket_sales
         const buyerName = stripeOrder?.buyer?.full_name ||
@@ -671,8 +678,10 @@ export default function TicketsScreen() {
           // Buyer info
           buyer_name: buyerName,
           buyer_id: buyerId,
-          // Pending transfer flag for sellers
+          // Pending transfer flag for sellers (needs action)
           pending_transfer: hasPendingTransfer,
+          // Awaiting confirmation flag (seller transferred, waiting for buyer)
+          awaiting_confirmation: awaitingConfirmation,
           sold_at: soldAt,
         };
       });
@@ -712,7 +721,7 @@ export default function TicketsScreen() {
       ); // newest first
   };
 
-  // Get tickets with pending transfers - these require seller action
+  // Get tickets with pending transfers - these require seller action (payment_held)
   const getPendingTransfers = (allListings: OrderItem[]) => {
     return allListings
       .filter((ticket) => ticket.pending_transfer === true)
@@ -720,6 +729,19 @@ export default function TicketsScreen() {
         // Sort by transfer deadline (most urgent first)
         if (a.transfer_deadline && b.transfer_deadline) {
           return new Date(a.transfer_deadline).getTime() - new Date(b.transfer_deadline).getTime();
+        }
+        return 0;
+      });
+  };
+
+  // Get tickets awaiting buyer confirmation - seller has transferred, waiting for buyer
+  const getAwaitingConfirmation = (allListings: OrderItem[]) => {
+    return allListings
+      .filter((ticket) => ticket.awaiting_confirmation === true)
+      .sort((a, b) => {
+        // Sort by when it was sold (most recent first)
+        if (a.sold_at && b.sold_at) {
+          return new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime();
         }
         return 0;
       });
@@ -1566,12 +1588,14 @@ export default function TicketsScreen() {
 
   const currentData = activeTab === "bought" ? purchases : listings;
 
-  // For selling tab, separate pending transfers, active, sold, and cancelled tickets
+  // For selling tab, separate pending transfers, awaiting confirmation, active, sold, and cancelled tickets
   const pendingTransfers =
     activeTab === "selling" ? getPendingTransfers(listings) : [];
+  const awaitingConfirmation =
+    activeTab === "selling" ? getAwaitingConfirmation(listings) : [];
   const activeListings =
     activeTab === "selling"
-      ? getActiveListings(listings).filter(t => !t.pending_transfer) // Exclude pending transfers from active
+      ? getActiveListings(listings).filter(t => !t.pending_transfer && !t.awaiting_confirmation)
       : [];
   const soldTickets = activeTab === "selling" ? getSoldTickets(listings) : [];
   const cancelledTickets =
@@ -1874,6 +1898,119 @@ export default function TicketsScreen() {
                               </View>
                             );
                           })}
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {/* Awaiting Confirmation Section */}
+                  {awaitingConfirmation.length > 0 && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.awaitingConfirmationHeader}
+                        onPress={() =>
+                          setAwaitingConfirmationExpanded(!awaitingConfirmationExpanded)
+                        }
+                      >
+                        <View style={styles.awaitingConfirmationHeaderContent}>
+                          <View style={styles.awaitingIconContainer}>
+                            <Ionicons
+                              name="time"
+                              size={20}
+                              color="#8b5cf6"
+                            />
+                          </View>
+                          <View style={styles.awaitingConfirmationHeaderText}>
+                            <Text style={styles.awaitingConfirmationTitle}>
+                              Awaiting Confirmation
+                            </Text>
+                            <Text style={styles.awaitingConfirmationSubtitle}>
+                              {awaitingConfirmation.length} ticket{awaitingConfirmation.length !== 1 ? 's' : ''} waiting for buyer
+                            </Text>
+                          </View>
+                        </View>
+                        <Ionicons
+                          name={
+                            awaitingConfirmationExpanded ? "chevron-up" : "chevron-down"
+                          }
+                          size={20}
+                          color="#8b5cf6"
+                        />
+                      </TouchableOpacity>
+
+                      {awaitingConfirmationExpanded && (
+                        <>
+                          {awaitingConfirmation.map((item) => (
+                            <View key={`awaiting-${item.id}`} style={styles.awaitingConfirmationCard}>
+                              {/* Ticket Info */}
+                              <TouchableOpacity
+                                style={styles.awaitingTicketContent}
+                                onPress={() => router.push(`/ticket-details/${item.id}`)}
+                              >
+                                <View style={styles.awaitingTicketHeader}>
+                                  <View style={[styles.sportBadge, { backgroundColor: "#8b5cf6" }]}>
+                                    <Text style={styles.sportBadgeText}>{item.sport || "Event"}</Text>
+                                  </View>
+                                  <View style={[styles.priceContainer, { backgroundColor: "#10b981" }]}>
+                                    <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
+                                  </View>
+                                </View>
+
+                                <Text style={styles.awaitingTicketTitle} numberOfLines={2}>
+                                  {item.title}
+                                </Text>
+
+                                {/* Event Details */}
+                                <View style={styles.awaitingEventInfo}>
+                                  <Text style={styles.awaitingEventDate}>
+                                    {new Date(item.event_date).toLocaleDateString("en-US", {
+                                      weekday: "short",
+                                      month: "short",
+                                      day: "numeric",
+                                    })} at {new Date(item.event_date).toLocaleTimeString("en-US", {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    })}
+                                  </Text>
+                                  {item.section && (
+                                    <Text style={styles.awaitingSeatInfo}>
+                                      Sec {item.section}, Row {item.row_number}, Seat {item.seat_number}
+                                    </Text>
+                                  )}
+                                </View>
+
+                                {/* Buyer Info */}
+                                {item.buyer_name && (
+                                  <View style={styles.awaitingBuyerInfo}>
+                                    <Ionicons name="person" size={14} color="#8b5cf6" />
+                                    <Text style={styles.awaitingBuyerText}>
+                                      Sold to <Text style={styles.awaitingBuyerName}>{item.buyer_name}</Text>
+                                    </Text>
+                                  </View>
+                                )}
+
+                                {/* Status Badge */}
+                                <View style={styles.awaitingStatusBadge}>
+                                  <Ionicons name="checkmark-done" size={14} color="#8b5cf6" />
+                                  <Text style={styles.awaitingStatusText}>
+                                    Transfer sent - Waiting for buyer to confirm
+                                  </Text>
+                                </View>
+                              </TouchableOpacity>
+
+                              {/* View Order Details */}
+                              <View style={styles.awaitingActions}>
+                                <TouchableOpacity
+                                  style={styles.viewOrderDetailsButton}
+                                  onPress={() => router.push(`/orders/${item.escrow_order_id}` as any)}
+                                >
+                                  <Text style={styles.viewOrderDetailsText}>View Order Details</Text>
+                                  <Ionicons name="chevron-forward" size={16} color="#3b82f6" />
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          ))}
                         </>
                       )}
                     </>
@@ -3178,5 +3315,127 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontWeight: "500",
     marginRight: 8,
+  },
+  // Awaiting Confirmation Section Styles (Purple theme)
+  awaitingConfirmationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "#f5f3ff",
+    borderWidth: 2,
+    borderColor: "#c4b5fd",
+    borderRadius: 12,
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  awaitingConfirmationHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  awaitingIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#ede9fe",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  awaitingConfirmationHeaderText: {
+    flex: 1,
+  },
+  awaitingConfirmationTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#7c3aed",
+  },
+  awaitingConfirmationSubtitle: {
+    fontSize: 13,
+    color: "#6d28d9",
+    marginTop: 2,
+  },
+  awaitingConfirmationCard: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "#c4b5fd",
+    overflow: "hidden",
+    shadowColor: "#8b5cf6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  awaitingTicketContent: {
+    padding: 12,
+  },
+  awaitingTicketHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  awaitingTicketTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  awaitingEventInfo: {
+    marginBottom: 12,
+  },
+  awaitingEventDate: {
+    fontSize: 14,
+    color: "#4b5563",
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  awaitingSeatInfo: {
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  awaitingBuyerInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f3ff",
+    padding: 10,
+    borderRadius: 8,
+    gap: 8,
+    marginBottom: 12,
+  },
+  awaitingBuyerText: {
+    fontSize: 14,
+    color: "#6d28d9",
+  },
+  awaitingBuyerName: {
+    fontWeight: "700",
+    color: "#7c3aed",
+  },
+  awaitingStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ede9fe",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#c4b5fd",
+  },
+  awaitingStatusText: {
+    fontSize: 13,
+    color: "#7c3aed",
+    fontWeight: "600",
+  },
+  awaitingActions: {
+    padding: 12,
+    paddingTop: 0,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
   },
 });
