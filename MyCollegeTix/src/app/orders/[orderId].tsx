@@ -212,25 +212,7 @@ export default function OrderStatusScreen() {
 
   const handleFileDispute = () => {
     if (!order) return;
-    // Navigate to dispute screen (to be implemented)
-    Alert.alert(
-      "File Dispute",
-      "If you haven't received your ticket or there's an issue, you can file a dispute. Our team will review and help resolve the issue.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "File Dispute",
-          style: "destructive",
-          onPress: () => {
-            // TODO: Navigate to dispute form
-            Alert.alert(
-              "Coming Soon",
-              "Dispute filing will be available soon."
-            );
-          },
-        },
-      ]
-    );
+    router.push(`/dispute/${order.id}`);
   };
 
   const handleMarkTransferSent = async () => {
@@ -366,8 +348,9 @@ export default function OrderStatusScreen() {
   const canConfirm =
     isBuyer &&
     ["payment_held", "transfer_pending"].includes(order.escrow_status);
+  // Both buyers and sellers can file disputes during active transaction
   const canDispute =
-    isBuyer &&
+    (isBuyer || isSeller) &&
     ["payment_held", "transfer_pending"].includes(order.escrow_status);
   // Seller can mark transfer when payment is held (before they've sent it)
   const canMarkTransfer =

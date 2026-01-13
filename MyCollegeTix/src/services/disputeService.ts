@@ -96,23 +96,28 @@ export class DisputeService {
         return { data: null, error: "A dispute is already open for this order", success: false };
       }
 
-      // Get escrow payment ID
-      const { data: escrowPayment } = await supabase
+      // Try to get escrow payment ID (may be null if RLS blocks access)
+      const { data: escrowPayment, error: paymentError } = await supabase
         .from("escrow_payments")
         .select("id")
         .eq("order_id", params.orderId)
         .single();
 
-      if (!escrowPayment) {
-        return { data: null, error: "No payment found for this order", success: false };
-      }
+      console.log("🔍 Escrow payment lookup:", {
+        orderId: params.orderId,
+        found: !!escrowPayment,
+        error: paymentError?.message,
+      });
+
+      // escrow_payment_id is now nullable - we can proceed without it
+      const escrowPaymentId = escrowPayment?.id || null;
 
       // Create the dispute
       const { data: dispute, error: createError } = await supabase
         .from("escrow_disputes")
         .insert({
           order_id: params.orderId,
-          escrow_payment_id: escrowPayment.id,
+          escrow_payment_id: escrowPaymentId, // Can be null
           filed_by: user.id,
           filed_by_role: filedByRole,
           reason: params.reason,
@@ -139,10 +144,19 @@ export class DisputeService {
         .update({ status: "disputed" })
         .eq("order_id", params.orderId);
 
-      await supabase
-        .from("escrow_payments")
-        .update({ status: "disputed" })
-        .eq("id", escrowPayment.id);
+      // Update escrow payment status if we have the ID
+      if (escrowPaymentId) {
+        await supabase
+          .from("escrow_payments")
+          .update({ status: "disputed" })
+          .eq("id", escrowPaymentId);
+      } else {
+        // Update by order_id as fallback
+        await supabase
+          .from("escrow_payments")
+          .update({ status: "disputed" })
+          .eq("order_id", params.orderId);
+      }
 
       console.log("✅ Dispute opened:", dispute.id);
       return { data: dispute, error: null, success: true };

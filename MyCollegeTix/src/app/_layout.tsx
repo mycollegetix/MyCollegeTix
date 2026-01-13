@@ -44,6 +44,7 @@ function RootLayoutNav() {
     const inCheckoutGroup = segments[0] === "checkout";
     const inStripeGroup = segments[0] === "stripe";
     const inOrdersGroup = segments[0] === "orders";
+    const inDisputeGroup = segments[0] === "dispute";
 
     console.log("🧭 Navigation check:", {
       session: !!session,
@@ -57,6 +58,7 @@ function RootLayoutNav() {
       inCheckoutGroup,
       inStripeGroup,
       inOrdersGroup,
+      inDisputeGroup,
       segments: segments.join('/'),
       profileLoaded: !!profile
     });
@@ -78,7 +80,7 @@ function RootLayoutNav() {
     // If user has session but is not in a recognized route group, redirect them to tabs
     const isInValidGroup = inAuthGroup || inTabsGroup || inAdminGroup || inLegalGroup ||
                           inNotificationsGroup || inSupportGroup || inTicketDetailsGroup ||
-                          inCheckoutGroup || inStripeGroup || inOrdersGroup;
+                          inCheckoutGroup || inStripeGroup || inOrdersGroup || inDisputeGroup;
     
     if (session && !isInValidGroup) {
       console.log("✅ Authenticated user not in valid route group, redirecting to tabs...");
@@ -159,6 +161,7 @@ function RootLayoutNav() {
         <Stack.Screen name="checkout" options={{ headerShown: false }} />
         <Stack.Screen name="stripe" options={{ headerShown: false }} />
         <Stack.Screen name="orders" options={{ headerShown: false }} />
+        <Stack.Screen name="dispute" options={{ headerShown: false }} />
       </Stack>
     </>
   );

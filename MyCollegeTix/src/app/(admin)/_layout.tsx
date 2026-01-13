@@ -33,6 +33,7 @@ export default function AdminLayout() {
       <Stack.Screen name="colleges" options={{ headerShown: false }} />
       <Stack.Screen name="orders" options={{ headerShown: false }} />
       <Stack.Screen name="analytics" options={{ headerShown: false }} />
+      <Stack.Screen name="disputes" options={{ headerShown: false }} />
     </Stack>
   );
 }

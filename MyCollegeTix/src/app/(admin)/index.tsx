@@ -283,6 +283,13 @@ export default function AdminDashboard() {
               onPress={() => (router.push as any)("/(admin)/colleges")}
             />
             <QuickActionCard
+              title="Dispute Management"
+              description="Review and resolve user disputes"
+              icon="alert-circle"
+              color="#ef4444"
+              onPress={() => router.push("/(admin)/disputes")}
+            />
+            <QuickActionCard
               title="Analytics"
               description="View detailed analytics and reports"
               icon="analytics"
