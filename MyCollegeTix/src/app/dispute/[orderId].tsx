@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { DisputeService, CreateDisputeParams } from "@/src/services/disputeService";
+import { TransferProofService } from "@/src/services/transferProofService";
 import { supabase } from "@/src/lib/supabase";
 
 interface OrderInfo {
@@ -53,6 +55,8 @@ export default function FileDisputeScreen() {
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [description, setDescription] = useState("");
   const [showReasonPicker, setShowReasonPicker] = useState(false);
+  const [evidenceImages, setEvidenceImages] = useState<{ uri: string; base64: string }[]>([]);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
 
   const loadOrder = useCallback(async () => {
     if (!orderId || !user) return;
@@ -95,7 +99,7 @@ export default function FileDisputeScreen() {
         buyer_id: data.buyer_id,
         seller_id: data.seller_id,
         amount: data.amount,
-        escrow_status: data.escrow_status,
+        escrow_status: data.escrow_status || "pending",
         ticket: data.ticket,
         other_party: otherParty,
       });
@@ -111,6 +115,32 @@ export default function FileDisputeScreen() {
   useEffect(() => {
     loadOrder();
   }, [loadOrder]);
+
+  const handlePickImage = async () => {
+    if (evidenceImages.length >= 5) {
+      Alert.alert("Limit Reached", "You can upload up to 5 images as evidence.");
+      return;
+    }
+    const result = await TransferProofService.pickImage();
+    if (result) {
+      setEvidenceImages([...evidenceImages, result]);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    if (evidenceImages.length >= 5) {
+      Alert.alert("Limit Reached", "You can upload up to 5 images as evidence.");
+      return;
+    }
+    const result = await TransferProofService.takePhoto();
+    if (result) {
+      setEvidenceImages([...evidenceImages, result]);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setEvidenceImages(evidenceImages.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async () => {
     if (!selectedReason) {
@@ -139,10 +169,24 @@ export default function FileDisputeScreen() {
           onPress: async () => {
             setSubmitting(true);
             try {
+              // Upload evidence images first if any
+              const evidenceUrls: string[] = [];
+              if (evidenceImages.length > 0) {
+                setUploadingEvidence(true);
+                for (const image of evidenceImages) {
+                  const uploadResult = await TransferProofService.uploadProof(orderId!, image.base64);
+                  if (uploadResult.success && uploadResult.url) {
+                    evidenceUrls.push(uploadResult.url);
+                  }
+                }
+                setUploadingEvidence(false);
+              }
+
               const params: CreateDisputeParams = {
                 orderId: orderId!,
                 reason: selectedReason,
                 description: description.trim(),
+                evidenceUrls: evidenceUrls.length > 0 ? evidenceUrls : undefined,
               };
 
               const result = await DisputeService.openDispute(params);
@@ -153,7 +197,9 @@ export default function FileDisputeScreen() {
 
               Alert.alert(
                 "Dispute Filed",
-                "Your dispute has been submitted. We'll review it and get back to you within 24-48 hours. You can track the status in your dispute history.",
+                evidenceUrls.length > 0
+                  ? `Your dispute has been submitted with ${evidenceUrls.length} piece(s) of evidence. We'll review it and get back to you within 24-48 hours.`
+                  : "Your dispute has been submitted. We'll review it and get back to you within 24-48 hours. You can track the status in your dispute history.",
                 [
                   {
                     text: "View Status",
@@ -170,6 +216,7 @@ export default function FileDisputeScreen() {
               Alert.alert("Error", err instanceof Error ? err.message : "Failed to file dispute");
             } finally {
               setSubmitting(false);
+              setUploadingEvidence(false);
             }
           },
         },
@@ -334,6 +381,81 @@ export default function FileDisputeScreen() {
               </Text>
             </View>
 
+            {/* Evidence Upload Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Upload Evidence (Optional)</Text>
+              <Text style={styles.evidenceSubtitle}>
+                Add screenshots or photos to support your claim. This helps us resolve your dispute faster.
+              </Text>
+
+              {/* Evidence Preview */}
+              {evidenceImages.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.evidencePreviewRow}
+                >
+                  {evidenceImages.map((image, index) => (
+                    <View key={index} style={styles.evidenceImageContainer}>
+                      <Image source={{ uri: image.uri }} style={styles.evidenceImage} />
+                      <TouchableOpacity
+                        style={styles.removeImageButton}
+                        onPress={() => removeImage(index)}
+                      >
+                        <Ionicons name="close-circle" size={24} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+
+              {/* Upload Buttons */}
+              <View style={styles.evidenceButtons}>
+                <TouchableOpacity
+                  style={styles.evidenceUploadButton}
+                  onPress={handlePickImage}
+                  disabled={evidenceImages.length >= 5}
+                >
+                  <Ionicons name="images-outline" size={22} color={evidenceImages.length >= 5 ? "#9ca3af" : "#f59e0b"} />
+                  <Text style={[styles.evidenceUploadText, evidenceImages.length >= 5 && styles.evidenceUploadTextDisabled]}>
+                    Gallery
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.evidenceUploadButton}
+                  onPress={handleTakePhoto}
+                  disabled={evidenceImages.length >= 5}
+                >
+                  <Ionicons name="camera-outline" size={22} color={evidenceImages.length >= 5 ? "#9ca3af" : "#f59e0b"} />
+                  <Text style={[styles.evidenceUploadText, evidenceImages.length >= 5 && styles.evidenceUploadTextDisabled]}>
+                    Camera
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.evidenceCount}>
+                {evidenceImages.length}/5 images added
+              </Text>
+
+              {/* Evidence Tips */}
+              <View style={styles.evidenceTips}>
+                <Text style={styles.evidenceTipsTitle}>Good evidence includes:</Text>
+                <View style={styles.evidenceTipRow}>
+                  <Ionicons name="checkmark" size={16} color="#10b981" />
+                  <Text style={styles.evidenceTipText}>Screenshots of transfer confirmations</Text>
+                </View>
+                <View style={styles.evidenceTipRow}>
+                  <Ionicons name="checkmark" size={16} color="#10b981" />
+                  <Text style={styles.evidenceTipText}>Communication with the other party</Text>
+                </View>
+                <View style={styles.evidenceTipRow}>
+                  <Ionicons name="checkmark" size={16} color="#10b981" />
+                  <Text style={styles.evidenceTipText}>Email confirmations or receipts</Text>
+                </View>
+              </View>
+            </View>
+
             {/* What Happens Next */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>What Happens Next</Text>
@@ -383,11 +505,18 @@ export default function FileDisputeScreen() {
               disabled={!selectedReason || !description.trim() || submitting}
             >
               {submitting ? (
-                <ActivityIndicator size="small" color="white" />
+                <View style={styles.submittingContent}>
+                  <ActivityIndicator size="small" color="white" />
+                  <Text style={styles.submitButtonText}>
+                    {uploadingEvidence ? "Uploading Evidence..." : "Filing Dispute..."}
+                  </Text>
+                </View>
               ) : (
                 <>
                   <Ionicons name="alert-circle" size={22} color="white" />
-                  <Text style={styles.submitButtonText}>File Dispute</Text>
+                  <Text style={styles.submitButtonText}>
+                    {evidenceImages.length > 0 ? `File Dispute with ${evidenceImages.length} Image${evidenceImages.length > 1 ? "s" : ""}` : "File Dispute"}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -644,5 +773,90 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#6b7280",
+  },
+  // Evidence Upload Styles
+  evidenceSubtitle: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  evidencePreviewRow: {
+    marginBottom: 16,
+  },
+  evidenceImageContainer: {
+    position: "relative",
+    marginRight: 12,
+  },
+  evidenceImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+  },
+  removeImageButton: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "white",
+    borderRadius: 12,
+  },
+  evidenceButtons: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
+  evidenceUploadButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#fef3c7",
+    borderRadius: 12,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  evidenceUploadText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#92400e",
+  },
+  evidenceUploadTextDisabled: {
+    color: "#9ca3af",
+  },
+  evidenceCount: {
+    fontSize: 12,
+    color: "#9ca3af",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  evidenceTips: {
+    backgroundColor: "#f0fdf4",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+  evidenceTipsTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#166534",
+    marginBottom: 8,
+  },
+  evidenceTipRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  evidenceTipText: {
+    fontSize: 13,
+    color: "#15803d",
+  },
+  submittingContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
 });

@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -45,6 +46,9 @@ export default function AdminDisputesScreen() {
   const [penaltyReason, setPenaltyReason] = useState("");
   const [suspensionDays, setSuspensionDays] = useState("7");
   const [applyingPenalty, setApplyingPenalty] = useState(false);
+
+  // Image viewer state
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   // Stats
   const [stats, setStats] = useState({
@@ -455,6 +459,41 @@ export default function AdminDisputesScreen() {
                 </View>
               </View>
 
+              {/* Evidence Section */}
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>Evidence / Proof of Transfer</Text>
+                {selectedDispute.evidence_urls && selectedDispute.evidence_urls.length > 0 ? (
+                  <View style={styles.evidenceSection}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.evidenceScrollView}
+                    >
+                      {selectedDispute.evidence_urls.map((url, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.evidenceImageWrapper}
+                          onPress={() => setSelectedImageUrl(url)}
+                        >
+                          <Image source={{ uri: url }} style={styles.evidenceImage} />
+                          <View style={styles.evidenceImageOverlay}>
+                            <Ionicons name="expand-outline" size={18} color="white" />
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                    <Text style={styles.evidenceCount}>
+                      {selectedDispute.evidence_urls.length} evidence file(s) - tap to view full size
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.noEvidenceBox}>
+                    <Ionicons name="images-outline" size={24} color="#9ca3af" />
+                    <Text style={styles.noEvidenceText}>No evidence submitted</Text>
+                  </View>
+                )}
+              </View>
+
               {/* Resolution Actions */}
               {!selectedDispute.status.startsWith("resolved_") && selectedDispute.status !== "escalated" && (
                 <View style={styles.modalSection}>
@@ -541,6 +580,30 @@ export default function AdminDisputesScreen() {
             </ScrollView>
           </View>
         )}
+      </Modal>
+
+      {/* Image Viewer Modal */}
+      <Modal
+        visible={!!selectedImageUrl}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setSelectedImageUrl(null)}
+      >
+        <View style={styles.imageViewerOverlay}>
+          <TouchableOpacity
+            style={styles.imageViewerClose}
+            onPress={() => setSelectedImageUrl(null)}
+          >
+            <Ionicons name="close" size={28} color="white" />
+          </TouchableOpacity>
+          {selectedImageUrl && (
+            <Image
+              source={{ uri: selectedImageUrl }}
+              style={styles.imageViewerImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
       </Modal>
 
       {/* Penalty Modal */}
@@ -1071,5 +1134,75 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "white",
+  },
+  // Evidence Section Styles
+  evidenceSection: {
+    marginBottom: 8,
+  },
+  evidenceScrollView: {
+    marginBottom: 8,
+  },
+  evidenceImageWrapper: {
+    position: "relative",
+    marginRight: 12,
+  },
+  evidenceImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    backgroundColor: "#e2e8f0",
+  },
+  evidenceImageOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    padding: 6,
+    alignItems: "center",
+  },
+  evidenceCount: {
+    fontSize: 12,
+    color: "#6b7280",
+    textAlign: "center",
+  },
+  noEvidenceBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  noEvidenceText: {
+    fontSize: 14,
+    color: "#9ca3af",
+  },
+  // Image Viewer Modal Styles
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  imageViewerClose: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imageViewerImage: {
+    width: "95%",
+    height: "75%",
   },
 });

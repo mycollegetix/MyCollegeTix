@@ -43,7 +43,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.mycollegetix.newapp",
-      "versionCode": 28,
+      "versionCode": 29,
       "softwareKeyboardLayoutMode": "adjustResize",
       "navigationBar": {
         "visible": "leanback",

@@ -10,12 +10,15 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Image,
+  Modal,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { DisputeService, DisputeWithDetails } from "@/src/services/disputeService";
+import DisputeProofModal from "@/src/components/DisputeProofModal";
 
 export default function DisputeStatusScreen() {
   const { disputeId } = useLocalSearchParams<{ disputeId: string }>();
@@ -25,6 +28,10 @@ export default function DisputeStatusScreen() {
   const [dispute, setDispute] = useState<DisputeWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showProofModal, setShowProofModal] = useState(false);
+  const [userRole, setUserRole] = useState<"buyer" | "seller" | null>(null);
+  const [canAddEvidence, setCanAddEvidence] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   const loadDispute = useCallback(async () => {
     if (!disputeId) return;
@@ -37,6 +44,11 @@ export default function DisputeStatusScreen() {
       }
 
       setDispute(result.data);
+
+      // Check if user can add evidence
+      const evidenceCheck = await DisputeService.canUserAddEvidence(disputeId);
+      setCanAddEvidence(evidenceCheck.canAdd);
+      setUserRole(evidenceCheck.userRole);
     } catch (err) {
       console.error("Error loading dispute:", err);
       Alert.alert("Error", "Failed to load dispute details");
@@ -55,6 +67,17 @@ export default function DisputeStatusScreen() {
     setRefreshing(true);
     loadDispute();
   }, [loadDispute]);
+
+  const handleUploadEvidence = async (proofUrl: string) => {
+    if (!dispute) return;
+
+    const result = await DisputeService.addEvidence(dispute.id, [proofUrl]);
+    if (result.success) {
+      loadDispute();
+    } else {
+      throw new Error(result.error || "Failed to add evidence");
+    }
+  };
 
   const getStatusInfo = (status: string) => {
     return DisputeService.getDisputeStatusInfo(status);
@@ -243,17 +266,62 @@ export default function DisputeStatusScreen() {
           </View>
 
           {/* Evidence Section */}
-          {dispute.evidence_urls && dispute.evidence_urls.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Evidence Submitted</Text>
-              <View style={styles.evidenceCard}>
-                <Ionicons name="images-outline" size={24} color="#6b7280" />
-                <Text style={styles.evidenceText}>
-                  {dispute.evidence_urls.length} file(s) submitted
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Evidence</Text>
+
+            {dispute.evidence_urls && dispute.evidence_urls.length > 0 ? (
+              <View style={styles.evidenceContainer}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.evidenceScroll}
+                >
+                  {dispute.evidence_urls.map((url, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.evidenceImageContainer}
+                      onPress={() => setSelectedImageUrl(url)}
+                    >
+                      <Image source={{ uri: url }} style={styles.evidenceImage} />
+                      <View style={styles.evidenceImageOverlay}>
+                        <Ionicons name="expand-outline" size={18} color="white" />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                <Text style={styles.evidenceCountText}>
+                  {dispute.evidence_urls.length} file(s) submitted - tap to view
                 </Text>
               </View>
-            </View>
-          )}
+            ) : (
+              <View style={styles.noEvidenceCard}>
+                <Ionicons name="images-outline" size={24} color="#9ca3af" />
+                <Text style={styles.noEvidenceText}>No evidence submitted yet</Text>
+              </View>
+            )}
+
+            {/* Add Evidence Button */}
+            {canAddEvidence && userRole && (
+              <TouchableOpacity
+                style={styles.addEvidenceButton}
+                onPress={() => setShowProofModal(true)}
+              >
+                <Ionicons name="add-circle-outline" size={22} color="#f59e0b" />
+                <Text style={styles.addEvidenceButtonText}>
+                  Add Proof of Transfer
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {!canAddEvidence && !isResolved && userRole && (
+              <View style={styles.cantAddNote}>
+                <Ionicons name="information-circle-outline" size={16} color="#6b7280" />
+                <Text style={styles.cantAddNoteText}>
+                  Evidence can only be added while dispute is open
+                </Text>
+              </View>
+            )}
+          </View>
 
           {/* Actions */}
           <TouchableOpacity
@@ -273,6 +341,42 @@ export default function DisputeStatusScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Evidence Upload Modal */}
+      {dispute && userRole && (
+        <DisputeProofModal
+          visible={showProofModal}
+          onClose={() => setShowProofModal(false)}
+          onUpload={handleUploadEvidence}
+          orderId={dispute.order.id}
+          userRole={userRole}
+          existingEvidence={dispute.evidence_urls || []}
+        />
+      )}
+
+      {/* Image Viewer Modal */}
+      <Modal
+        visible={!!selectedImageUrl}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setSelectedImageUrl(null)}
+      >
+        <View style={styles.imageViewerOverlay}>
+          <TouchableOpacity
+            style={styles.imageViewerClose}
+            onPress={() => setSelectedImageUrl(null)}
+          >
+            <Ionicons name="close" size={28} color="white" />
+          </TouchableOpacity>
+          {selectedImageUrl && (
+            <Image
+              source={{ uri: selectedImageUrl }}
+              style={styles.imageViewerImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -474,17 +578,99 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#1e293b",
   },
-  evidenceCard: {
+  evidenceContainer: {
+    marginBottom: 12,
+  },
+  evidenceScroll: {
+    marginBottom: 8,
+  },
+  evidenceImageContainer: {
+    position: "relative",
+    marginRight: 12,
+  },
+  evidenceImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    backgroundColor: "#e2e8f0",
+  },
+  evidenceImageOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    padding: 4,
+    alignItems: "center",
+  },
+  evidenceCountText: {
+    fontSize: 12,
+    color: "#6b7280",
+    textAlign: "center",
+  },
+  noEvidenceCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#f8fafc",
     borderRadius: 12,
     padding: 16,
     gap: 12,
+    marginBottom: 12,
   },
-  evidenceText: {
+  noEvidenceText: {
     fontSize: 14,
+    color: "#9ca3af",
+  },
+  addEvidenceButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#fef3c7",
+    borderRadius: 12,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  addEvidenceButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#92400e",
+  },
+  cantAddNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+  },
+  cantAddNoteText: {
+    fontSize: 12,
     color: "#6b7280",
+  },
+  // Image Viewer Modal Styles
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  imageViewerClose: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imageViewerImage: {
+    width: "90%",
+    height: "70%",
   },
   viewOrderButton: {
     flexDirection: "row",

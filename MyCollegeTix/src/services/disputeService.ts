@@ -109,22 +109,35 @@ export class DisputeService {
         error: paymentError?.message,
       });
 
-      // escrow_payment_id is now nullable - we can proceed without it
-      const escrowPaymentId = escrowPayment?.id || null;
+      // Build dispute data - escrow_payment_id is required by types but may not exist yet
+      const disputeData: {
+        order_id: string;
+        escrow_payment_id?: string;
+        filed_by: string;
+        filed_by_role: string;
+        reason: string;
+        description: string | null;
+        evidence_urls: string[];
+        status: string;
+      } = {
+        order_id: params.orderId,
+        filed_by: user.id,
+        filed_by_role: filedByRole,
+        reason: params.reason,
+        description: params.description || null,
+        evidence_urls: params.evidenceUrls || [],
+        status: "open",
+      };
+
+      // Only include escrow_payment_id if we have one
+      if (escrowPayment?.id) {
+        disputeData.escrow_payment_id = escrowPayment.id;
+      }
 
       // Create the dispute
       const { data: dispute, error: createError } = await supabase
         .from("escrow_disputes")
-        .insert({
-          order_id: params.orderId,
-          escrow_payment_id: escrowPaymentId, // Can be null
-          filed_by: user.id,
-          filed_by_role: filedByRole,
-          reason: params.reason,
-          description: params.description || null,
-          evidence_urls: params.evidenceUrls || [],
-          status: "open",
-        })
+        .insert(disputeData as any)
         .select()
         .single();
 
@@ -145,11 +158,11 @@ export class DisputeService {
         .eq("order_id", params.orderId);
 
       // Update escrow payment status if we have the ID
-      if (escrowPaymentId) {
+      if (escrowPayment?.id) {
         await supabase
           .from("escrow_payments")
           .update({ status: "disputed" })
-          .eq("id", escrowPaymentId);
+          .eq("id", escrowPayment.id);
       } else {
         // Update by order_id as fallback
         await supabase
@@ -171,7 +184,7 @@ export class DisputeService {
   }
 
   /**
-   * Add evidence to an existing dispute
+   * Add evidence to an existing dispute (either party can add)
    */
   static async addEvidence(
     disputeId: string,
@@ -185,10 +198,10 @@ export class DisputeService {
         return { data: null, error: "User not authenticated", success: false };
       }
 
-      // Get dispute and verify ownership
+      // Get dispute with order info to verify user is a party
       const { data: dispute, error: getError } = await supabase
         .from("escrow_disputes")
-        .select("*")
+        .select("*, order:orders(buyer_id, seller_id)")
         .eq("id", disputeId)
         .single();
 
@@ -196,8 +209,12 @@ export class DisputeService {
         return { data: null, error: "Dispute not found", success: false };
       }
 
-      if (dispute.filed_by !== user.id) {
-        return { data: null, error: "Only the dispute creator can add evidence", success: false };
+      // Allow both buyer and seller to add evidence
+      const isBuyer = dispute.order?.buyer_id === user.id;
+      const isSeller = dispute.order?.seller_id === user.id;
+
+      if (!isBuyer && !isSeller) {
+        return { data: null, error: "Only parties involved in this order can add evidence", success: false };
       }
 
       if (dispute.status !== "open" && dispute.status !== "under_review") {
@@ -226,6 +243,79 @@ export class DisputeService {
         error: error instanceof Error ? error.message : "Unknown error",
         success: false,
       };
+    }
+  }
+
+  /**
+   * Add evidence by order ID (for when user doesn't have dispute ID yet)
+   */
+  static async addEvidenceByOrderId(
+    orderId: string,
+    evidenceUrls: string[]
+  ): Promise<ServiceResponse<EscrowDispute>> {
+    try {
+      console.log("📷 Adding evidence to dispute for order:", orderId);
+
+      // First find the dispute for this order
+      const { data: dispute } = await supabase
+        .from("escrow_disputes")
+        .select("id")
+        .eq("order_id", orderId)
+        .in("status", ["open", "under_review"])
+        .single();
+
+      if (!dispute) {
+        return { data: null, error: "No active dispute found for this order", success: false };
+      }
+
+      return this.addEvidence(dispute.id, evidenceUrls);
+    } catch (error) {
+      return {
+        data: null,
+        error: error instanceof Error ? error.message : "Unknown error",
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Check if user can add evidence to a dispute
+   */
+  static async canUserAddEvidence(disputeId: string): Promise<{
+    canAdd: boolean;
+    userRole: "buyer" | "seller" | null;
+    reason?: string;
+  }> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return { canAdd: false, userRole: null, reason: "Not authenticated" };
+      }
+
+      const { data: dispute } = await supabase
+        .from("escrow_disputes")
+        .select("status, order:orders(buyer_id, seller_id)")
+        .eq("id", disputeId)
+        .single();
+
+      if (!dispute) {
+        return { canAdd: false, userRole: null, reason: "Dispute not found" };
+      }
+
+      const isBuyer = dispute.order?.buyer_id === user.id;
+      const isSeller = dispute.order?.seller_id === user.id;
+
+      if (!isBuyer && !isSeller) {
+        return { canAdd: false, userRole: null, reason: "Not a party to this dispute" };
+      }
+
+      if (dispute.status !== "open" && dispute.status !== "under_review") {
+        return { canAdd: false, userRole: isBuyer ? "buyer" : "seller", reason: "Dispute is already resolved" };
+      }
+
+      return { canAdd: true, userRole: isBuyer ? "buyer" : "seller" };
+    } catch {
+      return { canAdd: false, userRole: null, reason: "Unknown error" };
     }
   }
 
