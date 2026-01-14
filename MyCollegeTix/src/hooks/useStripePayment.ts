@@ -250,9 +250,11 @@ export function useStripePayment() {
   /**
    * Mark transfer as sent (seller action)
    * Called when seller has transferred the ticket on their end
+   * @param orderId - The order ID
+   * @param proofUrl - Optional URL to transfer proof image
    */
   const markTransferSent = useCallback(
-    async (orderId: string): Promise<{ success: boolean; error?: string }> => {
+    async (orderId: string, proofUrl?: string): Promise<{ success: boolean; error?: string }> => {
       if (!user) {
         return { success: false, error: "You must be logged in" };
       }
@@ -269,7 +271,7 @@ export function useStripePayment() {
         const { data, error: fnError } = await supabase.functions.invoke(
           "mark-transfer-sent",
           {
-            body: { orderId },
+            body: { orderId, proofUrl },
             headers: {
               Authorization: `Bearer ${session.access_token}`,
             },

@@ -22,6 +22,8 @@ import { usePendingOrders } from "@/src/hooks/usePendingOrders";
 import { EscrowService } from "@/src/services/escrowService";
 import { supabase } from "@/src/lib/supabase";
 import SellerRatingModal, { SellerRatingData } from "@/src/components/SellerRatingModal";
+import TransferProofModal from "@/src/components/TransferProofModal";
+import { TransferProofService } from "@/src/services/transferProofService";
 
 interface OrderDetails {
   id: string;
@@ -68,6 +70,7 @@ export default function OrderStatusScreen() {
   const { confirmReceipt, markTransferSent, isLoading: paymentLoading } = useStripePayment();
   const { refresh: refreshPendingOrders } = usePendingOrders();
   const [markingTransfer, setMarkingTransfer] = useState(false);
+  const [transferProofModalVisible, setTransferProofModalVisible] = useState(false);
 
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -309,35 +312,54 @@ export default function OrderStatusScreen() {
     router.push(`/dispute/${order.id}`);
   };
 
-  const handleMarkTransferSent = async () => {
+  // Open the transfer proof modal
+  const handleMarkTransferSent = () => {
+    console.log("🔵 handleMarkTransferSent called, order:", !!order);
+    if (!order) return;
+    console.log("🔵 Setting transferProofModalVisible to true");
+    setTransferProofModalVisible(true);
+  };
+
+  // Called when user confirms transfer (with or without proof)
+  const handleConfirmTransferWithProof = async (proofImageUri: string | null) => {
     if (!order) return;
 
-    Alert.alert(
-      "Confirm Transfer",
-      "Have you transferred the ticket to the buyer? This will notify them to check their email or ticketing app.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes, I've Transferred It",
-          onPress: async () => {
-            setMarkingTransfer(true);
-            const result = await markTransferSent(order.id);
-            setMarkingTransfer(false);
+    setMarkingTransfer(true);
+    try {
+      let proofUrl: string | undefined;
 
-            if (result.success) {
-              Alert.alert(
-                "Success",
-                "Transfer marked as sent! The buyer has been notified to check for the ticket."
-              );
-              loadOrder();
-              refreshPendingOrders();
-            } else {
-              Alert.alert("Error", result.error || "Failed to mark transfer");
-            }
-          },
-        },
-      ]
-    );
+      // If user provided an image, upload it first
+      if (proofImageUri) {
+        const uploadResult = await TransferProofService.uploadProof(order.id, proofImageUri);
+        if (uploadResult.success && uploadResult.url) {
+          proofUrl = uploadResult.url;
+        } else {
+          // Upload failed but don't block the transfer - just warn
+          console.warn("Proof upload failed:", uploadResult.error);
+        }
+      }
+
+      // Mark transfer as sent (with or without proof URL)
+      const result = await markTransferSent(order.id, proofUrl);
+
+      if (result.success) {
+        setTransferProofModalVisible(false);
+        Alert.alert(
+          "Success",
+          proofUrl
+            ? "Transfer marked as sent with proof! The buyer has been notified."
+            : "Transfer marked as sent! The buyer has been notified to check for the ticket."
+        );
+        loadOrder();
+        refreshPendingOrders();
+      } else {
+        Alert.alert("Error", result.error || "Failed to mark transfer");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Something went wrong. Please try again.");
+    } finally {
+      setMarkingTransfer(false);
+    }
   };
 
   const getStatusInfo = (escrowStatus: string) => {
@@ -921,6 +943,18 @@ export default function OrderStatusScreen() {
           primaryColor={theme.primary}
           secondaryColor={theme.secondary}
           isSellerRatingBuyer={pendingRatingPrompt?.prompt_type === 'seller_rate_buyer'}
+        />
+      )}
+
+      {/* Transfer Proof Modal - shown when seller marks transfer */}
+      {order && (
+        <TransferProofModal
+          visible={transferProofModalVisible}
+          onClose={() => setTransferProofModalVisible(false)}
+          onConfirm={handleConfirmTransferWithProof}
+          ticketTitle={order.ticket.title}
+          buyerName={order.buyer.full_name}
+          primaryColor={theme.primary}
         />
       )}
     </View>

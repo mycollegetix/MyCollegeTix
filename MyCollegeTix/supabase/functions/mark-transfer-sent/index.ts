@@ -11,6 +11,7 @@ const corsHeaders = {
 
 interface MarkTransferSentRequest {
   orderId: string
+  proofUrl?: string  // Optional transfer proof image URL
 }
 
 // @ts-ignore: Deno global
@@ -50,11 +51,13 @@ Deno.serve(async (req: Request) => {
       throw new Error('Unauthorized')
     }
 
-    const { orderId } = await req.json() as MarkTransferSentRequest
+    const { orderId, proofUrl } = await req.json() as MarkTransferSentRequest
 
     if (!orderId) {
       throw new Error('Order ID is required')
     }
+
+    console.log(`📝 Mark transfer sent - Order: ${orderId}, Has proof: ${!!proofUrl}`)
 
     // Get order with related data
     const { data: order, error: orderError } = await supabase
@@ -77,13 +80,20 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Cannot mark transfer. Order status: ${order.escrow_status}`)
     }
 
-    // Update ticket transfer status
+    // Update ticket transfer status with optional proof URL
+    const transferUpdateData: Record<string, any> = {
+      status: 'sent',
+      transfer_initiated_at: new Date().toISOString(),
+    }
+
+    if (proofUrl) {
+      transferUpdateData.transfer_proof_url = proofUrl
+      console.log(`📸 Transfer proof attached`)
+    }
+
     const { error: transferError } = await supabase
       .from('ticket_transfers')
-      .update({
-        status: 'sent',
-        transfer_initiated_at: new Date().toISOString(),
-      })
+      .update(transferUpdateData)
       .eq('order_id', orderId)
 
     if (transferError) {

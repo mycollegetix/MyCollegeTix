@@ -37,6 +37,8 @@ import TicketEditModal, {
 } from "@/src/components/TicketEditModal";
 import { TicketSaleService } from "@/src/services/ticketSaleService";
 import { useStripePayment } from "@/src/hooks/useStripePayment";
+import TransferProofModal from "@/src/components/TransferProofModal";
+import { TransferProofService } from "@/src/services/transferProofService";
 
 type OrderType = "selling" | "bought" | "watchlist";
 
@@ -180,6 +182,10 @@ export default function TicketsScreen() {
   const [markingTransferId, setMarkingTransferId] = useState<string | null>(
     null
   );
+
+  // Transfer proof modal state
+  const [transferProofModalVisible, setTransferProofModalVisible] = useState(false);
+  const [selectedItemForTransfer, setSelectedItemForTransfer] = useState<OrderItem | null>(null);
 
   // Filter options for segmented control
   const filterOptions: FilterOption[] = [
@@ -1341,48 +1347,64 @@ export default function TicketsScreen() {
     );
   };
 
-  // Mark ticket as transferred (for sellers)
-  const handleMarkTransferSent = async (item: OrderItem) => {
+  // Mark ticket as transferred (for sellers) - opens proof modal
+  const handleMarkTransferSent = (item: OrderItem) => {
+    console.log("🔵 handleMarkTransferSent called from tickets.tsx");
     if (!item.escrow_order_id) {
       Alert.alert("Error", "Order information not found");
       return;
     }
+    console.log("🔵 Opening transfer proof modal for order:", item.escrow_order_id);
+    setSelectedItemForTransfer(item);
+    setTransferProofModalVisible(true);
+  };
 
-    Alert.alert(
-      "Confirm Transfer",
-      "Have you transferred the ticket to the buyer? This will notify them to check their email or ticketing app.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes, I've Transferred It",
-          style: "default",
-          onPress: async () => {
-            setMarkingTransferId(item.escrow_order_id!);
-            try {
-              const result = await markTransferSent(item.escrow_order_id!);
+  // Called when user confirms transfer from the proof modal
+  const handleConfirmTransferWithProof = async (proofImageUri: string | null) => {
+    console.log("🔵 handleConfirmTransferWithProof called, proofImageUri:", !!proofImageUri);
+    if (!selectedItemForTransfer?.escrow_order_id) return;
 
-              if (result.success) {
-                Alert.alert(
-                  "Transfer Marked!",
-                  "The buyer has been notified to check for the ticket.",
-                  [{ text: "OK", onPress: () => loadData() }]
-                );
-              } else {
-                Alert.alert("Error", result.error || "Failed to mark transfer");
-              }
-            } catch (error) {
-              console.error("Error marking transfer:", error);
-              Alert.alert(
-                "Error",
-                "Failed to mark transfer. Please try again."
-              );
-            } finally {
-              setMarkingTransferId(null);
-            }
-          },
-        },
-      ]
-    );
+    setMarkingTransferId(selectedItemForTransfer.escrow_order_id);
+    try {
+      let proofUrl: string | undefined;
+
+      // If user provided an image, upload it first
+      if (proofImageUri) {
+        console.log("🔵 Uploading proof image...");
+        const uploadResult = await TransferProofService.uploadProof(
+          selectedItemForTransfer.escrow_order_id,
+          proofImageUri
+        );
+        if (uploadResult.success && uploadResult.url) {
+          proofUrl = uploadResult.url;
+          console.log("🔵 Proof uploaded successfully");
+        } else {
+          console.warn("Proof upload failed:", uploadResult.error);
+        }
+      }
+
+      // Mark transfer as sent
+      const result = await markTransferSent(selectedItemForTransfer.escrow_order_id, proofUrl);
+
+      if (result.success) {
+        setTransferProofModalVisible(false);
+        setSelectedItemForTransfer(null);
+        Alert.alert(
+          "Transfer Marked!",
+          proofUrl
+            ? "The buyer has been notified. Your proof has been saved."
+            : "The buyer has been notified to check for the ticket.",
+          [{ text: "OK", onPress: () => loadData() }]
+        );
+      } else {
+        Alert.alert("Error", result.error || "Failed to mark transfer");
+      }
+    } catch (error) {
+      console.error("Error marking transfer:", error);
+      Alert.alert("Error", "Failed to mark transfer. Please try again.");
+    } finally {
+      setMarkingTransferId(null);
+    }
   };
 
   const formatSaleDate = (dateString: string) => {
@@ -2923,6 +2945,21 @@ export default function TicketsScreen() {
           primaryColor={profile?.college?.primary_color || "#18453b"}
           secondaryColor={profile?.college?.secondary_color || "#ffd700"}
           isSellerRatingBuyer={true}
+        />
+      )}
+
+      {/* Transfer Proof Modal - for seller to upload proof when marking transfer */}
+      {selectedItemForTransfer && (
+        <TransferProofModal
+          visible={transferProofModalVisible}
+          onClose={() => {
+            setTransferProofModalVisible(false);
+            setSelectedItemForTransfer(null);
+          }}
+          onConfirm={handleConfirmTransferWithProof}
+          ticketTitle={selectedItemForTransfer.title}
+          buyerName={selectedItemForTransfer.buyer_name || "Buyer"}
+          primaryColor={profile?.college?.primary_color || "#18453b"}
         />
       )}
     </View>
