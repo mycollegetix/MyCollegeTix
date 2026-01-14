@@ -74,6 +74,12 @@ export default function OrderStatusScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [ratingModalVisible, setRatingModalVisible] = useState(false);
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [pendingRatingPrompt, setPendingRatingPrompt] = useState<{
+    id: string;
+    ratee_id: string;
+    ratee_name: string;
+    prompt_type: string;
+  } | null>(null);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
@@ -179,6 +185,45 @@ export default function OrderStatusScreen() {
     loadOrder();
   }, [loadOrder]);
 
+  // Check for pending rating prompts (for seller to rate buyer)
+  useEffect(() => {
+    const checkPendingRatingPrompt = async () => {
+      if (!order || !user) return;
+
+      // Only check for sellers - buyers get modal immediately after confirm
+      const isSeller = order.seller_id === user.id;
+      if (!isSeller) return;
+
+      try {
+        const { data: prompt } = await supabase
+          .from("rating_prompts")
+          .select("id, ratee_id, prompt_type")
+          .eq("ticket_sale_id", order.id)
+          .eq("prompter_id", user.id)
+          .eq("status", "pending")
+          .single();
+
+        if (prompt) {
+          setPendingRatingPrompt({
+            id: prompt.id,
+            ratee_id: prompt.ratee_id,
+            ratee_name: order.buyer.full_name,
+            prompt_type: prompt.prompt_type,
+          });
+          // Show modal after a short delay
+          setTimeout(() => setRatingModalVisible(true), 500);
+        }
+      } catch (err) {
+        // No pending prompt, that's fine
+      }
+    };
+
+    // Only check if order is completed
+    if (order?.escrow_status === "completed") {
+      checkPendingRatingPrompt();
+    }
+  }, [order, user]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadOrder();
@@ -214,13 +259,17 @@ export default function OrderStatusScreen() {
   const handleSubmitRating = async (ratingData: SellerRatingData) => {
     if (!order || !user) return;
 
+    const isSeller = order.seller_id === user.id;
+    const ratedUserId = pendingRatingPrompt?.ratee_id || order.seller_id;
+    const transactionType = isSeller ? "selling" : "buying";
+
     setSubmittingRating(true);
     try {
       const { error } = await supabase.from("user_ratings").insert({
         rater_id: user.id,
-        rated_user_id: order.seller_id,
+        rated_user_id: ratedUserId,
         ticket_sale_id: order.id,
-        transaction_type: "buying",
+        transaction_type: transactionType,
         rating: ratingData.rating,
         review_text: ratingData.review || null,
       });
@@ -228,13 +277,25 @@ export default function OrderStatusScreen() {
       if (error) {
         console.error("Error submitting rating:", error);
         Alert.alert("Error", "Failed to submit rating. Please try again.");
-      } else {
-        setRatingModalVisible(false);
-        Alert.alert(
-          "Thank You!",
-          "Your rating has been submitted. Enjoy the event!"
-        );
+        return;
       }
+
+      // Mark rating prompt as completed if this was from a prompt
+      if (pendingRatingPrompt) {
+        await supabase
+          .from("rating_prompts")
+          .update({ status: "completed", completed_at: new Date().toISOString() })
+          .eq("id", pendingRatingPrompt.id);
+        setPendingRatingPrompt(null);
+      }
+
+      setRatingModalVisible(false);
+      Alert.alert(
+        "Thank You!",
+        isSeller
+          ? "Your rating for the buyer has been submitted."
+          : "Your rating has been submitted. Enjoy the event!"
+      );
     } catch (error) {
       console.error("Error submitting rating:", error);
       Alert.alert("Error", "Failed to submit rating. Please try again.");
@@ -835,20 +896,31 @@ export default function OrderStatusScreen() {
         </BlurView>
       )}
 
-      {/* Rating Modal - shown after buyer confirms receipt */}
+      {/* Rating Modal - shown after buyer confirms receipt OR seller visits completed order */}
       {order && (
         <SellerRatingModal
           visible={ratingModalVisible}
-          onClose={() => setRatingModalVisible(false)}
+          onClose={() => {
+            setRatingModalVisible(false);
+            // If dismissing a seller prompt, mark as dismissed
+            if (pendingRatingPrompt) {
+              supabase
+                .from("rating_prompts")
+                .update({ status: "dismissed" })
+                .eq("id", pendingRatingPrompt.id);
+              setPendingRatingPrompt(null);
+            }
+          }}
           onConfirmRating={handleSubmitRating}
           ticket={{
             id: order.ticket.id,
             title: order.ticket.title,
-            seller_name: order.seller.full_name,
+            seller_name: pendingRatingPrompt?.ratee_name || order.seller.full_name,
           }}
           isLoading={submittingRating}
           primaryColor={theme.primary}
           secondaryColor={theme.secondary}
+          isSellerRatingBuyer={pendingRatingPrompt?.prompt_type === 'seller_rate_buyer'}
         />
       )}
     </View>

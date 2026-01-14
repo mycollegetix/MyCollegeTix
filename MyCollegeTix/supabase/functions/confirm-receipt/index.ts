@@ -193,6 +193,23 @@ Deno.serve(async (req: Request) => {
       })
 
     console.log(`📬 Notification sent to seller ${order.seller_id}`)
+
+    // Create rating prompt for seller to rate buyer
+    const { error: ratingPromptError } = await supabase
+      .from('rating_prompts')
+      .insert({
+        ticket_sale_id: orderId,
+        prompter_id: order.seller_id,
+        ratee_id: order.buyer_id,
+        prompt_type: 'seller_rate_buyer',
+        status: 'pending',
+      })
+
+    if (ratingPromptError) {
+      console.error(`❌ Failed to create rating prompt:`, ratingPromptError)
+    } else {
+      console.log(`⭐ Rating prompt created for seller to rate buyer`)
+    }
     console.log(`✅ Receipt confirmed for order ${orderId}, transfer ${transfer.id} sent to seller`)
 
     return new Response(

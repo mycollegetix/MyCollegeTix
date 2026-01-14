@@ -141,12 +141,24 @@ export default function TicketsScreen() {
     useState<OrderItem | null>(null);
   const [savingSale, setSavingSale] = useState(false);
 
-  // Seller rating modal state
+  // Seller rating modal state (for buyer rating seller)
   const [sellerRatingModalVisible, setSellerRatingModalVisible] =
     useState(false);
   const [selectedTicketForRating, setSelectedTicketForRating] =
     useState<OrderItem | null>(null);
   const [savingRating, setSavingRating] = useState(false);
+
+  // Seller rating prompt state (for seller rating buyer)
+  const [pendingSellerRatingPrompt, setPendingSellerRatingPrompt] = useState<{
+    id: string;
+    order_id: string;
+    ratee_id: string;
+    ratee_name: string;
+    ticket_title: string;
+  } | null>(null);
+  const [sellerRatingBuyerModalVisible, setSellerRatingBuyerModalVisible] =
+    useState(false);
+  const [savingSellerRating, setSavingSellerRating] = useState(false);
 
   // Dropdown states for collapsible sections
   const [pendingTransfersExpanded, setPendingTransfersExpanded] =
@@ -223,6 +235,65 @@ export default function TicketsScreen() {
       setSellerRatingModalVisible(true);
     }
   };
+
+  // Check for pending rating prompts for sellers (seller rates buyer)
+  const checkForSellerRatingPrompts = async () => {
+    if (!user) return;
+
+    try {
+      // Query rating_prompts for pending prompts where this user is the prompter
+      const { data: prompts, error } = await supabase
+        .from("rating_prompts")
+        .select(`
+          id,
+          ticket_sale_id,
+          ratee_id,
+          prompt_type
+        `)
+        .eq("prompter_id", user.id)
+        .eq("prompt_type", "seller_rate_buyer")
+        .eq("status", "pending")
+        .limit(1)
+        .single();
+
+      if (error || !prompts) {
+        // No pending prompts
+        return;
+      }
+
+      // Get the order details to show in the modal
+      const { data: order } = await supabase
+        .from("orders")
+        .select(`
+          id,
+          buyer:profiles!orders_buyer_id_fkey(full_name),
+          ticket:tickets!orders_ticket_id_fkey(title)
+        `)
+        .eq("id", prompts.ticket_sale_id)
+        .single();
+
+      if (order) {
+        setPendingSellerRatingPrompt({
+          id: prompts.id,
+          order_id: order.id,
+          ratee_id: prompts.ratee_id,
+          ratee_name: order.buyer?.full_name || "Buyer",
+          ticket_title: order.ticket?.title || "Ticket",
+        });
+        // Show modal after a short delay
+        setTimeout(() => setSellerRatingBuyerModalVisible(true), 500);
+      }
+    } catch (err) {
+      console.log("No pending seller rating prompts");
+    }
+  };
+
+  // Check for seller rating prompts when component mounts or tab changes to selling
+  useEffect(() => {
+    if (user && activeTab === "selling") {
+      checkForSellerRatingPrompts();
+    }
+  }, [user, activeTab]);
 
   const loadData = async () => {
     if (!user) return;
@@ -1064,6 +1135,44 @@ export default function TicketsScreen() {
       Alert.alert("Error", "Failed to submit rating. Please try again.");
     } finally {
       setSavingRating(false);
+    }
+  };
+
+  // Handle seller rating buyer submission (from rating_prompts)
+  const handleConfirmSellerRatingBuyer = async (ratingData: SellerRatingData) => {
+    if (!pendingSellerRatingPrompt || !user) return;
+
+    setSavingSellerRating(true);
+    try {
+      // Submit rating to database
+      const { error } = await supabase.from("user_ratings").insert({
+        rater_id: user.id,
+        rated_user_id: pendingSellerRatingPrompt.ratee_id,
+        ticket_sale_id: pendingSellerRatingPrompt.order_id,
+        transaction_type: "selling" as const,
+        rating: ratingData.rating,
+        review_text: ratingData.review || null,
+      });
+
+      if (error) throw error;
+
+      // Mark the rating prompt as completed
+      await supabase
+        .from("rating_prompts")
+        .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq("id", pendingSellerRatingPrompt.id);
+
+      Alert.alert("Thank You!", "Your rating for the buyer has been submitted.");
+      setSellerRatingBuyerModalVisible(false);
+      setPendingSellerRatingPrompt(null);
+
+      // Check for more pending prompts
+      setTimeout(() => checkForSellerRatingPrompts(), 500);
+    } catch (error) {
+      console.error("Error submitting buyer rating:", error);
+      Alert.alert("Error", "Failed to submit rating. Please try again.");
+    } finally {
+      setSavingSellerRating(false);
     }
   };
 
@@ -2788,6 +2897,32 @@ export default function TicketsScreen() {
           isLoading={savingRating}
           primaryColor={profile?.college?.primary_color || "#18453b"}
           secondaryColor={profile?.college?.secondary_color || "#ffd700"}
+        />
+      )}
+
+      {/* Seller Rating Buyer Modal - for seller to rate buyer after transaction */}
+      {pendingSellerRatingPrompt && (
+        <SellerRatingModal
+          visible={sellerRatingBuyerModalVisible}
+          onClose={() => {
+            setSellerRatingBuyerModalVisible(false);
+            // Mark as dismissed if closing without rating
+            supabase
+              .from("rating_prompts")
+              .update({ status: "dismissed" })
+              .eq("id", pendingSellerRatingPrompt.id);
+            setPendingSellerRatingPrompt(null);
+          }}
+          onConfirmRating={handleConfirmSellerRatingBuyer}
+          ticket={{
+            id: pendingSellerRatingPrompt.order_id,
+            title: pendingSellerRatingPrompt.ticket_title,
+            seller_name: pendingSellerRatingPrompt.ratee_name,
+          }}
+          isLoading={savingSellerRating}
+          primaryColor={profile?.college?.primary_color || "#18453b"}
+          secondaryColor={profile?.college?.secondary_color || "#ffd700"}
+          isSellerRatingBuyer={true}
         />
       )}
     </View>
