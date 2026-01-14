@@ -819,22 +819,22 @@ export default function OrderStatusScreen() {
                     ? "You confirmed receipt of your ticket. The payment has been released to the seller. Enjoy the event!"
                     : "The buyer confirmed receipt. Payment has been sent to your account!"}
                 </Text>
+                <TouchableOpacity
+                  style={[styles.goToTicketsButton, { backgroundColor: theme.primary }]}
+                  onPress={() =>
+                    router.replace(
+                      isSeller
+                        ? "/(tabs)/tickets?tab=selling" as any
+                        : "/(tabs)/tickets?tab=bought" as any
+                    )
+                  }
+                >
+                  <Ionicons name={isSeller ? "storefront-outline" : "ticket-outline"} size={20} color="white" />
+                  <Text style={styles.goToTicketsButtonText}>
+                    {isSeller ? "Back to My Listings" : "View My Tickets"}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={styles.viewTicketsButton}
-                onPress={() =>
-                  router.replace(
-                    isSeller
-                      ? "/(tabs)/tickets?tab=selling" as any
-                      : "/(tabs)/tickets?tab=bought" as any
-                  )
-                }
-              >
-                <Ionicons name={isSeller ? "storefront-outline" : "ticket-outline"} size={20} color="#3b82f6" />
-                <Text style={styles.viewTicketsButtonText}>
-                  {isSeller ? "Back to My Listings" : "View My Tickets"}
-                </Text>
-              </TouchableOpacity>
             </View>
           )}
 
@@ -1286,6 +1286,26 @@ const styles = StyleSheet.create({
     color: "#047857",
     textAlign: "center",
     lineHeight: 20,
+  },
+  goToTicketsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    marginTop: 20,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  goToTicketsButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "white",
   },
   viewTicketsButton: {
     flexDirection: "row",
