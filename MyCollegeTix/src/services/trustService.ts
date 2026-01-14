@@ -111,7 +111,7 @@ export class TrustService {
   }
 
   /**
-   * Get user's rating statistics
+   * Get user's rating statistics (with penalty adjustments applied)
    */
   static async getUserRatingStats(
     userId: string
@@ -120,6 +120,8 @@ export class TrustService {
     data?: {
       totalRatings: number;
       averageRating: number;
+      baseRating: number;
+      ratingAdjustment: number;
       ratingBreakdown: { [key: number]: number };
     };
     error?: string;
@@ -129,21 +131,35 @@ export class TrustService {
         return { success: false, error: 'User ID is required' };
       }
 
-      const { data, error } = await supabase
-        .from('user_ratings')
-        .select('rating')
-        .eq('rated_user_id', userId);
+      // Fetch ratings and profile adjustment in parallel
+      const [ratingsResult, profileResult] = await Promise.all([
+        supabase
+          .from('user_ratings')
+          .select('rating')
+          .eq('rated_user_id', userId),
+        supabase
+          .from('profiles')
+          .select('seller_rating_adjustment')
+          .eq('id', userId)
+          .single(),
+      ]);
 
-      if (error) {
-        console.error('Error fetching user rating stats:', error);
-        return { success: false, error: error.message };
+      if (ratingsResult.error) {
+        console.error('Error fetching user rating stats:', ratingsResult.error);
+        return { success: false, error: ratingsResult.error.message };
       }
 
-      const ratings = data || [];
+      const ratings = ratingsResult.data || [];
       const totalRatings = ratings.length;
-      const averageRating = totalRatings > 0 
-        ? ratings.reduce((sum, r) => sum + r.rating, 0) / totalRatings 
+      const baseRating = totalRatings > 0
+        ? ratings.reduce((sum, r) => sum + r.rating, 0) / totalRatings
         : 0;
+
+      // Get rating adjustment from profile (penalties reduce rating)
+      const ratingAdjustment = profileResult.data?.seller_rating_adjustment || 0;
+
+      // Apply adjustment and clamp between 0-5
+      const adjustedRating = Math.max(0, Math.min(5, baseRating + ratingAdjustment));
 
       // Create rating breakdown (1-5 stars)
       const ratingBreakdown: { [key: number]: number } = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -157,7 +173,9 @@ export class TrustService {
         success: true,
         data: {
           totalRatings,
-          averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
+          averageRating: Math.round(adjustedRating * 10) / 10, // Adjusted rating
+          baseRating: Math.round(baseRating * 10) / 10,
+          ratingAdjustment,
           ratingBreakdown,
         },
       };

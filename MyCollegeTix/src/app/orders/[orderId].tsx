@@ -21,6 +21,7 @@ import { useStripePayment } from "@/src/hooks/useStripePayment";
 import { usePendingOrders } from "@/src/hooks/usePendingOrders";
 import { EscrowService } from "@/src/services/escrowService";
 import { supabase } from "@/src/lib/supabase";
+import SellerRatingModal, { SellerRatingData } from "@/src/components/SellerRatingModal";
 
 interface OrderDetails {
   id: string;
@@ -71,6 +72,8 @@ export default function OrderStatusScreen() {
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
@@ -194,13 +197,11 @@ export default function OrderStatusScreen() {
           onPress: async () => {
             const result = await confirmReceipt(order.id);
             if (result.success) {
-              Alert.alert(
-                "Success",
-                "Receipt confirmed! Payment will be sent to the seller."
-              );
               loadOrder();
               // Refresh the pending orders count immediately
               refreshPendingOrders();
+              // Show rating modal to rate the seller
+              setRatingModalVisible(true);
             } else {
               Alert.alert("Error", result.error || "Failed to confirm receipt");
             }
@@ -208,6 +209,38 @@ export default function OrderStatusScreen() {
         },
       ]
     );
+  };
+
+  const handleSubmitRating = async (ratingData: SellerRatingData) => {
+    if (!order || !user) return;
+
+    setSubmittingRating(true);
+    try {
+      const { error } = await supabase.from("user_ratings").insert({
+        rater_id: user.id,
+        rated_user_id: order.seller_id,
+        ticket_sale_id: order.id,
+        transaction_type: "buying",
+        rating: ratingData.rating,
+        review_text: ratingData.review || null,
+      });
+
+      if (error) {
+        console.error("Error submitting rating:", error);
+        Alert.alert("Error", "Failed to submit rating. Please try again.");
+      } else {
+        setRatingModalVisible(false);
+        Alert.alert(
+          "Thank You!",
+          "Your rating has been submitted. Enjoy the event!"
+        );
+      }
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+      Alert.alert("Error", "Failed to submit rating. Please try again.");
+    } finally {
+      setSubmittingRating(false);
+    }
   };
 
   const handleFileDispute = () => {
@@ -800,6 +833,23 @@ export default function OrderStatusScreen() {
             )} */}
           </View>
         </BlurView>
+      )}
+
+      {/* Rating Modal - shown after buyer confirms receipt */}
+      {order && (
+        <SellerRatingModal
+          visible={ratingModalVisible}
+          onClose={() => setRatingModalVisible(false)}
+          onConfirmRating={handleSubmitRating}
+          ticket={{
+            id: order.ticket.id,
+            title: order.ticket.title,
+            seller_name: order.seller.full_name,
+          }}
+          isLoading={submittingRating}
+          primaryColor={theme.primary}
+          secondaryColor={theme.secondary}
+        />
       )}
     </View>
   );
