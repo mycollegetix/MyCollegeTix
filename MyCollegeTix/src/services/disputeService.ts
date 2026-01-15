@@ -22,6 +22,9 @@ export interface DisputeWithDetails extends EscrowDispute {
       title: string;
       event_date: string;
     };
+    ticket_transfer?: {
+      transfer_proof_url: string | null;
+    };
   };
   filed_by_user: {
     id: string;
@@ -363,7 +366,7 @@ export class DisputeService {
         return { data: null, error: error.message, success: false };
       }
 
-      return { data: data as DisputeWithDetails, error: null, success: true };
+      return { data: data as unknown as DisputeWithDetails, error: null, success: true };
     } catch (error) {
       return {
         data: null,
@@ -419,7 +422,7 @@ export class DisputeService {
         return { data: null, error: error.message, success: false };
       }
 
-      return { data: data as DisputeWithDetails, error: null, success: true };
+      return { data: data as unknown as DisputeWithDetails, error: null, success: true };
     } catch (error) {
       return {
         data: null,
@@ -486,7 +489,7 @@ export class DisputeService {
         return { data: null, error: error.message, success: false };
       }
 
-      return { data: data as DisputeWithDetails[], error: null, success: true };
+      return { data: data as unknown as DisputeWithDetails[], error: null, success: true };
     } catch (error) {
       return {
         data: null,
@@ -524,6 +527,9 @@ export class DisputeService {
               id,
               title,
               event_date
+            ),
+            ticket_transfer:ticket_transfers (
+              transfer_proof_url
             )
           ),
           filed_by_user:profiles!escrow_disputes_filed_by_fkey (
@@ -545,7 +551,7 @@ export class DisputeService {
         return { data: null, error: error.message, success: false };
       }
 
-      return { data: data as DisputeWithDetails[], error: null, success: true };
+      return { data: data as unknown as DisputeWithDetails[], error: null, success: true };
     } catch (error) {
       return {
         data: null,
@@ -582,6 +588,9 @@ export class DisputeService {
               id,
               title,
               event_date
+            ),
+            ticket_transfer:ticket_transfers (
+              transfer_proof_url
             )
           ),
           filed_by_user:profiles!escrow_disputes_filed_by_fkey (
@@ -612,7 +621,7 @@ export class DisputeService {
         return { data: null, error: error.message, success: false };
       }
 
-      return { data: data as DisputeWithDetails[], error: null, success: true };
+      return { data: data as unknown as DisputeWithDetails[], error: null, success: true };
     } catch (error) {
       return {
         data: null,

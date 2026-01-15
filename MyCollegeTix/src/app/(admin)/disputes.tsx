@@ -75,8 +75,17 @@ export default function AdminDisputesScreen() {
         result = await DisputeService.getAllDisputes({ status: filterStatus });
       }
 
+      console.log("📋 Disputes result:", {
+        success: result.success,
+        error: result.error,
+        count: result.data?.length,
+        sample: result.data?.[0] ? JSON.stringify(result.data[0], null, 2).slice(0, 500) : null,
+      });
+
       if (result.success && result.data) {
         setDisputes(result.data);
+      } else if (result.error) {
+        console.error("❌ Disputes error:", result.error);
       }
 
       // Load stats
@@ -328,6 +337,11 @@ export default function AdminDisputesScreen() {
           ) : (
             disputes.map((dispute) => {
               const statusInfo = getStatusInfo(dispute.status);
+              // Handle potential null/array issues with nested data
+              const ticketTitle = dispute.order?.ticket?.title || "Unknown Ticket";
+              const filedByName = dispute.filed_by_user?.full_name || dispute.filed_by_user?.username || "Unknown";
+              const orderAmount = dispute.order?.amount || 0;
+
               return (
                 <TouchableOpacity
                   key={dispute.id}
@@ -341,14 +355,14 @@ export default function AdminDisputesScreen() {
                     <Text style={styles.disputeDate}>{formatDate(dispute.created_at)}</Text>
                   </View>
 
-                  <Text style={styles.disputeTicket}>{dispute.order.ticket.title}</Text>
+                  <Text style={styles.disputeTicket}>{ticketTitle}</Text>
                   <Text style={styles.disputeReason}>{getReasonLabel(dispute.reason)}</Text>
 
                   <View style={styles.disputeFooter}>
                     <Text style={styles.disputeParty}>
-                      Filed by: {dispute.filed_by_user.full_name} ({dispute.filed_by_role})
+                      Filed by: {filedByName} ({dispute.filed_by_role})
                     </Text>
-                    <Text style={styles.disputeAmount}>${dispute.order.amount.toFixed(2)}</Text>
+                    <Text style={styles.disputeAmount}>${orderAmount.toFixed(2)}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -391,9 +405,9 @@ export default function AdminDisputesScreen() {
               <View style={styles.modalSection}>
                 <Text style={styles.modalSectionTitle}>Order</Text>
                 <View style={styles.modalCard}>
-                  <Text style={styles.modalCardTitle}>{selectedDispute.order.ticket.title}</Text>
-                  <Text style={styles.modalCardText}>Amount: ${selectedDispute.order.amount.toFixed(2)}</Text>
-                  <Text style={styles.modalCardText}>Order ID: {selectedDispute.order.id.slice(0, 8)}...</Text>
+                  <Text style={styles.modalCardTitle}>{selectedDispute.order?.ticket?.title || "Unknown Ticket"}</Text>
+                  <Text style={styles.modalCardText}>Amount: ${(selectedDispute.order?.amount || 0).toFixed(2)}</Text>
+                  <Text style={styles.modalCardText}>Order ID: {selectedDispute.order?.id?.slice(0, 8) || "N/A"}...</Text>
                 </View>
               </View>
 
@@ -404,14 +418,14 @@ export default function AdminDisputesScreen() {
                   <TouchableOpacity
                     style={styles.partyCard}
                     onPress={() => handleOpenPenaltyModal(
-                      selectedDispute.order.buyer_id,
+                      selectedDispute.order?.buyer_id || "",
                       "Buyer"
                     )}
                   >
                     <Text style={styles.partyLabel}>Buyer</Text>
                     <Text style={styles.partyName}>
                       {selectedDispute.filed_by_role === "buyer"
-                        ? selectedDispute.filed_by_user.full_name
+                        ? (selectedDispute.filed_by_user?.full_name || selectedDispute.filed_by_user?.username || "Unknown")
                         : "Other Party"}
                     </Text>
                     <Text style={styles.penaltyLink}>Issue Penalty</Text>
@@ -419,14 +433,14 @@ export default function AdminDisputesScreen() {
                   <TouchableOpacity
                     style={styles.partyCard}
                     onPress={() => handleOpenPenaltyModal(
-                      selectedDispute.order.seller_id,
+                      selectedDispute.order?.seller_id || "",
                       "Seller"
                     )}
                   >
                     <Text style={styles.partyLabel}>Seller</Text>
                     <Text style={styles.partyName}>
                       {selectedDispute.filed_by_role === "seller"
-                        ? selectedDispute.filed_by_user.full_name
+                        ? (selectedDispute.filed_by_user?.full_name || selectedDispute.filed_by_user?.username || "Unknown")
                         : "Other Party"}
                     </Text>
                     <Text style={styles.penaltyLink}>Issue Penalty</Text>
@@ -444,7 +458,7 @@ export default function AdminDisputesScreen() {
                   </Text>
                   <Text style={styles.modalCardText}>
                     <Text style={styles.modalCardLabel}>Filed by: </Text>
-                    {selectedDispute.filed_by_user.full_name} ({selectedDispute.filed_by_role})
+                    {selectedDispute.filed_by_user?.full_name || selectedDispute.filed_by_user?.username || "Unknown"} ({selectedDispute.filed_by_role})
                   </Text>
                   <Text style={styles.modalCardText}>
                     <Text style={styles.modalCardLabel}>Date: </Text>
@@ -459,9 +473,50 @@ export default function AdminDisputesScreen() {
                 </View>
               </View>
 
-              {/* Evidence Section */}
+              {/* Seller's Transfer Proof */}
               <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>Evidence / Proof of Transfer</Text>
+                <Text style={styles.modalSectionTitle}>Seller's Transfer Proof</Text>
+                {(() => {
+                  // ticket_transfer might be an array or object, handle both
+                  const ticketTransfer = selectedDispute.order?.ticket_transfer;
+                  const transferProofUrl = Array.isArray(ticketTransfer)
+                    ? ticketTransfer[0]?.transfer_proof_url
+                    : ticketTransfer?.transfer_proof_url;
+
+                  return transferProofUrl ? (
+                  <View style={styles.evidenceSection}>
+                    <TouchableOpacity
+                      style={styles.transferProofContainer}
+                      onPress={() => setSelectedImageUrl(transferProofUrl)}
+                    >
+                      <Image
+                        source={{ uri: transferProofUrl }}
+                        style={styles.transferProofImage}
+                      />
+                      <View style={styles.transferProofOverlay}>
+                        <Ionicons name="expand-outline" size={20} color="white" />
+                        <Text style={styles.transferProofOverlayText}>Tap to view</Text>
+                      </View>
+                    </TouchableOpacity>
+                    <View style={styles.transferProofBadge}>
+                      <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                      <Text style={styles.transferProofBadgeText}>
+                        Seller uploaded proof of transfer
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.noTransferProofBox}>
+                    <Ionicons name="close-circle-outline" size={24} color="#ef4444" />
+                    <Text style={styles.noTransferProofText}>Seller has NOT uploaded transfer proof</Text>
+                  </View>
+                );
+                })()}
+              </View>
+
+              {/* Dispute Evidence */}
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>Dispute Evidence</Text>
                 {selectedDispute.evidence_urls && selectedDispute.evidence_urls.length > 0 ? (
                   <View style={styles.evidenceSection}>
                     <ScrollView
@@ -483,13 +538,13 @@ export default function AdminDisputesScreen() {
                       ))}
                     </ScrollView>
                     <Text style={styles.evidenceCount}>
-                      {selectedDispute.evidence_urls.length} evidence file(s) - tap to view full size
+                      {selectedDispute.evidence_urls.length} evidence file(s) from dispute - tap to view
                     </Text>
                   </View>
                 ) : (
                   <View style={styles.noEvidenceBox}>
                     <Ionicons name="images-outline" size={24} color="#9ca3af" />
-                    <Text style={styles.noEvidenceText}>No evidence submitted</Text>
+                    <Text style={styles.noEvidenceText}>No dispute evidence submitted</Text>
                   </View>
                 )}
               </View>
@@ -1181,6 +1236,65 @@ const styles = StyleSheet.create({
   noEvidenceText: {
     fontSize: 14,
     color: "#9ca3af",
+  },
+  // Transfer proof styles
+  transferProofContainer: {
+    position: "relative",
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  transferProofImage: {
+    width: "100%",
+    height: 200,
+    backgroundColor: "#e2e8f0",
+  },
+  transferProofOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+  },
+  transferProofOverlayText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  transferProofBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#ecfdf5",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  transferProofBadgeText: {
+    fontSize: 13,
+    color: "#065f46",
+    fontWeight: "500",
+  },
+  noTransferProofBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef2f2",
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  noTransferProofText: {
+    fontSize: 14,
+    color: "#991b1b",
+    fontWeight: "500",
   },
   // Image Viewer Modal Styles
   imageViewerOverlay: {

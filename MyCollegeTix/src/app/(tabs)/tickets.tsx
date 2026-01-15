@@ -92,6 +92,9 @@ interface OrderItem {
   escrow_status?: string;
   escrow_order_id?: string;
   transfer_deadline?: string;
+  // Dispute fields
+  dispute_id?: string;
+  dispute_status?: string;
   // Buyer info (for sellers)
   buyer_name?: string;
   buyer_id?: string;
@@ -163,6 +166,7 @@ export default function TicketsScreen() {
   const [savingSellerRating, setSavingSellerRating] = useState(false);
 
   // Dropdown states for collapsible sections
+  const [disputedTicketsExpanded, setDisputedTicketsExpanded] = useState(true); // Default open - urgent!
   const [pendingTransfersExpanded, setPendingTransfersExpanded] =
     useState(true); // Default open for urgency
   const [awaitingConfirmationExpanded, setAwaitingConfirmationExpanded] =
@@ -175,6 +179,7 @@ export default function TicketsScreen() {
 
   // Buyer tab collapsible sections
   const [awaitingTransferExpanded, setAwaitingTransferExpanded] = useState(true); // Default open for urgency
+  const [disputedPurchasesExpanded, setDisputedPurchasesExpanded] = useState(true); // Default open - urgent!
 
   // Stripe payment hook for confirming receipt and marking transfer
   const { confirmReceipt, markTransferSent } = useStripePayment();
@@ -560,6 +565,10 @@ export default function TicketsScreen() {
             id,
             full_name,
             username
+          ),
+          dispute:escrow_disputes (
+            id,
+            status
           )
         `
         )
@@ -581,6 +590,8 @@ export default function TicketsScreen() {
         (order: any): OrderItem => {
           const ticket = order.ticket;
           const seller = order.seller;
+          // Get the most recent dispute (disputes is an array from the join)
+          const dispute = Array.isArray(order.dispute) ? order.dispute[0] : order.dispute;
 
           return {
             id: ticket?.id || order.id,
@@ -594,7 +605,9 @@ export default function TicketsScreen() {
             row_number: ticket?.row_number || undefined,
             seat_number: ticket?.seat_number || undefined,
             status:
-              order.escrow_status === "payment_held"
+              order.escrow_status === "disputed"
+                ? "disputed"
+                : order.escrow_status === "payment_held"
                 ? "awaiting_transfer"
                 : order.escrow_status === "completed"
                 ? "completed"
@@ -617,6 +630,9 @@ export default function TicketsScreen() {
             escrow_status: order.escrow_status,
             escrow_order_id: order.id,
             transfer_deadline: order.transfer_deadline,
+            // Dispute fields
+            dispute_id: dispute?.id || undefined,
+            dispute_status: dispute?.status || undefined,
           };
         }
       );
@@ -724,6 +740,10 @@ export default function TicketsScreen() {
             id,
             full_name,
             username
+          ),
+          dispute:escrow_disputes (
+            id,
+            status
           )
         `
         )
@@ -758,12 +778,20 @@ export default function TicketsScreen() {
       // Map tickets to OrderItems, enriching with Stripe order data if available
       const listings = (data || []).map((ticket: any) => {
         const stripeOrder = stripeOrdersMap.get(ticket.id);
+        // Get dispute info from order
+        const dispute = stripeOrder?.dispute
+          ? Array.isArray(stripeOrder.dispute)
+            ? stripeOrder.dispute[0]
+            : stripeOrder.dispute
+          : undefined;
         // pending_transfer = needs seller action (hasn't transferred yet)
         const hasPendingTransfer =
           stripeOrder && stripeOrder.escrow_status === "payment_held";
         // awaiting_confirmation = seller has transferred, waiting for buyer
         const awaitingConfirmation =
           stripeOrder && stripeOrder.escrow_status === "transfer_pending";
+        // Check if disputed
+        const isDisputed = stripeOrder?.escrow_status === "disputed";
 
         // Use Stripe order buyer info if available, otherwise fall back to ticket_sales
         const buyerName =
@@ -788,7 +816,7 @@ export default function TicketsScreen() {
           section: ticket.section,
           row_number: ticket.row_number,
           seat_number: ticket.seat_number,
-          status: ticket.status,
+          status: isDisputed ? "disputed" : ticket.status,
           created_at: ticket.created_at,
           home_college_id: ticket.home_college_id,
           away_college_id: ticket.away_college_id,
@@ -819,6 +847,9 @@ export default function TicketsScreen() {
           // Awaiting confirmation flag (seller transferred, waiting for buyer)
           awaiting_confirmation: awaitingConfirmation,
           sold_at: soldAt,
+          // Dispute fields
+          dispute_id: dispute?.id,
+          dispute_status: dispute?.status,
         };
       });
 
@@ -914,6 +945,15 @@ export default function TicketsScreen() {
       });
   };
 
+  // Get tickets with active disputes
+  const getDisputedTickets = (allListings: OrderItem[]) => {
+    return allListings
+      .filter((ticket) => ticket.escrow_status === "disputed")
+      .sort((a, b) => {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  };
+
   // Get purchases awaiting transfer from seller (buyer's view - escrow_status = transfer_pending)
   const getAwaitingTransfer = (allPurchases: OrderItem[]) => {
     return allPurchases
@@ -924,10 +964,22 @@ export default function TicketsScreen() {
       });
   };
 
-  // Get other purchases (not awaiting transfer)
+  // Get disputed purchases (buyer's view)
+  const getDisputedPurchases = (allPurchases: OrderItem[]) => {
+    return allPurchases
+      .filter((purchase) => purchase.escrow_status === "disputed")
+      .sort((a, b) => {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  };
+
+  // Get other purchases (not awaiting transfer and not disputed)
   const getOtherPurchases = (allPurchases: OrderItem[]) => {
     return allPurchases
-      .filter((purchase) => purchase.escrow_status !== "transfer_pending")
+      .filter((purchase) =>
+        purchase.escrow_status !== "transfer_pending" &&
+        purchase.escrow_status !== "disputed"
+      )
       .sort((a, b) => {
         // Sort by most recent first
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -1070,6 +1122,12 @@ export default function TicketsScreen() {
           color: theme.secondary,
           icon: "time-outline",
           text: "Pending",
+        };
+      case "disputed":
+        return {
+          color: "#ef4444",
+          icon: "alert-circle-outline",
+          text: "Under Review",
         };
       default:
         return {
@@ -1531,6 +1589,31 @@ export default function TicketsScreen() {
           </View>
         )}
 
+        {/* Dispute Banner for Seller Listings */}
+        {item.type === "listing" && item.escrow_status === "disputed" && item.dispute_id && (
+          <View style={styles.disputeBanner}>
+            <View style={styles.disputeBannerContent}>
+              <Ionicons name="alert-circle" size={20} color="#ef4444" />
+              <View style={styles.disputeBannerText}>
+                <Text style={styles.disputeBannerTitle}>Dispute Active</Text>
+                <Text style={styles.disputeBannerSubtitle}>
+                  This transaction is under review. View details and add evidence.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.viewDisputeButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                router.push(`/dispute/status/${item.dispute_id}` as any);
+              }}
+            >
+              <Text style={styles.viewDisputeButtonText}>View Dispute Status</Text>
+              <Ionicons name="chevron-forward" size={16} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* View Order button for Stripe escrow orders - takes user to order details to confirm */}
         {item.type === "purchase" &&
           item.escrow_order_id &&
@@ -1577,7 +1660,9 @@ export default function TicketsScreen() {
                 <View style={styles.escrowStatusContainer}>
                   <Ionicons
                     name={
-                      item.escrow_status === "payment_held"
+                      item.escrow_status === "disputed"
+                        ? "alert-circle"
+                        : item.escrow_status === "payment_held"
                         ? "time"
                         : item.escrow_status === "completed"
                         ? "checkmark-circle"
@@ -1585,7 +1670,9 @@ export default function TicketsScreen() {
                     }
                     size={14}
                     color={
-                      item.escrow_status === "payment_held"
+                      item.escrow_status === "disputed"
+                        ? "#ef4444"
+                        : item.escrow_status === "payment_held"
                         ? "#f59e0b"
                         : item.escrow_status === "completed"
                         ? "#10b981"
@@ -1597,7 +1684,9 @@ export default function TicketsScreen() {
                       styles.escrowStatusText,
                       {
                         color:
-                          item.escrow_status === "payment_held"
+                          item.escrow_status === "disputed"
+                            ? "#ef4444"
+                            : item.escrow_status === "payment_held"
                             ? "#f59e0b"
                             : item.escrow_status === "completed"
                             ? "#10b981"
@@ -1605,7 +1694,9 @@ export default function TicketsScreen() {
                       },
                     ]}
                   >
-                    {item.escrow_status === "payment_held"
+                    {item.escrow_status === "disputed"
+                      ? "Dispute Under Review"
+                      : item.escrow_status === "payment_held"
                       ? "Awaiting ticket transfer"
                       : item.escrow_status === "completed"
                       ? "Transfer confirmed"
@@ -1613,6 +1704,31 @@ export default function TicketsScreen() {
                       ? "Processing payout"
                       : item.escrow_status}
                   </Text>
+                </View>
+              )}
+
+              {/* Dispute Banner and Button */}
+              {item.escrow_status === "disputed" && item.dispute_id && (
+                <View style={styles.disputeBanner}>
+                  <View style={styles.disputeBannerContent}>
+                    <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                    <View style={styles.disputeBannerText}>
+                      <Text style={styles.disputeBannerTitle}>Dispute Filed</Text>
+                      <Text style={styles.disputeBannerSubtitle}>
+                        This transaction is under review by our team
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.viewDisputeButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push(`/dispute/status/${item.dispute_id}` as any);
+                    }}
+                  >
+                    <Text style={styles.viewDisputeButtonText}>View Status</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#ef4444" />
+                  </TouchableOpacity>
                 </View>
               )}
               {item.transfer_deadline &&
@@ -1875,7 +1991,9 @@ export default function TicketsScreen() {
 
   const currentData = activeTab === "bought" ? purchases : listings;
 
-  // For selling tab, separate pending transfers, awaiting confirmation, active, sold, and cancelled tickets
+  // For selling tab, separate disputed, pending transfers, awaiting confirmation, active, sold, and cancelled tickets
+  const disputedTickets =
+    activeTab === "selling" ? getDisputedTickets(listings) : [];
   const pendingTransfers =
     activeTab === "selling" ? getPendingTransfers(listings) : [];
   const awaitingConfirmation =
@@ -1892,7 +2010,9 @@ export default function TicketsScreen() {
   const expiredListings =
     activeTab === "selling" ? getExpiredListings(listings) : [];
 
-  // For buying tab, separate awaiting transfer from other purchases
+  // For buying tab, separate disputed, awaiting transfer, and other purchases
+  const disputedPurchases =
+    activeTab === "bought" ? getDisputedPurchases(purchases) : [];
   const awaitingTransfer =
     activeTab === "bought" ? getAwaitingTransfer(purchases) : [];
   const otherPurchases =
@@ -2009,6 +2129,127 @@ export default function TicketsScreen() {
               ) : activeTab === "selling" ? (
                 // Special rendering for selling tab with sections
                 <>
+                  {/* CRITICAL: Disputed Tickets Section - Always at VERY TOP */}
+                  {disputedTickets.length > 0 && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.disputedTicketsHeader}
+                        onPress={() =>
+                          setDisputedTicketsExpanded(!disputedTicketsExpanded)
+                        }
+                      >
+                        <View style={styles.disputedTicketsHeaderContent}>
+                          <View style={styles.disputeIconContainer}>
+                            <Ionicons
+                              name="alert-circle"
+                              size={22}
+                              color="#ef4444"
+                            />
+                          </View>
+                          <View style={styles.disputedTicketsHeaderText}>
+                            <Text style={styles.disputedTicketsTitle}>
+                              Active Disputes
+                            </Text>
+                            <Text style={styles.disputedTicketsSubtitle}>
+                              {disputedTickets.length} ticket
+                              {disputedTickets.length !== 1 ? "s" : ""} under
+                              review
+                            </Text>
+                          </View>
+                        </View>
+                        <Ionicons
+                          name={
+                            disputedTicketsExpanded
+                              ? "chevron-up"
+                              : "chevron-down"
+                          }
+                          size={20}
+                          color="#ef4444"
+                        />
+                      </TouchableOpacity>
+
+                      {disputedTicketsExpanded && (
+                        <>
+                          {/* Info banner */}
+                          <View style={styles.disputeInfoBanner}>
+                            <Ionicons
+                              name="information-circle"
+                              size={18}
+                              color="#991b1b"
+                            />
+                            <Text style={styles.disputeInfoText}>
+                              These tickets have active disputes. View details and upload evidence to support your case.
+                            </Text>
+                          </View>
+
+                          {/* Render disputed tickets */}
+                          {disputedTickets.map((item) => (
+                            <View
+                              key={`disputed-${item.id}`}
+                              style={styles.disputedTicketCard}
+                            >
+                              {/* Dispute banner at top of card */}
+                              <View style={styles.disputeCardBanner}>
+                                <Ionicons
+                                  name="alert-circle"
+                                  size={16}
+                                  color="#ef4444"
+                                />
+                                <Text style={styles.disputeCardBannerText}>
+                                  Under Review
+                                </Text>
+                              </View>
+
+                              {/* Ticket info */}
+                              <View style={styles.disputedTicketInfo}>
+                                <Text
+                                  style={styles.disputedTicketTitle}
+                                  numberOfLines={2}
+                                >
+                                  {item.title}
+                                </Text>
+                                <Text style={styles.disputedTicketDate}>
+                                  {new Date(item.event_date).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    }
+                                  )}
+                                </Text>
+                                {item.buyer_name && (
+                                  <Text style={styles.disputedTicketBuyer}>
+                                    Buyer: {item.buyer_name}
+                                  </Text>
+                                )}
+                              </View>
+
+                              {/* View Dispute Button */}
+                              <TouchableOpacity
+                                style={styles.viewDisputeCardButton}
+                                onPress={() =>
+                                  router.push(
+                                    `/dispute/status/${item.dispute_id}` as any
+                                  )
+                                }
+                              >
+                                <Text style={styles.viewDisputeCardButtonText}>
+                                  View & Add Evidence
+                                </Text>
+                                <Ionicons
+                                  name="chevron-forward"
+                                  size={18}
+                                  color="white"
+                                />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                        </>
+                      )}
+                    </>
+                  )}
+
                   {/* URGENT: Pending Transfers Section - Always at TOP */}
                   {pendingTransfers.length > 0 && (
                     <>
@@ -2690,6 +2931,127 @@ export default function TicketsScreen() {
               ) : currentData.length > 0 ? (
                 // Buying tab with sections
                 <>
+                  {/* CRITICAL: Disputed Purchases Section - Always at VERY TOP */}
+                  {disputedPurchases.length > 0 && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.disputedTicketsHeader}
+                        onPress={() =>
+                          setDisputedPurchasesExpanded(!disputedPurchasesExpanded)
+                        }
+                      >
+                        <View style={styles.disputedTicketsHeaderContent}>
+                          <View style={styles.disputeIconContainer}>
+                            <Ionicons
+                              name="alert-circle"
+                              size={22}
+                              color="#ef4444"
+                            />
+                          </View>
+                          <View style={styles.disputedTicketsHeaderText}>
+                            <Text style={styles.disputedTicketsTitle}>
+                              Active Disputes
+                            </Text>
+                            <Text style={styles.disputedTicketsSubtitle}>
+                              {disputedPurchases.length} purchase
+                              {disputedPurchases.length !== 1 ? "s" : ""} under
+                              review
+                            </Text>
+                          </View>
+                        </View>
+                        <Ionicons
+                          name={
+                            disputedPurchasesExpanded
+                              ? "chevron-up"
+                              : "chevron-down"
+                          }
+                          size={20}
+                          color="#ef4444"
+                        />
+                      </TouchableOpacity>
+
+                      {disputedPurchasesExpanded && (
+                        <>
+                          {/* Info banner */}
+                          <View style={styles.disputeInfoBanner}>
+                            <Ionicons
+                              name="information-circle"
+                              size={18}
+                              color="#991b1b"
+                            />
+                            <Text style={styles.disputeInfoText}>
+                              These purchases have active disputes. View details and upload evidence to support your case.
+                            </Text>
+                          </View>
+
+                          {/* Render disputed purchases */}
+                          {disputedPurchases.map((item) => (
+                            <View
+                              key={`disputed-purchase-${item.id}`}
+                              style={styles.disputedTicketCard}
+                            >
+                              {/* Dispute banner at top of card */}
+                              <View style={styles.disputeCardBanner}>
+                                <Ionicons
+                                  name="alert-circle"
+                                  size={16}
+                                  color="#ef4444"
+                                />
+                                <Text style={styles.disputeCardBannerText}>
+                                  Under Review
+                                </Text>
+                              </View>
+
+                              {/* Ticket info */}
+                              <View style={styles.disputedTicketInfo}>
+                                <Text
+                                  style={styles.disputedTicketTitle}
+                                  numberOfLines={2}
+                                >
+                                  {item.title}
+                                </Text>
+                                <Text style={styles.disputedTicketDate}>
+                                  {new Date(item.event_date).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    }
+                                  )}
+                                </Text>
+                                {item.seller_name && (
+                                  <Text style={styles.disputedTicketBuyer}>
+                                    Seller: {item.seller_name}
+                                  </Text>
+                                )}
+                              </View>
+
+                              {/* View Dispute Button */}
+                              <TouchableOpacity
+                                style={styles.viewDisputeCardButton}
+                                onPress={() =>
+                                  router.push(
+                                    `/dispute/status/${item.dispute_id}` as any
+                                  )
+                                }
+                              >
+                                <Text style={styles.viewDisputeCardButtonText}>
+                                  View & Add Evidence
+                                </Text>
+                                <Ionicons
+                                  name="chevron-forward"
+                                  size={18}
+                                  color="white"
+                                />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                        </>
+                      )}
+                    </>
+                  )}
+
                   {/* Awaiting Transfer Section - Seller has sent the ticket */}
                   {awaitingTransfer.length > 0 && (
                     <>
@@ -3573,6 +3935,172 @@ const styles = StyleSheet.create({
   escrowStatusText: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  // Disputed tickets section styles (seller view)
+  disputedTicketsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fef2f2",
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  disputedTicketsHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  disputeIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#fee2e2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  disputedTicketsHeaderText: {
+    flex: 1,
+  },
+  disputedTicketsTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#991b1b",
+  },
+  disputedTicketsSubtitle: {
+    fontSize: 13,
+    color: "#b91c1c",
+    marginTop: 2,
+  },
+  disputeInfoBanner: {
+    flexDirection: "row",
+    backgroundColor: "#fef2f2",
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 10,
+    gap: 10,
+    alignItems: "flex-start",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  disputeInfoText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#991b1b",
+    lineHeight: 18,
+  },
+  disputedTicketCard: {
+    backgroundColor: "white",
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    shadowColor: "#ef4444",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  disputeCardBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#fef2f2",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#fecaca",
+  },
+  disputeCardBannerText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#ef4444",
+  },
+  disputedTicketInfo: {
+    padding: 14,
+  },
+  disputedTicketTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1f2937",
+    marginBottom: 4,
+  },
+  disputedTicketDate: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginBottom: 4,
+  },
+  disputedTicketBuyer: {
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  viewDisputeCardButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#ef4444",
+    paddingVertical: 12,
+    marginHorizontal: 14,
+    marginBottom: 14,
+    borderRadius: 10,
+  },
+  viewDisputeCardButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "white",
+  },
+  // Dispute banner styles
+  disputeBanner: {
+    backgroundColor: "#fef2f2",
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  disputeBannerContent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  disputeBannerText: {
+    flex: 1,
+  },
+  disputeBannerTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#991b1b",
+    marginBottom: 2,
+  },
+  disputeBannerSubtitle: {
+    fontSize: 12,
+    color: "#b91c1c",
+  },
+  viewDisputeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    backgroundColor: "white",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  viewDisputeButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#ef4444",
   },
   transferDeadline: {
     fontSize: 12,
