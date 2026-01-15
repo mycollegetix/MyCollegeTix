@@ -2,6 +2,7 @@
 // Called when seller marks that they've transferred the ticket to the buyer
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendEmailToUser, transferSentEmail } from '../_shared/email/index.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -140,6 +141,45 @@ Deno.serve(async (req: Request) => {
       })
 
     console.log(`📬 Notification sent to buyer ${order.buyer_id}`)
+
+    // Get event date for email
+    const { data: ticketDetails } = await supabase
+      .from('tickets')
+      .select('event_date')
+      .eq('id', order.ticket_id)
+      .single()
+
+    const eventDate = ticketDetails?.event_date
+      ? new Date(ticketDetails.event_date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : 'TBD'
+
+    // Send email to buyer
+    try {
+      const emailResult = await sendEmailToUser(
+        supabase,
+        order.buyer_id,
+        `Ticket Transferred: ${ticketTitle}`,
+        transferSentEmail({
+          ticketTitle,
+          eventDate,
+          sellerName,
+          orderId,
+        })
+      )
+      if (emailResult.success) {
+        console.log(`📧 Email sent to buyer ${order.buyer_id}`)
+      } else {
+        console.error(`❌ Failed to send email to buyer: ${emailResult.error}`)
+      }
+    } catch (emailError) {
+      console.error('Buyer email error:', emailError)
+    }
+
     console.log(`✅ Transfer marked as sent for order ${orderId}`)
 
     return new Response(

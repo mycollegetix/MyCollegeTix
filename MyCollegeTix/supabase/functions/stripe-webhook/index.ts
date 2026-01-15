@@ -3,6 +3,11 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0'
+import {
+  sendEmailToUser,
+  paymentSuccessBuyerEmail,
+  paymentSuccessSellerEmail,
+} from '../_shared/email/index.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -179,6 +184,74 @@ Deno.serve(async (req: Request) => {
               read: false,
             })
           console.log(`📬 Notification sent to buyer ${buyerId}`)
+        }
+
+        // Get additional ticket details for email
+        const { data: ticketDetails } = await supabase
+          .from('tickets')
+          .select('event_date')
+          .eq('id', ticketId)
+          .single()
+
+        const eventDate = ticketDetails?.event_date
+          ? new Date(ticketDetails.event_date).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })
+          : 'TBD'
+
+        const amountFormatted = `$${(paymentIntent.amount / 100).toFixed(2)}`
+
+        // Send email to buyer
+        if (buyerId) {
+          try {
+            const buyerEmailResult = await sendEmailToUser(
+              supabase,
+              buyerId,
+              `Purchase Confirmed: ${ticketTitle}`,
+              paymentSuccessBuyerEmail({
+                ticketTitle,
+                eventDate,
+                sellerName,
+                amount: amountFormatted,
+                orderId,
+              })
+            )
+            if (buyerEmailResult.success) {
+              console.log(`📧 Email sent to buyer ${buyerId}`)
+            } else {
+              console.error(`❌ Failed to send email to buyer: ${buyerEmailResult.error}`)
+            }
+          } catch (emailError) {
+            console.error('Buyer email error:', emailError)
+          }
+        }
+
+        // Send email to seller
+        if (sellerId) {
+          try {
+            const sellerEmailResult = await sendEmailToUser(
+              supabase,
+              sellerId,
+              `Ticket Sold: ${ticketTitle}`,
+              paymentSuccessSellerEmail({
+                ticketTitle,
+                eventDate,
+                buyerName,
+                amount: amountFormatted,
+                orderId,
+              })
+            )
+            if (sellerEmailResult.success) {
+              console.log(`📧 Email sent to seller ${sellerId}`)
+            } else {
+              console.error(`❌ Failed to send email to seller: ${sellerEmailResult.error}`)
+            }
+          } catch (emailError) {
+            console.error('Seller email error:', emailError)
+          }
         }
 
         console.log(`✅ Order ${orderId} payment confirmed, awaiting ticket transfer`)

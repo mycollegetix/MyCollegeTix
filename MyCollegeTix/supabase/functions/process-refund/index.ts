@@ -3,6 +3,7 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0'
+import { sendEmailToUser, refundProcessedEmail } from '../_shared/email/index.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -155,6 +156,53 @@ Deno.serve(async (req: Request) => {
           resolved_at: new Date().toISOString(),
         })
         .eq('id', disputeId)
+    }
+
+    // Get ticket info for notification and email
+    const { data: ticket } = await supabase
+      .from('tickets')
+      .select('title')
+      .eq('id', order.ticket_id)
+      .single()
+
+    const ticketTitle = ticket?.title || 'the ticket'
+    const amountDollars = (escrowPayment.amount_cents / 100).toFixed(2)
+
+    // Send in-app notification to buyer
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: order.buyer_id,
+        title: 'Refund Processed',
+        message: `Your refund of $${amountDollars} for "${ticketTitle}" has been processed. The funds will be returned to your original payment method.`,
+        type: 'purchase',
+        related_ticket_id: order.ticket_id,
+        related_order_id: orderId,
+        read: false,
+      })
+
+    console.log(`📬 Notification sent to buyer ${order.buyer_id}`)
+
+    // Send email to buyer about refund
+    try {
+      const emailResult = await sendEmailToUser(
+        supabase,
+        order.buyer_id,
+        `Refund Processed: $${amountDollars}`,
+        refundProcessedEmail({
+          ticketTitle,
+          amount: `$${amountDollars}`,
+          reason,
+          orderId,
+        })
+      )
+      if (emailResult.success) {
+        console.log(`📧 Email sent to buyer ${order.buyer_id}`)
+      } else {
+        console.error(`❌ Failed to send email to buyer: ${emailResult.error}`)
+      }
+    } catch (emailError) {
+      console.error('Buyer email error:', emailError)
     }
 
     console.log(`💸 Refund processed for order ${orderId}: ${refund.id}`)

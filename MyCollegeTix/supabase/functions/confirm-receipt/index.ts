@@ -3,6 +3,7 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0'
+import { sendEmailToUser, receiptConfirmedEmail } from '../_shared/email/index.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -193,6 +194,28 @@ Deno.serve(async (req: Request) => {
       })
 
     console.log(`📬 Notification sent to seller ${order.seller_id}`)
+
+    // Send email to seller about payment release
+    try {
+      const emailResult = await sendEmailToUser(
+        supabase,
+        order.seller_id,
+        `Payment Released: $${amountDollars}`,
+        receiptConfirmedEmail({
+          ticketTitle,
+          buyerName,
+          amount: `$${amountDollars}`,
+          orderId,
+        })
+      )
+      if (emailResult.success) {
+        console.log(`📧 Email sent to seller ${order.seller_id}`)
+      } else {
+        console.error(`❌ Failed to send email to seller: ${emailResult.error}`)
+      }
+    } catch (emailError) {
+      console.error('Seller email error:', emailError)
+    }
 
     // Create rating prompt for seller to rate buyer
     const { error: ratingPromptError } = await supabase

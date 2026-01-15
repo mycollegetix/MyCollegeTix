@@ -192,6 +192,16 @@ export default function TicketsScreen() {
   const [transferProofModalVisible, setTransferProofModalVisible] = useState(false);
   const [selectedItemForTransfer, setSelectedItemForTransfer] = useState<OrderItem | null>(null);
 
+  // Helper function to check if a ticket's event has expired
+  const isEventExpired = (eventDate: string): boolean => {
+    const now = new Date();
+    const event = new Date(eventDate);
+    // End of event day (11:59:59 PM)
+    const endOfEventDay = new Date(event);
+    endOfEventDay.setHours(23, 59, 59, 999);
+    return now > endOfEventDay;
+  };
+
   // Filter options for segmented control
   const filterOptions: FilterOption[] = [
     {
@@ -860,16 +870,6 @@ export default function TicketsScreen() {
     }
   };
 
-  // Helper function to check if a ticket's event has expired
-  const isEventExpired = (eventDate: string): boolean => {
-    const now = new Date();
-    const event = new Date(eventDate);
-    // End of event day (11:59:59 PM)
-    const endOfEventDay = new Date(event);
-    endOfEventDay.setHours(23, 59, 59, 999);
-    return now > endOfEventDay;
-  };
-
   // Helper function to separate and sort tickets - only future events
   const getActiveListings = (allListings: OrderItem[]) => {
     return allListings
@@ -1142,6 +1142,37 @@ export default function TicketsScreen() {
     if (tab === "watchlist") {
       return watchlistStats;
     }
+
+    // Only count ACTIVE tickets, not sold/cancelled/expired/completed
+    if (tab === "selling") {
+      // Active for selling: disputed, pending transfers, awaiting confirmation, active listings
+      const disputed = listings.filter((t) => t.escrow_status === "disputed");
+      const pendingTransfer = listings.filter((t) => t.pending_transfer === true);
+      const awaitingConf = listings.filter((t) => t.awaiting_confirmation === true);
+      const active = listings.filter((t) =>
+        t.status === "available" &&
+        !isEventExpired(t.event_date) &&
+        !t.pending_transfer &&
+        !t.awaiting_confirmation &&
+        t.escrow_status !== "disputed"
+      );
+      const activeCount = disputed.length + pendingTransfer.length + awaitingConf.length + active.length;
+      const activeOrders = [...disputed, ...pendingTransfer, ...awaitingConf, ...active];
+      const total = activeOrders.reduce((sum, order) => sum + order.price, 0);
+      return { count: activeCount, total };
+    }
+
+    if (tab === "bought") {
+      // Active for bought: disputed, awaiting transfer (not completed transactions)
+      const disputed = purchases.filter((p) => p.escrow_status === "disputed");
+      const awaitingTransfer = purchases.filter((p) => p.escrow_status === "transfer_pending");
+      const activeCount = disputed.length + awaitingTransfer.length;
+      const activeOrders = [...disputed, ...awaitingTransfer];
+      const total = activeOrders.reduce((sum, order) => sum + order.price, 0);
+      return { count: activeCount, total };
+    }
+
+    // Fallback
     const orders = tab === "bought" ? purchases : listings;
     const total = orders.reduce((sum, order) => sum + order.price, 0);
     return { count: orders.length, total };
