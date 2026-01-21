@@ -8,7 +8,7 @@ require("dotenv").config(); // Load environment variables
 
 // Use your existing environment variables - SERVICE ROLE KEY for admin access
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error("❌ Missing Supabase credentials in .env file");
@@ -248,7 +248,9 @@ function parseEventLines(eventLines, date, sourceFile) {
         eventLine.includes("Exhibition") || eventLine.includes("exhibition");
 
       const genderPrefix = isWomens ? "Women's " : isMens ? "Men's " : "";
-      title = `${genderPrefix}${sport} vs ${opponent}${isExhibition ? " (Exhibition)" : ""}`;
+      title = `${genderPrefix}${sport} vs ${opponent}${
+        isExhibition ? " (Exhibition)" : ""
+      }`;
       isHomeGame = true;
 
       // Process location lines
@@ -292,7 +294,9 @@ function parseEventLines(eventLines, date, sourceFile) {
         eventLine.includes("Exhibition") || eventLine.includes("exhibition");
 
       const genderPrefix = isWomens ? "Women's " : isMens ? "Men's " : "";
-      title = `${genderPrefix}${sport} at ${opponent}${isExhibition ? " (Exhibition)" : ""}`;
+      title = `${genderPrefix}${sport} at ${opponent}${
+        isExhibition ? " (Exhibition)" : ""
+      }`;
       isHomeGame = false;
       venue = null; // Away games don't have our venue
 

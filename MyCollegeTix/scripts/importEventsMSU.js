@@ -4,11 +4,11 @@ const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config(); // Load environment variables
 
-//KEEP THIS IN HOW TO RUN THIS : node scripts/importEventsMSU.js ./calendar-data
+//KEEP THIS IN HOW TO RUN THIS : node scripts/importEventsMSU.js ./calendar-data/msu
 
 // Use your existing environment variables - SERVICE ROLE KEY for admin access
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error("❌ Missing Supabase credentials in .env file");
@@ -38,7 +38,7 @@ const SPORT_MAPPING = {
   "men's basketball": "Basketball",
   "women's basketball": "Basketball",
   "ice hockey": "Hockey",
-  "men's ice hockey": "Hockey", 
+  "men's ice hockey": "Hockey",
   "women's ice hockey": "Hockey",
   hockey: "Hockey",
   baseball: "Baseball",
@@ -250,7 +250,9 @@ function parseEventLines(eventLines, date, sourceFile) {
         eventLine.includes("Exhibition") || eventLine.includes("exhibition");
 
       const genderPrefix = isWomens ? "Women's " : isMens ? "Men's " : "";
-      title = `${genderPrefix}${sport} vs ${opponent}${isExhibition ? " (Exhibition)" : ""}`;
+      title = `${genderPrefix}${sport} vs ${opponent}${
+        isExhibition ? " (Exhibition)" : ""
+      }`;
       isHomeGame = true;
 
       // Process location lines
@@ -294,7 +296,9 @@ function parseEventLines(eventLines, date, sourceFile) {
         eventLine.includes("Exhibition") || eventLine.includes("exhibition");
 
       const genderPrefix = isWomens ? "Women's " : isMens ? "Men's " : "";
-      title = `${genderPrefix}${sport} at ${opponent}${isExhibition ? " (Exhibition)" : ""}`;
+      title = `${genderPrefix}${sport} at ${opponent}${
+        isExhibition ? " (Exhibition)" : ""
+      }`;
       isHomeGame = false;
       venue = null; // Away games don't have our venue
 
@@ -676,9 +680,7 @@ if (require.main === module) {
 
   if (!folderPath) {
     console.log("❌ Usage: node scripts/importEventsMSU.js <folder-path>");
-    console.log(
-      "📝 Example: node scripts/importEventsMSU.js ./calendar-data"
-    );
+    console.log("📝 Example: node scripts/importEventsMSU.js ./calendar-data");
     process.exit(1);
   }
 
