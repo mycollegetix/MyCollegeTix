@@ -155,58 +155,40 @@ export class TransferProofService {
   }
 
   /**
-   * Get user info for folder naming
+   * Get current user ID
    */
-  static async getUserInfo(): Promise<{ id: string; name: string; email: string } | null> {
+  static async getCurrentUserId(): Promise<string | null> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, email")
-        .eq("id", user.id)
-        .single();
-
-      // Create a safe folder name from email or name
-      const name = profile?.full_name || profile?.email || user.email || "unknown";
-      const safeName = name
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "_")
-        .replace(/_+/g, "_")
-        .substring(0, 50);
-
-      return {
-        id: user.id,
-        name: safeName,
-        email: profile?.email || user.email || "",
-      };
+      return user?.id || null;
     } catch (error) {
-      console.error("Error getting user info:", error);
+      console.error("Error getting user:", error);
       return null;
     }
   }
 
   /**
    * Upload transfer proof to Supabase Storage
+   * Path format: {order_id}/{timestamp}.jpg
+   * This format enables RLS policies to verify seller ownership
    */
   static async uploadProof(
     orderId: string,
     base64Data: string
   ): Promise<TransferProofResult> {
     try {
-      console.log("📤 Starting proof upload...");
+      console.log("📤 Starting proof upload for order:", orderId);
 
-      // Get user info for folder naming
-      const userInfo = await this.getUserInfo();
-      if (!userInfo) {
+      // Verify user is authenticated
+      const userId = await this.getCurrentUserId();
+      if (!userId) {
         return { success: false, error: "Not authenticated" };
       }
 
-      // Create file path: {user_name}/{order_id}/{timestamp}.jpg
+      // Create file path: {order_id}/{timestamp}.jpg
+      // This format allows RLS policies to verify the user is the seller of this order
       const timestamp = Date.now();
-      const dateStr = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-      const filePath = `${userInfo.name}/${orderId.substring(0, 8)}_${dateStr}/${timestamp}.jpg`;
+      const filePath = `${orderId}/${timestamp}.jpg`;
 
       console.log("📤 Uploading to path:", filePath);
 
@@ -214,6 +196,7 @@ export class TransferProofService {
       const arrayBuffer = base64ToArrayBuffer(base64Data);
 
       // Upload to Supabase Storage
+      // RLS policy will verify user is the seller of this order
       const { data, error: uploadError } = await supabase.storage
         .from(BUCKET_NAME)
         .upload(filePath, arrayBuffer, {
@@ -223,6 +206,10 @@ export class TransferProofService {
 
       if (uploadError) {
         console.error("❌ Upload error:", uploadError);
+        // Provide more helpful error message for permission issues
+        if (uploadError.message.includes("policy") || uploadError.message.includes("denied")) {
+          return { success: false, error: "You don't have permission to upload proof for this order. Only the seller can upload transfer proof." };
+        }
         return { success: false, error: uploadError.message };
       }
 
@@ -249,16 +236,18 @@ export class TransferProofService {
 
   /**
    * Get the transfer proof URL for an order
+   * Only buyers, sellers, and admins can view proofs (enforced by RLS)
    */
   static async getProofUrl(orderId: string): Promise<string | null> {
     try {
-      const userInfo = await this.getUserInfo();
-      if (!userInfo) return null;
+      const userId = await this.getCurrentUserId();
+      if (!userId) return null;
 
       // List files in the order folder
+      // RLS policy will verify user is buyer/seller/admin of this order
       const { data: files, error } = await supabase.storage
         .from(BUCKET_NAME)
-        .list(`${userInfo.name}/${orderId.substring(0, 8)}`);
+        .list(orderId);
 
       if (error || !files?.length) {
         return null;
@@ -269,7 +258,7 @@ export class TransferProofService {
         (b.created_at || "").localeCompare(a.created_at || "")
       )[0];
 
-      const filePath = `${userInfo.name}/${orderId.substring(0, 8)}/${latestFile.name}`;
+      const filePath = `${orderId}/${latestFile.name}`;
 
       const { data: urlData } = await supabase.storage
         .from(BUCKET_NAME)

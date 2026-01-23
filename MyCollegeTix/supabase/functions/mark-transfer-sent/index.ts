@@ -3,6 +3,8 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { sendEmailToUser, transferSentEmail } from '../_shared/email/index.ts'
+import { rateLimitMiddleware } from '../_shared/rateLimiter.ts'
+import { MarkTransferSentSchema, validateInput } from '../_shared/validation/schemas.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,11 +54,26 @@ Deno.serve(async (req: Request) => {
       throw new Error('Unauthorized')
     }
 
-    const { orderId, proofUrl } = await req.json() as MarkTransferSentRequest
-
-    if (!orderId) {
-      throw new Error('Order ID is required')
+    // Rate limiting - 10 requests per minute per user+IP
+    const { response: rateLimitResponse } = await rateLimitMiddleware(
+      supabase,
+      req,
+      'mark-transfer-sent',
+      'financial',
+      user.id,
+      corsHeaders
+    )
+    if (rateLimitResponse) {
+      return rateLimitResponse
     }
+
+    // Validate input
+    const rawInput = await req.json()
+    const validation = validateInput(MarkTransferSentSchema, rawInput, corsHeaders)
+    if (!validation.success) {
+      return validation.response
+    }
+    const { orderId, proofUrl } = validation.data
 
     console.log(`📝 Mark transfer sent - Order: ${orderId}, Has proof: ${!!proofUrl}`)
 

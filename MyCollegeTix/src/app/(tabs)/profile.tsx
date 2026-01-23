@@ -112,45 +112,6 @@ export default function ProfileScreen() {
     router.replace("/(auth)/login");
   };
 
-  const handlePasswordReset = async () => {
-    if (!user?.email) {
-      Alert.alert("Error", "No email address found for your account");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      console.log("🔐 Sending password reset email to:", user.email);
-
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: process.env.EXPO_PUBLIC_RESET_PASSWORD_URL!,
-      });
-
-      if (error) {
-        console.error("❌ Password reset error:", error);
-        throw error;
-      }
-
-      console.log("✅ Password reset email sent successfully");
-
-      Alert.alert(
-        "Password Reset Email Sent",
-        `We've sent a password reset link to ${user.email}. Please check your email and follow the instructions to reset your password.`,
-        [{ text: "OK" }]
-      );
-    } catch (error: any) {
-      console.error("❌ Password reset failed:", error);
-      Alert.alert(
-        "Error",
-        error.message ||
-          "Failed to send password reset email. Please try again."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-
   const loadDataSummary = async () => {
     try {
       const { data, error } = await AccountService.getAccountDataSummary();
@@ -677,89 +638,6 @@ export default function ProfileScreen() {
                 </View>
               ) : (
                 <View style={styles.settingsContent}>
-                {/* Security Settings Section */}
-                <View style={styles.premiumSection}>
-                  <View style={styles.sectionHeader}>
-                    <View style={[styles.sectionIconContainer, { backgroundColor: `${theme.primary}12` }]}>
-                      <Ionicons name="shield-checkmark" size={24} color={theme.primary} />
-                    </View>
-                    <View style={styles.sectionHeaderContent}>
-                      <Text style={[styles.premiumSectionTitle, { color: theme.primary }]}>
-                        Security & Privacy
-                      </Text>
-                      <Text style={styles.premiumSectionSubtitle}>
-                        Manage your account security settings
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Password Reset Card */}
-                  <View style={styles.premiumCard}>
-                    <View style={styles.premiumCardHeader}>
-                      <View style={[styles.cardIconContainer, { backgroundColor: `${theme.primary}08` }]}>
-                        <Ionicons name="key-outline" size={22} color={theme.primary} />
-                      </View>
-                      <View style={styles.cardHeaderContent}>
-                        <Text style={[styles.cardTitle, { color: theme.primary }]}>
-                          Password Reset
-                        </Text>
-                        <Text style={styles.cardSubtitle}>
-                          Send a secure password reset link via email
-                        </Text>
-                      </View>
-                      <View style={[styles.statusIndicator, { backgroundColor: `${theme.primary}20` }]}>
-                        <View style={[styles.statusDot, { backgroundColor: theme.primary }]} />
-                      </View>
-                    </View>
-
-                    <View style={styles.cardContent}>
-                      <View style={[styles.infoPanel, { backgroundColor: `${theme.primary}06`, borderColor: `${theme.primary}20` }]}>
-                        <View style={[styles.infoPanelIcon, { backgroundColor: `${theme.primary}15` }]}>
-                          <Ionicons name="mail" size={18} color={theme.primary} />
-                        </View>
-                        <View style={styles.infoPanelContent}>
-                          <Text style={[styles.infoPanelTitle, { color: theme.primary }]}>
-                            Secure Email Reset
-                          </Text>
-                          <Text style={styles.infoPanelDescription}>
-                            We'll send an encrypted reset link to {user?.email || "your email address"} for secure password recovery.
-                          </Text>
-                        </View>
-                      </View>
-
-                      <TouchableOpacity
-                        style={[
-                          styles.premiumButton,
-                          isLoading && styles.premiumButtonLoading,
-                          { opacity: isLoading ? 0.7 : 1 }
-                        ]}
-                        onPress={handlePasswordReset}
-                        disabled={isLoading}
-                      >
-                        <LinearGradient
-                          colors={[theme.primary, `${theme.primary}E6`]}
-                          style={styles.premiumButtonGradient}
-                        >
-                          <View style={styles.premiumButtonContent}>
-                            {isLoading ? (
-                              <View style={styles.loadingContainer}>
-                                <View style={styles.loadingSpinner} />
-                                <Text style={styles.premiumButtonText}>Sending Reset Link...</Text>
-                              </View>
-                            ) : (
-                              <>
-                                <Ionicons name="mail-outline" size={18} color="white" />
-                                <Text style={styles.premiumButtonText}>Send Password Reset Email</Text>
-                                <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
-                              </>
-                            )}
-                          </View>
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-
                 {/* App Information Section */}
                 <View style={styles.premiumSection}>
                   <View style={styles.sectionHeader}>

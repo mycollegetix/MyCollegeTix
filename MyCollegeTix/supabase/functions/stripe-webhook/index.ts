@@ -49,33 +49,45 @@ Deno.serve(async (req: Request) => {
     // Try to verify with available webhook secrets
     const secrets = [stripeWebhookSecret, stripeConnectWebhookSecret].filter(Boolean)
 
-    if (secrets.length > 0 && signature) {
-      let verified = false
-      let lastError: any = null
+    // SECURITY: Always require signature verification - no bypass allowed
+    if (!signature) {
+      console.error('❌ Missing stripe-signature header')
+      return new Response(
+        JSON.stringify({ error: 'Missing signature' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
-      for (const secret of secrets) {
-        try {
-          // Use async version for Deno compatibility
-          event = await stripe.webhooks.constructEventAsync(body, signature, secret!)
-          verified = true
-          break
-        } catch (err) {
-          lastError = err
-          // Try next secret
-        }
-      }
+    if (secrets.length === 0) {
+      console.error('❌ No webhook secrets configured (STRIPE_WEBHOOK_SECRET or STRIPE_CONNECT_WEBHOOK_SECRET)')
+      return new Response(
+        JSON.stringify({ error: 'Webhook not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
-      if (!verified) {
-        console.error('Webhook signature verification failed with all secrets:', lastError)
-        return new Response(
-          JSON.stringify({ error: 'Invalid signature' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+    let verified = false
+    let lastError: any = null
+
+    for (const secret of secrets) {
+      try {
+        // Use async version for Deno compatibility
+        event = await stripe.webhooks.constructEventAsync(body, signature, secret!)
+        verified = true
+        console.log('✅ Webhook signature verified')
+        break
+      } catch (err) {
+        lastError = err
+        // Try next secret
       }
-    } else {
-      // Development mode - parse without verification
-      event = JSON.parse(body)
-      console.warn('⚠️ Webhook signature not verified (development mode)')
+    }
+
+    if (!verified) {
+      console.error('❌ Webhook signature verification failed with all secrets:', lastError)
+      return new Response(
+        JSON.stringify({ error: 'Invalid signature' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     console.log(`📥 Received webhook: ${event.type}`)

@@ -4,6 +4,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0'
 import { sendEmailToUser, refundProcessedEmail } from '../_shared/email/index.ts'
+import { rateLimitMiddleware } from '../_shared/rateLimiter.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,6 +67,19 @@ Deno.serve(async (req: Request) => {
 
     if (!profile?.is_admin) {
       throw new Error('Admin privileges required')
+    }
+
+    // Rate limiting - 5 requests per minute per admin (stricter for admin functions)
+    const { response: rateLimitResponse } = await rateLimitMiddleware(
+      supabase,
+      req,
+      'process-refund',
+      'financial',
+      user.id,
+      corsHeaders
+    )
+    if (rateLimitResponse) {
+      return rateLimitResponse
     }
 
     const { orderId, reason, disputeId } = await req.json() as ProcessRefundRequest

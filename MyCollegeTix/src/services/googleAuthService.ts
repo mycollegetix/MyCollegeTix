@@ -187,12 +187,12 @@ class GoogleAuthService {
       }
 
       const user = data.session.user;
-      console.log("✅ Google OAuth successful for user:", user.email);
+      console.log("✅ Google OAuth successful");
 
       // Validate email domain before allowing access
       const userEmail = user.email || "";
       if (!isEmailAllowed(userEmail)) {
-        console.error("❌ Email not allowed:", userEmail);
+        console.error("❌ Email domain not allowed");
 
         // Sign out the user immediately
         await supabase.auth.signOut();
@@ -201,7 +201,7 @@ class GoogleAuthService {
         return { error: new Error(errorMessage) };
       }
 
-      console.log("✅ Email validated:", userEmail);
+      console.log("✅ Email domain validated");
 
       // Extract user information
       const googleUser: GoogleUser = {

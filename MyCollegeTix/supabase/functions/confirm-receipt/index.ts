@@ -4,6 +4,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0'
 import { sendEmailToUser, receiptConfirmedEmail } from '../_shared/email/index.ts'
+import { rateLimitMiddleware } from '../_shared/rateLimiter.ts'
+import { ConfirmReceiptSchema, validateInput } from '../_shared/validation/schemas.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -55,7 +57,26 @@ Deno.serve(async (req: Request) => {
       throw new Error('Unauthorized')
     }
 
-    const { orderId } = await req.json() as ConfirmReceiptRequest
+    // Rate limiting - 10 requests per minute per user+IP
+    const { response: rateLimitResponse } = await rateLimitMiddleware(
+      supabase,
+      req,
+      'confirm-receipt',
+      'financial',
+      user.id,
+      corsHeaders
+    )
+    if (rateLimitResponse) {
+      return rateLimitResponse
+    }
+
+    // Validate input
+    const rawInput = await req.json()
+    const validation = validateInput(ConfirmReceiptSchema, rawInput, corsHeaders)
+    if (!validation.success) {
+      return validation.response
+    }
+    const { orderId } = validation.data
 
     // Get order with related data
     const { data: order, error: orderError } = await supabase

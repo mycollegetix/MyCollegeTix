@@ -3,6 +3,8 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0'
+import { rateLimitMiddleware } from '../_shared/rateLimiter.ts'
+import { CreatePaymentIntentSchema, validateInput } from '../_shared/validation/schemas.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -72,7 +74,26 @@ Deno.serve(async (req: Request) => {
       throw new Error('Unauthorized')
     }
 
-    const { ticketId } = await req.json() as CreatePaymentIntentRequest
+    // Rate limiting - 10 requests per minute per user+IP
+    const { response: rateLimitResponse } = await rateLimitMiddleware(
+      supabase,
+      req,
+      'create-payment-intent',
+      'financial',
+      user.id,
+      corsHeaders
+    )
+    if (rateLimitResponse) {
+      return rateLimitResponse
+    }
+
+    // Validate input
+    const rawInput = await req.json()
+    const validation = validateInput(CreatePaymentIntentSchema, rawInput, corsHeaders)
+    if (!validation.success) {
+      return validation.response
+    }
+    const { ticketId } = validation.data
 
     // Get ticket with seller info
     const { data: ticket, error: ticketError } = await supabase

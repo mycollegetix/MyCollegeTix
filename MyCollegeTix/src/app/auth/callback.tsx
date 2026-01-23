@@ -71,7 +71,7 @@ export default function AuthCallback() {
             
             if (data.session?.user) {
               console.log('✅ Session created successfully!');
-              console.log('👤 User authenticated:', data.session.user.email);
+              console.log('👤 User authenticated');
               setStatus('Welcome! Redirecting to app...');
               
               // Wait a moment then navigate to main app

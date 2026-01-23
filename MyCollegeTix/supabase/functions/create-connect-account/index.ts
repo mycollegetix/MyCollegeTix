@@ -3,6 +3,7 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0'
+import { rateLimitMiddleware } from '../_shared/rateLimiter.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,6 +58,19 @@ Deno.serve(async (req: Request) => {
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
     if (authError || !user) {
       throw new Error('Unauthorized: Invalid or expired token')
+    }
+
+    // Rate limiting - 3 requests per hour per user+IP (account creation is sensitive)
+    const { response: rateLimitResponse } = await rateLimitMiddleware(
+      supabase,
+      req,
+      'create-connect-account',
+      'accountCreation',
+      user.id,
+      corsHeaders
+    )
+    if (rateLimitResponse) {
+      return rateLimitResponse
     }
 
     // Parse request

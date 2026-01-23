@@ -6,7 +6,7 @@ require("dotenv").config(); // Load environment variables
 
 //KEEP THIS IN HOW TO RUN THIS : node scripts/importEventsMSU.js ./calendar-data/msu
 
-// Use your existing environment variables - SERVICE ROLE KEY for admin access
+// Use environment variables - SERVICE ROLE KEY for admin access (server-side only)
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -14,9 +14,7 @@ if (!supabaseUrl || !supabaseKey) {
   console.error("❌ Missing Supabase credentials in .env file");
   console.error("Make sure you have:");
   console.error("  EXPO_PUBLIC_SUPABASE_URL=your_url_here");
-  console.error(
-    "  EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here"
-  );
+  console.error("  SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here");
   process.exit(1);
 }
 
