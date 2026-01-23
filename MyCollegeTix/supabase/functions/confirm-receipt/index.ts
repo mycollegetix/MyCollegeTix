@@ -96,7 +96,14 @@ Deno.serve(async (req: Request) => {
 
     // Check order status
     if (order.escrow_status !== 'transfer_pending' && order.escrow_status !== 'payment_held') {
-      throw new Error(`Cannot confirm receipt. Order status: ${order.escrow_status}`)
+      const statusMessages: Record<string, string> = {
+        'completed': 'This order has already been completed.',
+        'refunded': 'This order has been refunded.',
+        'disputed': 'This order is currently under dispute.',
+        'payment_pending': 'Payment has not been completed yet.',
+        'payout_pending': 'Payment is already being processed.',
+      }
+      throw new Error(statusMessages[order.escrow_status] || 'This order cannot be confirmed at this time.')
     }
 
     // Get escrow payment
@@ -107,7 +114,7 @@ Deno.serve(async (req: Request) => {
       .single()
 
     if (escrowError || !escrowPayment) {
-      throw new Error('Escrow payment not found')
+      throw new Error('Payment information not found. Please contact support.')
     }
 
     // Get seller's Stripe account
@@ -118,11 +125,11 @@ Deno.serve(async (req: Request) => {
       .single()
 
     if (sellerAccountError || !sellerAccount) {
-      throw new Error('Seller Stripe account not found')
+      throw new Error('The seller has not set up their payment account yet. Please contact the seller.')
     }
 
     if (!sellerAccount.payouts_enabled) {
-      throw new Error('Seller account is not ready to receive payouts')
+      throw new Error('The seller\'s payment account is not fully verified. Please contact the seller.')
     }
 
     // Update ticket transfer status
@@ -266,13 +273,29 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Confirm receipt error:', error)
+
+    // Extract user-friendly error message
+    let errorMessage = 'Unknown error'
+
+    // Check for Stripe errors (they have a raw.message or message property)
+    if (error?.raw?.message) {
+      // Stripe API error - extract the user-friendly message
+      errorMessage = error.raw.message
+    } else if (error?.message) {
+      errorMessage = error.message
+    }
+
+    // Make certain Stripe errors more user-friendly
+    if (error?.code === 'balance_insufficient') {
+      errorMessage = 'The seller\'s Stripe account has insufficient funds. Please contact support.'
+    }
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

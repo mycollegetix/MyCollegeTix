@@ -4,6 +4,46 @@ import { useState, useCallback } from "react";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/providers/AuthProvider";
 
+/**
+ * Extract error message from edge function response
+ * Handles various error formats from Supabase functions.invoke
+ */
+async function extractEdgeFunctionError(
+  fnError: any,
+  data: any,
+  defaultMessage: string
+): Promise<string> {
+  // If we have data with an error field, use that (most reliable)
+  if (data?.error && typeof data.error === "string") {
+    return data.error;
+  }
+
+  // Try to get error from fnError context (Supabase v2 format)
+  if (fnError?.context) {
+    try {
+      // context might be a Response object, try to parse it
+      const context = fnError.context;
+      if (typeof context.json === "function") {
+        const body = await context.json();
+        if (body?.error) {
+          return body.error;
+        }
+      } else if (context.error) {
+        return context.error;
+      }
+    } catch (e) {
+      // Could not parse context, fall through
+    }
+  }
+
+  // Try fnError message (but not the generic one)
+  if (fnError?.message && fnError.message !== "Edge Function returned a non-2xx status code") {
+    return fnError.message;
+  }
+
+  return defaultMessage;
+}
+
 // Dynamically import Stripe hooks to handle Expo Go
 let usePaymentSheet: any = null;
 let PaymentSheetError: any = null;
@@ -82,12 +122,9 @@ export function useStripePayment() {
           }
         );
 
-        if (fnError) {
-          throw new Error(fnError.message || "Failed to create payment");
-        }
-
-        if (!data.success) {
-          throw new Error(data.error || "Failed to create payment intent");
+        if (fnError || !data?.success) {
+          const errorMsg = await extractEdgeFunctionError(fnError, data, "Failed to create payment");
+          throw new Error(errorMsg);
         }
 
         // Initialize the PaymentSheet
@@ -227,12 +264,9 @@ export function useStripePayment() {
           }
         );
 
-        if (fnError) {
-          throw new Error(fnError.message || "Failed to confirm receipt");
-        }
-
-        if (!data.success) {
-          throw new Error(data.error || "Failed to confirm receipt");
+        if (fnError || !data?.success) {
+          const errorMsg = await extractEdgeFunctionError(fnError, data, "Failed to confirm receipt");
+          throw new Error(errorMsg);
         }
 
         return { success: true };
@@ -278,12 +312,9 @@ export function useStripePayment() {
           }
         );
 
-        if (fnError) {
-          throw new Error(fnError.message || "Failed to mark transfer");
-        }
-
-        if (!data.success) {
-          throw new Error(data.error || "Failed to mark transfer as sent");
+        if (fnError || !data?.success) {
+          const errorMsg = await extractEdgeFunctionError(fnError, data, "Failed to mark transfer");
+          throw new Error(errorMsg);
         }
 
         return { success: true };

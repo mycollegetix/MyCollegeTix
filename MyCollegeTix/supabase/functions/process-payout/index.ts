@@ -220,13 +220,21 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Process payout error:', error)
+
+    // Extract user-friendly error message from Stripe errors
+    let errorMessage = 'Unknown error'
+    if (error?.raw?.message) {
+      errorMessage = error.raw.message
+    } else if (error?.message) {
+      errorMessage = error.message
+    }
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

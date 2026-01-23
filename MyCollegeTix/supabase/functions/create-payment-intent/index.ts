@@ -141,7 +141,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!sellerAccount.charges_enabled || !sellerAccount.payouts_enabled) {
-      throw new Error('Seller payment account is not fully set up')
+      throw new Error('The seller\'s payment account is not fully verified yet. Please try again later or contact the seller.')
     }
 
     // Get buyer profile
@@ -172,7 +172,8 @@ Deno.serve(async (req: Request) => {
       .single()
 
     if (orderError) {
-      throw new Error(`Failed to create order: ${orderError.message}`)
+      console.error('Order creation error:', orderError)
+      throw new Error('Failed to process your order. Please try again.')
     }
 
     // Create Stripe PaymentIntent - ESCROW MODEL
@@ -207,9 +208,10 @@ Deno.serve(async (req: Request) => {
 
     if (escrowError) {
       // Clean up
+      console.error('Escrow creation error:', escrowError)
       await stripe.paymentIntents.cancel(paymentIntent.id)
       await supabase.from('orders').delete().eq('id', order.id)
-      throw new Error(`Failed to create escrow record: ${escrowError.message}`)
+      throw new Error('Failed to process payment. Please try again.')
     }
 
     // Create ticket transfer record
@@ -252,13 +254,21 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create PaymentIntent error:', error)
+
+    // Extract user-friendly error message from Stripe errors
+    let errorMessage = 'Unknown error'
+    if (error?.raw?.message) {
+      errorMessage = error.raw.message
+    } else if (error?.message) {
+      errorMessage = error.message
+    }
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

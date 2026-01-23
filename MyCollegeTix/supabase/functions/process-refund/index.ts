@@ -98,7 +98,13 @@ Deno.serve(async (req: Request) => {
     // Check order can be refunded
     const refundableStatuses = ['payment_held', 'transfer_pending', 'disputed']
     if (!refundableStatuses.includes(order.escrow_status)) {
-      throw new Error(`Cannot refund order with status: ${order.escrow_status}`)
+      const statusMessages: Record<string, string> = {
+        'completed': 'This order has already been completed and payment released. A refund is no longer possible.',
+        'refunded': 'This order has already been refunded.',
+        'payment_pending': 'Payment has not been completed yet.',
+        'payout_pending': 'Payment is already being processed to the seller.',
+      }
+      throw new Error(statusMessages[order.escrow_status] || 'This order cannot be refunded at this time.')
     }
 
     // Get escrow payment
@@ -109,11 +115,11 @@ Deno.serve(async (req: Request) => {
       .single()
 
     if (escrowError || !escrowPayment) {
-      throw new Error('Escrow payment not found')
+      throw new Error('Payment information not found. Please contact support.')
     }
 
     if (escrowPayment.status === 'refunded') {
-      throw new Error('Order has already been refunded')
+      throw new Error('This order has already been refunded.')
     }
 
     // Process Stripe refund
@@ -231,13 +237,21 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Process refund error:', error)
+
+    // Extract user-friendly error message from Stripe errors
+    let errorMessage = 'Unknown error'
+    if (error?.raw?.message) {
+      errorMessage = error.raw.message
+    } else if (error?.message) {
+      errorMessage = error.message
+    }
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

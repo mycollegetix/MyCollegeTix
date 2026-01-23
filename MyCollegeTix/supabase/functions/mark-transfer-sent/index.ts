@@ -95,7 +95,15 @@ Deno.serve(async (req: Request) => {
 
     // Check order status - should be payment_held
     if (order.escrow_status !== 'payment_held') {
-      throw new Error(`Cannot mark transfer. Order status: ${order.escrow_status}`)
+      const statusMessages: Record<string, string> = {
+        'completed': 'This order has already been completed.',
+        'refunded': 'This order has been refunded.',
+        'disputed': 'This order is currently under dispute.',
+        'payment_pending': 'Payment has not been completed yet. Please wait for the buyer to complete payment.',
+        'transfer_pending': 'You have already marked this transfer as sent.',
+        'payout_pending': 'Payment is already being processed.',
+      }
+      throw new Error(statusMessages[order.escrow_status] || 'This order cannot be updated at this time.')
     }
 
     // Update ticket transfer status with optional proof URL
@@ -125,7 +133,8 @@ Deno.serve(async (req: Request) => {
       .eq('id', orderId)
 
     if (orderUpdateError) {
-      throw new Error(`Failed to update order: ${orderUpdateError.message}`)
+      console.error('Order update error:', orderUpdateError)
+      throw new Error('Failed to update order. Please try again.')
     }
 
     // Get ticket and seller info for notification
@@ -207,13 +216,21 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Mark transfer sent error:', error)
+
+    // Extract user-friendly error message from Stripe errors
+    let errorMessage = 'Unknown error'
+    if (error?.raw?.message) {
+      errorMessage = error.raw.message
+    } else if (error?.message) {
+      errorMessage = error.message
+    }
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

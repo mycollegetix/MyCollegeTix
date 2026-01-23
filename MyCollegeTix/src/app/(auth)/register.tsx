@@ -21,12 +21,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { CollegeService } from "@/src/services/collegeService";
-import { Colleges } from "@/src/types/database.types";
+import { Tables } from "@/src/types/database.types";
 
-// import { Tables } from "@/src/types/database.types";
-
-// // College type from database
-// type College = Tables<"colleges">;
+// College type from database
+type College = Tables<"colleges">;
 
 const { width, height } = Dimensions.get("window");
 
@@ -439,8 +437,8 @@ export default function EnhancedRegisterScreen() {
   const getThemeColors = () => {
     if (selectedCollege) {
       return {
-        primary: selectedCollege.primary_color,
-        secondary: selectedCollege.secondary_color,
+        primary: selectedCollege.primary_color ?? "#18453b",
+        secondary: selectedCollege.secondary_color ?? "#ffd700",
       };
     }
     // Default MSU colors
