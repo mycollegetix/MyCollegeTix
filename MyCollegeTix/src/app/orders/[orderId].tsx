@@ -760,6 +760,16 @@ export default function OrderStatusScreen() {
                   Once they confirm, the payment will be released to your account.
                 </Text>
               </View>
+              {/* Report Issue option for seller */}
+              <TouchableOpacity
+                style={styles.reportIssueLink}
+                onPress={handleFileDispute}
+              >
+                <Ionicons name="alert-circle-outline" size={18} color="#ef4444" />
+                <Text style={styles.reportIssueLinkText}>
+                  Having an issue? Report a problem
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -827,6 +837,17 @@ export default function OrderStatusScreen() {
                   </>
                 )}
               </TouchableOpacity>
+
+              {/* Report Issue Button for Buyer */}
+              <TouchableOpacity
+                style={styles.reportIssueButton}
+                onPress={handleFileDispute}
+              >
+                <Ionicons name="alert-circle-outline" size={20} color="#ef4444" />
+                <Text style={styles.reportIssueButtonText}>
+                  Report an Issue
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -878,6 +899,15 @@ export default function OrderStatusScreen() {
               </Text>
             </TouchableOpacity>
           )}
+
+          {/* Go Home Button - Always visible and prominent */}
+          <TouchableOpacity
+            style={[styles.goHomeButton, { backgroundColor: theme.primary }]}
+            onPress={() => router.replace("/(tabs)" as any)}
+          >
+            <Ionicons name="home" size={20} color="white" />
+            <Text style={styles.goHomeButtonText}>Go to Home</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -1358,6 +1388,26 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#3b82f6",
   },
+  goHomeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 18,
+    marginTop: 16,
+    marginBottom: 20,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  goHomeButtonText: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "white",
+  },
   // Seller UI styles
   buyerInfoCard: {
     backgroundColor: "#ecfdf5",
@@ -1435,5 +1485,35 @@ const styles = StyleSheet.create({
     color: "#7c3aed",
     textAlign: "center",
     fontStyle: "italic",
+  },
+  reportIssueLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 16,
+    paddingVertical: 12,
+  },
+  reportIssueLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#ef4444",
+  },
+  reportIssueButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  reportIssueButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ef4444",
   },
 });

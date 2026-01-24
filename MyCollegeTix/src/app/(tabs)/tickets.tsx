@@ -3189,6 +3189,17 @@ export default function TicketsScreen() {
                                     </>
                                   )}
                                 </TouchableOpacity>
+
+                                {/* Report Issue Button */}
+                                <TouchableOpacity
+                                  style={styles.reportIssueButtonSmall}
+                                  onPress={() => router.push(`/dispute/${item.escrow_order_id}`)}
+                                >
+                                  <Ionicons name="alert-circle-outline" size={16} color="#ef4444" />
+                                  <Text style={styles.reportIssueButtonSmallText}>
+                                    Report an Issue
+                                  </Text>
+                                </TouchableOpacity>
                               </View>
                             </View>
                           ))}
@@ -4694,6 +4705,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     color: "white",
+  },
+  reportIssueButtonSmall: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  reportIssueButtonSmallText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#ef4444",
   },
   otherPurchasesEmpty: {
     padding: 16,

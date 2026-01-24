@@ -114,6 +114,11 @@ export default function CheckoutScreen() {
         "Your payment is being processed. The seller will be notified to transfer the ticket to you.",
         [
           {
+            text: "Go Home",
+            onPress: () => router.replace("/(tabs)" as any),
+            style: "cancel",
+          },
+          {
             text: "View Order",
             onPress: () => router.replace(`/orders/${details!.orderId}` as any),
           },
