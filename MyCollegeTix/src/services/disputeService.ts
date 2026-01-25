@@ -175,6 +175,40 @@ export class DisputeService {
       }
 
       console.log("✅ Dispute opened:", dispute.id);
+
+      // Get order details for notification
+      const { data: orderWithTicket } = await supabase
+        .from("orders")
+        .select("amount, ticket:tickets(title)")
+        .eq("id", params.orderId)
+        .single();
+
+      // Send email notification to team members
+      try {
+        const { error: notifyError } = await supabase.functions.invoke("notify-dispute", {
+          body: {
+            disputeId: dispute.id,
+            orderId: params.orderId,
+            ticketTitle: (orderWithTicket?.ticket as any)?.title || "Unknown Ticket",
+            reason: params.reason,
+            description: params.description || null,
+            filedByRole: filedByRole,
+            amount: orderWithTicket?.amount || 0,
+            buyerId: order.buyer_id,
+            sellerId: order.seller_id,
+            filedById: user.id,
+          },
+        });
+        if (notifyError) {
+          console.error("⚠️ Failed to send dispute notification:", notifyError);
+        } else {
+          console.log("📧 Dispute notification sent to team");
+        }
+      } catch (notifyErr) {
+        // Don't fail the dispute creation if notification fails
+        console.error("⚠️ Error sending dispute notification:", notifyErr);
+      }
+
       return { data: dispute, error: null, success: true };
     } catch (error) {
       console.error("💥 Error in openDispute:", error);

@@ -22,3 +22,6 @@ export type { ReceiptConfirmedParams } from './templates/receiptConfirmed.ts'
 
 export { refundProcessedEmail } from './templates/refundProcessed.ts'
 export type { RefundProcessedParams } from './templates/refundProcessed.ts'
+
+export { disputeOpenedEmail } from './templates/disputeOpened.ts'
+export type { DisputeOpenedParams } from './templates/disputeOpened.ts'
