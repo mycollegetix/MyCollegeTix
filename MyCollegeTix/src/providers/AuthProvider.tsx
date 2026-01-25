@@ -8,7 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { Session, User } from "@supabase/supabase-js";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, View } from "react-native";
 import { supabase } from "@/src/lib/supabase";
 
 // Session timeout configuration (in milliseconds)
@@ -535,15 +535,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
-      {user && (
-        <TermsAcceptanceModal
-          visible={showTermsModal}
-          userId={user.id}
-          onAccept={handleTermsAccept}
-          onDecline={handleTermsDecline}
-        />
-      )}
+      <View
+        style={{ flex: 1 }}
+        onTouchStart={resetActivityTimer}
+        onTouchMove={resetActivityTimer}
+      >
+        {children}
+        {user && (
+          <TermsAcceptanceModal
+            visible={showTermsModal}
+            userId={user.id}
+            onAccept={handleTermsAccept}
+            onDecline={handleTermsDecline}
+          />
+        )}
+      </View>
     </AuthContext.Provider>
   );
 }

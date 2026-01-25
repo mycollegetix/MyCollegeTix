@@ -245,8 +245,9 @@ Deno.serve(async (req: Request) => {
       console.error('Seller email error:', emailError)
     }
 
-    // Create rating prompt for seller to rate buyer
-    const { error: ratingPromptError } = await supabase
+    // Create rating prompts for BOTH parties
+    // 1. Seller rates buyer
+    const { error: sellerPromptError } = await supabase
       .from('rating_prompts')
       .insert({
         ticket_sale_id: orderId,
@@ -256,10 +257,27 @@ Deno.serve(async (req: Request) => {
         status: 'pending',
       })
 
-    if (ratingPromptError) {
-      console.error(`❌ Failed to create rating prompt:`, ratingPromptError)
+    if (sellerPromptError) {
+      console.error(`❌ Failed to create seller rating prompt:`, sellerPromptError)
     } else {
       console.log(`⭐ Rating prompt created for seller to rate buyer`)
+    }
+
+    // 2. Buyer rates seller
+    const { error: buyerPromptError } = await supabase
+      .from('rating_prompts')
+      .insert({
+        ticket_sale_id: orderId,
+        prompter_id: order.buyer_id,
+        ratee_id: order.seller_id,
+        prompt_type: 'buyer_rate_seller',
+        status: 'pending',
+      })
+
+    if (buyerPromptError) {
+      console.error(`❌ Failed to create buyer rating prompt:`, buyerPromptError)
+    } else {
+      console.log(`⭐ Rating prompt created for buyer to rate seller`)
     }
     console.log(`✅ Receipt confirmed for order ${orderId}, transfer ${transfer.id} sent to seller`)
 
