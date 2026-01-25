@@ -3,6 +3,7 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0'
+import { htmlErrorResponse, isLikelyBrowserRequest } from '../_shared/errorPages.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -98,10 +99,25 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Refresh onboarding error:', error)
 
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+    // Return HTML error page for browser requests
+    if (isLikelyBrowserRequest(req)) {
+      const isAuthError = errorMessage.toLowerCase().includes('authorization') ||
+                          errorMessage.toLowerCase().includes('unauthorized')
+      return htmlErrorResponse({
+        title: isAuthError ? 'Session Expired' : 'Setup Error',
+        message: isAuthError
+          ? 'Your session has expired or is invalid.'
+          : 'We couldn\'t refresh your payment setup link.',
+        suggestion: 'Please go back to the MyCollegeTix app and try again.',
+      }, isAuthError ? 401 : 400)
+    }
+
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

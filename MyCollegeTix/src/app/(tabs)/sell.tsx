@@ -187,6 +187,22 @@ export default function SellScreen() {
   };
 
   const handleSubmit = async () => {
+    // Check if Stripe is set up before allowing ticket posting
+    if (needsStripeSetup) {
+      Alert.alert(
+        "Payment Setup Required",
+        "You need to set up your payment account before you can list tickets for sale. This ensures you can receive payments when your tickets sell.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Set Up Now",
+            onPress: () => router.push("/stripe/onboarding" as any),
+          },
+        ]
+      );
+      return;
+    }
+
     if (!isFormValid()) {
       Alert.alert("Error", "Please fill in all required fields");
       return;

@@ -4,6 +4,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0'
 import { rateLimitMiddleware } from '../_shared/rateLimiter.ts'
+import { htmlErrorResponse, isLikelyBrowserRequest, ErrorMessages } from '../_shared/errorPages.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -185,6 +186,19 @@ Deno.serve(async (req: Request) => {
       errorMessage = error.raw.message
     } else if (error?.message) {
       errorMessage = error.message
+    }
+
+    // Return HTML error page for browser requests
+    if (isLikelyBrowserRequest(req)) {
+      const isAuthError = errorMessage.toLowerCase().includes('authorization') ||
+                          errorMessage.toLowerCase().includes('unauthorized')
+      return htmlErrorResponse({
+        title: isAuthError ? 'Session Expired' : 'Setup Error',
+        message: isAuthError
+          ? 'Your session has expired or is invalid.'
+          : 'We couldn\'t complete your payment setup.',
+        suggestion: 'Please go back to the MyCollegeTix app and try again.',
+      }, isAuthError ? 401 : 400)
     }
 
     return new Response(

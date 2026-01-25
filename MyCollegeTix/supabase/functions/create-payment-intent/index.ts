@@ -5,6 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0'
 import { rateLimitMiddleware } from '../_shared/rateLimiter.ts'
 import { CreatePaymentIntentSchema, validateInput } from '../_shared/validation/schemas.ts'
+import { htmlErrorResponse, isLikelyBrowserRequest } from '../_shared/errorPages.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -263,6 +264,25 @@ Deno.serve(async (req: Request) => {
       errorMessage = error.raw.message
     } else if (error?.message) {
       errorMessage = error.message
+    }
+
+    // Return HTML error page for browser requests
+    if (isLikelyBrowserRequest(req)) {
+      const isSellerError = errorMessage.toLowerCase().includes('seller')
+      const isAuthError = errorMessage.toLowerCase().includes('authorization') ||
+                          errorMessage.toLowerCase().includes('unauthorized')
+      return htmlErrorResponse({
+        title: isSellerError ? 'Payment Setup Issue' : isAuthError ? 'Session Expired' : 'Payment Error',
+        message: isSellerError
+          ? 'The seller hasn\'t completed their payment setup yet.'
+          : isAuthError
+          ? 'Your session has expired.'
+          : 'We couldn\'t process your payment.',
+        suggestion: isSellerError
+          ? 'Please contact the seller or try a different listing.'
+          : 'Please go back to the MyCollegeTix app and try again.',
+        isWarning: isSellerError,
+      }, isAuthError ? 401 : 400)
     }
 
     return new Response(

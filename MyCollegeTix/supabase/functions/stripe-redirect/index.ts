@@ -3,13 +3,23 @@
 
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url)
-  const type = url.searchParams.get('type') // 'complete' or 'refresh'
+  const type = url.searchParams.get('type') // 'complete', 'refresh', or 'error'
+  const errorMessage = url.searchParams.get('error')
 
-  const isComplete = type === 'complete'
-  const deepLink = isComplete
+  // Handle explicit error parameter
+  const isError = type === 'error' || errorMessage
+  const isComplete = type === 'complete' && !isError
+  const isRefresh = type === 'refresh' || (!isComplete && !isError)
+
+  const deepLink = isError
+    ? 'mycollegetix://stripe/refresh'
+    : isComplete
     ? 'mycollegetix://stripe/complete'
     : 'mycollegetix://stripe/refresh'
-  const statusMessage = isComplete
+
+  const statusMessage = isError
+    ? 'Setup Issue'
+    : isComplete
     ? 'Payment setup complete!'
     : 'Please try again'
 
@@ -42,7 +52,7 @@ Deno.serve(async (req: Request) => {
       width: 80px;
       height: 80px;
       border-radius: 50%;
-      background: ${isComplete ? '#10b981' : '#f59e0b'};
+      background: ${isError ? '#ef4444' : isComplete ? '#10b981' : '#f59e0b'};
       display: flex;
       align-items: center;
       justify-content: center;
@@ -88,9 +98,11 @@ Deno.serve(async (req: Request) => {
 </head>
 <body>
   <div class="container">
-    <div class="icon">${isComplete ? '✓' : '↻'}</div>
+    <div class="icon">${isError ? '✕' : isComplete ? '✓' : '↻'}</div>
     <h1>${statusMessage}</h1>
-    <p>${isComplete
+    <p>${isError
+      ? errorMessage || 'Something went wrong during setup. Please go back to the app and try again.'
+      : isComplete
       ? 'Your Stripe account has been set up successfully. You can now receive payments when your tickets sell!'
       : 'Your onboarding session expired or needs to be refreshed. Please go back to the app and try again.'
     }</p>
@@ -102,7 +114,9 @@ Deno.serve(async (req: Request) => {
     <div id="manual" class="manual">
       <div class="instruction">
         <p class="instruction-text">
-          ${isComplete
+          ${isError
+            ? 'There was an issue with your setup. Please close this page and try again from the app.'
+            : isComplete
             ? 'You can close this page and return to the MyCollegeTix app.'
             : 'Close this page and tap "Continue Setup" in the app to try again.'
           }
