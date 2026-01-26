@@ -12,9 +12,12 @@ import {
   Platform,
   Alert,
   Modal,
+  ActivityIndicator,
   FlatList,
   StatusBar,
 } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+WebBrowser.maybeCompleteAuthSession();
 import Colors from "@/src/constants/Colors";
 import { useColorScheme } from "@/src/components/useColorScheme";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -29,6 +32,7 @@ import { useTheme } from "@/src/providers/ThemeProvider";
 import { useNotifications } from "@/src/providers/NotificationProvider";
 import { usePayment } from "@/src/providers/PaymentProvider";
 import { formatEventDateTime } from "@/src/utils/dateUtils";
+import { StripeConnectService } from "@/src/services/stripeConnectService";
 
 const { width, height } = Dimensions.get("window");
 
@@ -151,8 +155,7 @@ export default function SellScreen() {
       dateStyle: "medium",
       separator: " • ",
     });
-    
-    
+
     return formatted;
   };
 
@@ -184,6 +187,96 @@ export default function SellScreen() {
       description: "",
       ticket_type: "student", // Default to student
     });
+  };
+
+  // Stripe dashboard loading state
+  const [isLoadingStripeDashboard, setIsLoadingStripeDashboard] =
+    useState(false);
+  const openInAppBrowser = async (url: string) => {
+    await WebBrowser.openBrowserAsync(url, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+      controlsColor: "#635bff", // Stripe purple (optional)
+      showTitle: true,
+      enableBarCollapsing: true,
+    });
+  };
+
+  const handleOpenStripeDashboard = async () => {
+    setIsLoadingStripeDashboard(true);
+
+    try {
+      const result = await StripeConnectService.getDashboardLink();
+
+      if (!result.success || !result.data) {
+        Alert.alert(
+          "Error",
+          result.error || "Unable to access payment settings. Please try again."
+        );
+        return;
+      }
+
+      const { hasAccount, onboardingComplete, url } = result.data;
+
+      // No Stripe account yet
+      if (!hasAccount) {
+        Alert.alert(
+          "Payment Setup Required",
+          "You need to set up your payment account to access the Stripe dashboard. Would you like to set it up now?",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Set Up Payments",
+              onPress: async () => {
+                const onboardingResult =
+                  await StripeConnectService.createConnectAccount();
+
+                if (
+                  onboardingResult.success &&
+                  onboardingResult.data?.onboardingUrl
+                ) {
+                  await openInAppBrowser(onboardingResult.data.onboardingUrl);
+                } else {
+                  Alert.alert(
+                    "Error",
+                    onboardingResult.error || "Failed to start payment setup."
+                  );
+                }
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // Account exists but onboarding incomplete
+      if (!onboardingComplete && url) {
+        Alert.alert(
+          "Complete Setup",
+          "Please complete your payment setup to access the full dashboard.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Continue Setup",
+              onPress: () => openInAppBrowser(url),
+            },
+          ]
+        );
+        return;
+      }
+
+      // Fully set up → open Stripe dashboard
+      if (url) {
+        await openInAppBrowser(url);
+      }
+    } catch (error) {
+      console.error("Error opening Stripe dashboard:", error);
+      Alert.alert(
+        "Error",
+        "Unable to open payment settings. Please try again."
+      );
+    } finally {
+      setIsLoadingStripeDashboard(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -317,19 +410,19 @@ export default function SellScreen() {
       style={styles.eventItem}
       onPress={() => handleEventSelect(item)}
     >
-        <View style={styles.eventItemContent}>
-          <View style={styles.eventItemInfo}>
-            <Text style={styles.eventItemTitle}>{item.title}</Text>
-            <Text style={styles.eventItemDate}>
-              {formatEventDate(item.event_date, item.game_time)}
-            </Text>
-            <Text style={styles.eventItemLocation}>
-              {item.venue || item.location}
-            </Text>
-            {item.opponent && (
-              <Text style={styles.eventItemOpponent}>vs {item.opponent}</Text>
-            )}
-          </View>
+      <View style={styles.eventItemContent}>
+        <View style={styles.eventItemInfo}>
+          <Text style={styles.eventItemTitle}>{item.title}</Text>
+          <Text style={styles.eventItemDate}>
+            {formatEventDate(item.event_date, item.game_time)}
+          </Text>
+          <Text style={styles.eventItemLocation}>
+            {item.venue || item.location}
+          </Text>
+          {item.opponent && (
+            <Text style={styles.eventItemOpponent}>vs {item.opponent}</Text>
+          )}
+        </View>
         <View style={styles.eventItemBadges}>
           <View
             style={[
@@ -400,6 +493,18 @@ export default function SellScreen() {
       >
         {/* Header Section */}
         <View style={styles.headerSection}>
+          {/* Stripe Dashboard Button - Top Left */}
+          <TouchableOpacity
+            style={styles.stripeButton}
+            onPress={handleOpenStripeDashboard}
+            disabled={isLoadingStripeDashboard}
+          >
+            {isLoadingStripeDashboard ? (
+              <ActivityIndicator size="small" color={theme.secondary} />
+            ) : (
+              <Ionicons name="card-outline" size={24} color={theme.secondary} />
+            )}
+          </TouchableOpacity>
           <View style={styles.logoContainer}>
             <LinearGradient
               colors={[theme.secondary, `${theme.secondary}DD`]}
@@ -436,23 +541,49 @@ export default function SellScreen() {
               <TouchableOpacity
                 style={[
                   styles.stripeSetupBanner,
-                  { backgroundColor: theme.secondary, borderColor: theme.primary },
+                  {
+                    backgroundColor: theme.secondary,
+                    borderColor: theme.primary,
+                  },
                 ]}
                 onPress={() => router.push("/stripe/onboarding" as any)}
               >
                 <View style={styles.stripeSetupContent}>
-                  <View style={[styles.stripeSetupIconContainer, { backgroundColor: theme.primary }]}>
-                    <Ionicons name="card-outline" size={24} color={theme.secondary} />
+                  <View
+                    style={[
+                      styles.stripeSetupIconContainer,
+                      { backgroundColor: theme.primary },
+                    ]}
+                  >
+                    <Ionicons
+                      name="card-outline"
+                      size={24}
+                      color={theme.secondary}
+                    />
                   </View>
                   <View style={styles.stripeSetupText}>
-                    <Text style={[styles.stripeSetupTitle, { color: theme.primary }]}>
+                    <Text
+                      style={[
+                        styles.stripeSetupTitle,
+                        { color: theme.primary },
+                      ]}
+                    >
                       Set Up Payments
                     </Text>
-                    <Text style={[styles.stripeSetupSubtitle, { color: theme.primary }]}>
+                    <Text
+                      style={[
+                        styles.stripeSetupSubtitle,
+                        { color: theme.primary },
+                      ]}
+                    >
                       Complete setup to receive payments when your tickets sell
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={24} color={theme.primary} />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={24}
+                    color={theme.primary}
+                  />
                 </View>
               </TouchableOpacity>
             )}
@@ -1479,5 +1610,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     opacity: 0.8,
     lineHeight: 18,
+  },
+  stripeButton: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 1000,
+    elevation: 5,
   },
 });

@@ -24,6 +24,13 @@ export interface OnboardingResult {
   onboardingUrl: string;
 }
 
+export interface DashboardLinkResult {
+  hasAccount: boolean;
+  onboardingComplete: boolean;
+  url: string | null;
+  message?: string;
+}
+
 export class StripeConnectService {
   // ============================================
   // ACCOUNT CREATION & ONBOARDING
@@ -70,6 +77,55 @@ export class StripeConnectService {
       };
     } catch (error) {
       console.error("💥 Unexpected error in createConnectAccount:", error);
+      return {
+        data: null,
+        error: error instanceof Error ? error.message : "Unknown error",
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Get a Stripe Express dashboard login link for the current user
+   * If user has no account, returns flag to initiate onboarding
+   * If onboarding incomplete, returns onboarding link instead
+   */
+  static async getDashboardLink(): Promise<ServiceResponse<DashboardLinkResult>> {
+    try {
+      console.log("🔗 Getting Stripe dashboard link...");
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        return { data: null, error: "User not authenticated", success: false };
+      }
+
+      // Call Edge Function to get dashboard link
+      const { data, error } = await supabase.functions.invoke("get-stripe-dashboard-link", {
+        body: {},
+      });
+
+      if (error) {
+        console.error("❌ Error getting dashboard link:", error);
+        return { data: null, error: error.message, success: false };
+      }
+
+      if (!data.success) {
+        return { data: null, error: data.error || "Failed to get dashboard link", success: false };
+      }
+
+      console.log("✅ Dashboard link result:", data.hasAccount ? "has account" : "no account");
+      return {
+        data: {
+          hasAccount: data.hasAccount,
+          onboardingComplete: data.onboardingComplete ?? false,
+          url: data.url || null,
+          message: data.message,
+        },
+        error: null,
+        success: true,
+      };
+    } catch (error) {
+      console.error("💥 Unexpected error in getDashboardLink:", error);
       return {
         data: null,
         error: error instanceof Error ? error.message : "Unknown error",

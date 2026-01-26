@@ -14,6 +14,8 @@ import {
   Animated,
   Dimensions,
 } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+WebBrowser.maybeCompleteAuthSession();
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
@@ -39,6 +41,7 @@ import { TicketSaleService } from "@/src/services/ticketSaleService";
 import { useStripePayment } from "@/src/hooks/useStripePayment";
 import TransferProofModal from "@/src/components/TransferProofModal";
 import { TransferProofService } from "@/src/services/transferProofService";
+import { StripeConnectService } from "@/src/services/stripeConnectService";
 
 type OrderType = "selling" | "bought" | "watchlist";
 
@@ -190,8 +193,10 @@ export default function TicketsScreen() {
   const [expiredListingsExpanded, setExpiredListingsExpanded] = useState(false); // Collapsed by default
 
   // Buyer tab collapsible sections
-  const [awaitingTransferExpanded, setAwaitingTransferExpanded] = useState(true); // Default open for urgency
-  const [disputedPurchasesExpanded, setDisputedPurchasesExpanded] = useState(true); // Default open - urgent!
+  const [awaitingTransferExpanded, setAwaitingTransferExpanded] =
+    useState(true); // Default open for urgency
+  const [disputedPurchasesExpanded, setDisputedPurchasesExpanded] =
+    useState(true); // Default open - urgent!
 
   // Stripe payment hook for confirming receipt and marking transfer
   const { confirmReceipt, markTransferSent } = useStripePayment();
@@ -201,8 +206,14 @@ export default function TicketsScreen() {
   );
 
   // Transfer proof modal state
-  const [transferProofModalVisible, setTransferProofModalVisible] = useState(false);
-  const [selectedItemForTransfer, setSelectedItemForTransfer] = useState<OrderItem | null>(null);
+  const [transferProofModalVisible, setTransferProofModalVisible] =
+    useState(false);
+  const [selectedItemForTransfer, setSelectedItemForTransfer] =
+    useState<OrderItem | null>(null);
+
+  // Stripe dashboard loading state
+  const [isLoadingStripeDashboard, setIsLoadingStripeDashboard] =
+    useState(false);
 
   // Helper function to check if a ticket's event has expired
   const isEventExpired = (eventDate: string): boolean => {
@@ -277,12 +288,14 @@ export default function TicketsScreen() {
       // Query rating_prompts for pending prompts where this user is the prompter
       const { data: prompts, error } = await supabase
         .from("rating_prompts")
-        .select(`
+        .select(
+          `
           id,
           ticket_sale_id,
           ratee_id,
           prompt_type
-        `)
+        `
+        )
         .eq("prompter_id", user.id)
         .eq("prompt_type", "seller_rate_buyer")
         .eq("status", "pending")
@@ -297,11 +310,13 @@ export default function TicketsScreen() {
       // Get the order details to show in the modal
       const { data: order } = await supabase
         .from("orders")
-        .select(`
+        .select(
+          `
           id,
           buyer:profiles!orders_buyer_id_fkey(full_name),
           ticket:tickets!orders_ticket_id_fkey(title)
-        `)
+        `
+        )
         .eq("id", prompts.ticket_sale_id)
         .single();
 
@@ -329,12 +344,14 @@ export default function TicketsScreen() {
       // Query rating_prompts for pending prompts where this user is the prompter (buyer)
       const { data: prompts, error } = await supabase
         .from("rating_prompts")
-        .select(`
+        .select(
+          `
           id,
           ticket_sale_id,
           ratee_id,
           prompt_type
-        `)
+        `
+        )
         .eq("prompter_id", user.id)
         .eq("prompt_type", "buyer_rate_seller")
         .eq("status", "pending")
@@ -349,11 +366,13 @@ export default function TicketsScreen() {
       // Get the order details to show in the modal
       const { data: order } = await supabase
         .from("orders")
-        .select(`
+        .select(
+          `
           id,
           seller:profiles!orders_seller_id_fkey(full_name),
           ticket:tickets!orders_ticket_id_fkey(title)
-        `)
+        `
+        )
         .eq("id", prompts.ticket_sale_id)
         .single();
 
@@ -672,7 +691,9 @@ export default function TicketsScreen() {
           const ticket = order.ticket;
           const seller = order.seller;
           // Get the most recent dispute (disputes is an array from the join)
-          const dispute = Array.isArray(order.dispute) ? order.dispute[0] : order.dispute;
+          const dispute = Array.isArray(order.dispute)
+            ? order.dispute[0]
+            : order.dispute;
 
           return {
             id: ticket?.id || order.id,
@@ -1021,7 +1042,9 @@ export default function TicketsScreen() {
     return allListings
       .filter((ticket) => ticket.escrow_status === "disputed")
       .sort((a, b) => {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
       });
   };
 
@@ -1031,7 +1054,9 @@ export default function TicketsScreen() {
       .filter((purchase) => purchase.escrow_status === "transfer_pending")
       .sort((a, b) => {
         // Sort by most recent first
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
       });
   };
 
@@ -1040,20 +1065,25 @@ export default function TicketsScreen() {
     return allPurchases
       .filter((purchase) => purchase.escrow_status === "disputed")
       .sort((a, b) => {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
       });
   };
 
   // Get other purchases (not awaiting transfer and not disputed)
   const getOtherPurchases = (allPurchases: OrderItem[]) => {
     return allPurchases
-      .filter((purchase) =>
-        purchase.escrow_status !== "transfer_pending" &&
-        purchase.escrow_status !== "disputed"
+      .filter(
+        (purchase) =>
+          purchase.escrow_status !== "transfer_pending" &&
+          purchase.escrow_status !== "disputed"
       )
       .sort((a, b) => {
         // Sort by most recent first
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
       });
   };
 
@@ -1218,17 +1248,31 @@ export default function TicketsScreen() {
     if (tab === "selling") {
       // Active for selling: disputed, pending transfers, awaiting confirmation, active listings
       const disputed = listings.filter((t) => t.escrow_status === "disputed");
-      const pendingTransfer = listings.filter((t) => t.pending_transfer === true);
-      const awaitingConf = listings.filter((t) => t.awaiting_confirmation === true);
-      const active = listings.filter((t) =>
-        t.status === "available" &&
-        !isEventExpired(t.event_date) &&
-        !t.pending_transfer &&
-        !t.awaiting_confirmation &&
-        t.escrow_status !== "disputed"
+      const pendingTransfer = listings.filter(
+        (t) => t.pending_transfer === true
       );
-      const activeCount = disputed.length + pendingTransfer.length + awaitingConf.length + active.length;
-      const activeOrders = [...disputed, ...pendingTransfer, ...awaitingConf, ...active];
+      const awaitingConf = listings.filter(
+        (t) => t.awaiting_confirmation === true
+      );
+      const active = listings.filter(
+        (t) =>
+          t.status === "available" &&
+          !isEventExpired(t.event_date) &&
+          !t.pending_transfer &&
+          !t.awaiting_confirmation &&
+          t.escrow_status !== "disputed"
+      );
+      const activeCount =
+        disputed.length +
+        pendingTransfer.length +
+        awaitingConf.length +
+        active.length;
+      const activeOrders = [
+        ...disputed,
+        ...pendingTransfer,
+        ...awaitingConf,
+        ...active,
+      ];
       const total = activeOrders.reduce((sum, order) => sum + order.price, 0);
       return { count: activeCount, total };
     }
@@ -1236,7 +1280,9 @@ export default function TicketsScreen() {
     if (tab === "bought") {
       // Active for bought: disputed, awaiting transfer (not completed transactions)
       const disputed = purchases.filter((p) => p.escrow_status === "disputed");
-      const awaitingTransfer = purchases.filter((p) => p.escrow_status === "transfer_pending");
+      const awaitingTransfer = purchases.filter(
+        (p) => p.escrow_status === "transfer_pending"
+      );
       const activeCount = disputed.length + awaitingTransfer.length;
       const activeOrders = [...disputed, ...awaitingTransfer];
       const total = activeOrders.reduce((sum, order) => sum + order.price, 0);
@@ -1305,7 +1351,9 @@ export default function TicketsScreen() {
   };
 
   // Handle seller rating buyer submission (from rating_prompts)
-  const handleConfirmSellerRatingBuyer = async (ratingData: SellerRatingData) => {
+  const handleConfirmSellerRatingBuyer = async (
+    ratingData: SellerRatingData
+  ) => {
     if (!pendingSellerRatingPrompt || !user) return;
 
     setSavingSellerRating(true);
@@ -1328,7 +1376,10 @@ export default function TicketsScreen() {
         .update({ status: "completed", completed_at: new Date().toISOString() })
         .eq("id", pendingSellerRatingPrompt.id);
 
-      Alert.alert("Thank You!", "Your rating for the buyer has been submitted.");
+      Alert.alert(
+        "Thank You!",
+        "Your rating for the buyer has been submitted."
+      );
       setSellerRatingBuyerModalVisible(false);
       setPendingSellerRatingPrompt(null);
 
@@ -1343,7 +1394,9 @@ export default function TicketsScreen() {
   };
 
   // Handle buyer rating seller submission (from rating_prompts)
-  const handleConfirmBuyerRatingSeller = async (ratingData: SellerRatingData) => {
+  const handleConfirmBuyerRatingSeller = async (
+    ratingData: SellerRatingData
+  ) => {
     if (!pendingBuyerRatingPrompt || !user) return;
 
     setSavingBuyerRating(true);
@@ -1366,7 +1419,10 @@ export default function TicketsScreen() {
         .update({ status: "completed", completed_at: new Date().toISOString() })
         .eq("id", pendingBuyerRatingPrompt.id);
 
-      Alert.alert("Thank You!", "Your rating for the seller has been submitted.");
+      Alert.alert(
+        "Thank You!",
+        "Your rating for the seller has been submitted."
+      );
       setBuyerRatingSellerModalVisible(false);
       setPendingBuyerRatingPrompt(null);
 
@@ -1427,6 +1483,93 @@ export default function TicketsScreen() {
   const handleEditTicket = (ticket: OrderItem) => {
     setSelectedTicket(ticket);
     setEditModalVisible(true);
+  };
+
+  const openInAppBrowser = async (url: string) => {
+    await WebBrowser.openBrowserAsync(url, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+      controlsColor: "#635bff", // Stripe purple (optional)
+      showTitle: true,
+      enableBarCollapsing: true,
+    });
+  };
+
+  const handleOpenStripeDashboard = async () => {
+    setIsLoadingStripeDashboard(true);
+
+    try {
+      const result = await StripeConnectService.getDashboardLink();
+
+      if (!result.success || !result.data) {
+        Alert.alert(
+          "Error",
+          result.error || "Unable to access payment settings. Please try again."
+        );
+        return;
+      }
+
+      const { hasAccount, onboardingComplete, url } = result.data;
+
+      // No Stripe account yet
+      if (!hasAccount) {
+        Alert.alert(
+          "Payment Setup Required",
+          "You need to set up your payment account to access the Stripe dashboard. Would you like to set it up now?",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Set Up Payments",
+              onPress: async () => {
+                const onboardingResult =
+                  await StripeConnectService.createConnectAccount();
+
+                if (
+                  onboardingResult.success &&
+                  onboardingResult.data?.onboardingUrl
+                ) {
+                  await openInAppBrowser(onboardingResult.data.onboardingUrl);
+                } else {
+                  Alert.alert(
+                    "Error",
+                    onboardingResult.error || "Failed to start payment setup."
+                  );
+                }
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // Account exists but onboarding incomplete
+      if (!onboardingComplete && url) {
+        Alert.alert(
+          "Complete Setup",
+          "Please complete your payment setup to access the full dashboard.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Continue Setup",
+              onPress: () => openInAppBrowser(url),
+            },
+          ]
+        );
+        return;
+      }
+
+      // Fully set up → open Stripe dashboard
+      if (url) {
+        await openInAppBrowser(url);
+      }
+    } catch (error) {
+      console.error("Error opening Stripe dashboard:", error);
+      Alert.alert(
+        "Error",
+        "Unable to open payment settings. Please try again."
+      );
+    } finally {
+      setIsLoadingStripeDashboard(false);
+    }
   };
 
   // Save ticket edits
@@ -1552,14 +1695,22 @@ export default function TicketsScreen() {
       Alert.alert("Error", "Order information not found");
       return;
     }
-    console.log("🔵 Opening transfer proof modal for order:", item.escrow_order_id);
+    console.log(
+      "🔵 Opening transfer proof modal for order:",
+      item.escrow_order_id
+    );
     setSelectedItemForTransfer(item);
     setTransferProofModalVisible(true);
   };
 
   // Called when user confirms transfer from the proof modal
-  const handleConfirmTransferWithProof = async (proofImageUri: string | null) => {
-    console.log("🔵 handleConfirmTransferWithProof called, proofImageUri:", !!proofImageUri);
+  const handleConfirmTransferWithProof = async (
+    proofImageUri: string | null
+  ) => {
+    console.log(
+      "🔵 handleConfirmTransferWithProof called, proofImageUri:",
+      !!proofImageUri
+    );
     if (!selectedItemForTransfer?.escrow_order_id) return;
 
     setMarkingTransferId(selectedItemForTransfer.escrow_order_id);
@@ -1582,7 +1733,10 @@ export default function TicketsScreen() {
       }
 
       // Mark transfer as sent
-      const result = await markTransferSent(selectedItemForTransfer.escrow_order_id, proofUrl);
+      const result = await markTransferSent(
+        selectedItemForTransfer.escrow_order_id,
+        proofUrl
+      );
 
       if (result.success) {
         setTransferProofModalVisible(false);
@@ -1730,29 +1884,34 @@ export default function TicketsScreen() {
         )}
 
         {/* Dispute Banner for Seller Listings */}
-        {item.type === "listing" && item.escrow_status === "disputed" && item.dispute_id && (
-          <View style={styles.disputeBanner}>
-            <View style={styles.disputeBannerContent}>
-              <Ionicons name="alert-circle" size={20} color="#ef4444" />
-              <View style={styles.disputeBannerText}>
-                <Text style={styles.disputeBannerTitle}>Dispute Active</Text>
-                <Text style={styles.disputeBannerSubtitle}>
-                  This transaction is under review. View details and add evidence.
-                </Text>
+        {item.type === "listing" &&
+          item.escrow_status === "disputed" &&
+          item.dispute_id && (
+            <View style={styles.disputeBanner}>
+              <View style={styles.disputeBannerContent}>
+                <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                <View style={styles.disputeBannerText}>
+                  <Text style={styles.disputeBannerTitle}>Dispute Active</Text>
+                  <Text style={styles.disputeBannerSubtitle}>
+                    This transaction is under review. View details and add
+                    evidence.
+                  </Text>
+                </View>
               </View>
+              <TouchableOpacity
+                style={styles.viewDisputeButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  router.push(`/dispute/status/${item.dispute_id}` as any);
+                }}
+              >
+                <Text style={styles.viewDisputeButtonText}>
+                  View Dispute Status
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#ef4444" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.viewDisputeButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                router.push(`/dispute/status/${item.dispute_id}` as any);
-              }}
-            >
-              <Text style={styles.viewDisputeButtonText}>View Dispute Status</Text>
-              <Ionicons name="chevron-forward" size={16} color="#ef4444" />
-            </TouchableOpacity>
-          </View>
-        )}
+          )}
 
         {/* View Order button for Stripe escrow orders - takes user to order details to confirm */}
         {item.type === "purchase" &&
@@ -1853,7 +2012,9 @@ export default function TicketsScreen() {
                   <View style={styles.disputeBannerContent}>
                     <Ionicons name="alert-circle" size={20} color="#ef4444" />
                     <View style={styles.disputeBannerText}>
-                      <Text style={styles.disputeBannerTitle}>Dispute Filed</Text>
+                      <Text style={styles.disputeBannerTitle}>
+                        Dispute Filed
+                      </Text>
                       <Text style={styles.disputeBannerSubtitle}>
                         This transaction is under review by our team
                       </Text>
@@ -1866,8 +2027,14 @@ export default function TicketsScreen() {
                       router.push(`/dispute/status/${item.dispute_id}` as any);
                     }}
                   >
-                    <Text style={styles.viewDisputeButtonText}>View Status</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#ef4444" />
+                    <Text style={styles.viewDisputeButtonText}>
+                      View Status
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color="#ef4444"
+                    />
                   </TouchableOpacity>
                 </View>
               )}
@@ -2209,6 +2376,20 @@ export default function TicketsScreen() {
       >
         {/* Header Section */}
         <View style={styles.headerSection}>
+          {/* Stripe Dashboard Button - Top Left */}
+          <TouchableOpacity
+            style={styles.stripeButton}
+            onPress={handleOpenStripeDashboard}
+            disabled={isLoadingStripeDashboard}
+          >
+            {isLoadingStripeDashboard ? (
+              <ActivityIndicator size="small" color={theme.secondary} />
+            ) : (
+              <Ionicons name="card-outline" size={24} color={theme.secondary} />
+            )}
+          </TouchableOpacity>
+
+          {/* Notifications Button - Top Right */}
           <TouchableOpacity
             style={styles.notificationButton}
             onPress={() => router.push("/notifications")}
@@ -2318,7 +2499,8 @@ export default function TicketsScreen() {
                               color="#991b1b"
                             />
                             <Text style={styles.disputeInfoText}>
-                              These tickets have active disputes. View details and upload evidence to support your case.
+                              These tickets have active disputes. View details
+                              and upload evidence to support your case.
                             </Text>
                           </View>
 
@@ -2699,7 +2881,9 @@ export default function TicketsScreen() {
                             </Text>
                             <Text style={styles.awaitingConfirmationSubtitle}>
                               {awaitingConfirmation.length} ticket
-                              {awaitingConfirmation.length !== 1 ? "s" : ""}{" "}
+                              {awaitingConfirmation.length !== 1
+                                ? "s"
+                                : ""}{" "}
                               waiting for buyer
                             </Text>
                           </View>
@@ -3007,12 +3191,16 @@ export default function TicketsScreen() {
                               Expired Listings
                             </Text>
                             <Text style={styles.expiredListingsSubtitle}>
-                              {expiredListings.length} ticket{expiredListings.length !== 1 ? 's' : ''} - event has passed
+                              {expiredListings.length} ticket
+                              {expiredListings.length !== 1 ? "s" : ""} - event
+                              has passed
                             </Text>
                           </View>
                           <Ionicons
                             name={
-                              expiredListingsExpanded ? "chevron-up" : "chevron-down"
+                              expiredListingsExpanded
+                                ? "chevron-up"
+                                : "chevron-down"
                             }
                             size={20}
                             color="#6b7280"
@@ -3077,7 +3265,9 @@ export default function TicketsScreen() {
                       <TouchableOpacity
                         style={styles.disputedTicketsHeader}
                         onPress={() =>
-                          setDisputedPurchasesExpanded(!disputedPurchasesExpanded)
+                          setDisputedPurchasesExpanded(
+                            !disputedPurchasesExpanded
+                          )
                         }
                       >
                         <View style={styles.disputedTicketsHeaderContent}>
@@ -3120,7 +3310,8 @@ export default function TicketsScreen() {
                               color="#991b1b"
                             />
                             <Text style={styles.disputeInfoText}>
-                              These purchases have active disputes. View details and upload evidence to support your case.
+                              These purchases have active disputes. View details
+                              and upload evidence to support your case.
                             </Text>
                           </View>
 
@@ -3214,12 +3405,16 @@ export default function TicketsScreen() {
                               Awaiting Transfer
                             </Text>
                             <Text style={styles.awaitingTransferSubtitle}>
-                              {awaitingTransfer.length} ticket{awaitingTransfer.length !== 1 ? 's' : ''} - seller has sent
+                              {awaitingTransfer.length} ticket
+                              {awaitingTransfer.length !== 1 ? "s" : ""} -
+                              seller has sent
                             </Text>
                           </View>
                           <Ionicons
                             name={
-                              awaitingTransferExpanded ? "chevron-up" : "chevron-down"
+                              awaitingTransferExpanded
+                                ? "chevron-up"
+                                : "chevron-down"
                             }
                             size={20}
                             color="#0891b2"
@@ -3230,31 +3425,47 @@ export default function TicketsScreen() {
                       {awaitingTransferExpanded && (
                         <View>
                           {awaitingTransfer.map((item) => (
-                            <View key={`awaiting-transfer-${item.id}`} style={styles.awaitingTransferCard}>
+                            <View
+                              key={`awaiting-transfer-${item.id}`}
+                              style={styles.awaitingTransferCard}
+                            >
                               <View style={styles.awaitingTransferBanner}>
-                                <Ionicons name="checkmark-circle" size={16} color="#0891b2" />
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={16}
+                                  color="#0891b2"
+                                />
                                 <Text style={styles.awaitingTransferBannerText}>
                                   Seller has transferred this ticket
                                 </Text>
                               </View>
                               <View style={styles.awaitingTicketContent}>
-                                <Text style={styles.awaitingTicketTitle} numberOfLines={2}>
+                                <Text
+                                  style={styles.awaitingTicketTitle}
+                                  numberOfLines={2}
+                                >
                                   {item.title}
                                 </Text>
                                 <View style={styles.awaitingEventInfo}>
                                   <Text style={styles.awaitingEventDate}>
-                                    {new Date(item.event_date).toLocaleDateString("en-US", {
+                                    {new Date(
+                                      item.event_date
+                                    ).toLocaleDateString("en-US", {
                                       weekday: "short",
                                       month: "short",
                                       day: "numeric",
                                     })}
                                   </Text>
-                                  {(item.section || item.row_number || item.seat_number) && (
+                                  {(item.section ||
+                                    item.row_number ||
+                                    item.seat_number) && (
                                     <Text style={styles.awaitingSeatInfo}>
                                       {[
                                         item.section && `Sec ${item.section}`,
-                                        item.row_number && `Row ${item.row_number}`,
-                                        item.seat_number && `Seat ${item.seat_number}`,
+                                        item.row_number &&
+                                          `Row ${item.row_number}`,
+                                        item.seat_number &&
+                                          `Seat ${item.seat_number}`,
                                       ]
                                         .filter(Boolean)
                                         .join(" · ")}
@@ -3264,17 +3475,35 @@ export default function TicketsScreen() {
 
                                 {/* Seller Info */}
                                 <View style={styles.awaitingTransferSellerInfo}>
-                                  <Ionicons name="person-outline" size={14} color="#0891b2" />
-                                  <Text style={styles.awaitingTransferSellerText}>
+                                  <Ionicons
+                                    name="person-outline"
+                                    size={14}
+                                    color="#0891b2"
+                                  />
+                                  <Text
+                                    style={styles.awaitingTransferSellerText}
+                                  >
                                     From: {item.seller_name || "Seller"}
                                   </Text>
                                 </View>
 
                                 {/* Action Instructions */}
-                                <View style={styles.awaitingTransferInstructions}>
-                                  <Ionicons name="information-circle" size={16} color="#0369a1" />
-                                  <Text style={styles.awaitingTransferInstructionsText}>
-                                    Check your email or ticketing app for the ticket. Once received, tap "Confirm Receipt" below.
+                                <View
+                                  style={styles.awaitingTransferInstructions}
+                                >
+                                  <Ionicons
+                                    name="information-circle"
+                                    size={16}
+                                    color="#0369a1"
+                                  />
+                                  <Text
+                                    style={
+                                      styles.awaitingTransferInstructionsText
+                                    }
+                                  >
+                                    Check your email or ticketing app for the
+                                    ticket. Once received, tap "Confirm Receipt"
+                                    below.
                                   </Text>
                                 </View>
 
@@ -3282,17 +3511,26 @@ export default function TicketsScreen() {
                                 <TouchableOpacity
                                   style={[
                                     styles.confirmReceiptButton,
-                                    confirmingTransfer && { opacity: 0.6 }
+                                    confirmingTransfer && { opacity: 0.6 },
                                   ]}
                                   onPress={() => handleConfirmTransfer(item)}
                                   disabled={confirmingTransfer}
                                 >
                                   {confirmingTransfer ? (
-                                    <ActivityIndicator size="small" color="#ffffff" />
+                                    <ActivityIndicator
+                                      size="small"
+                                      color="#ffffff"
+                                    />
                                   ) : (
                                     <>
-                                      <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
-                                      <Text style={styles.confirmReceiptButtonText}>
+                                      <Ionicons
+                                        name="checkmark-circle"
+                                        size={18}
+                                        color="#ffffff"
+                                      />
+                                      <Text
+                                        style={styles.confirmReceiptButtonText}
+                                      >
                                         Confirm Receipt
                                       </Text>
                                     </>
@@ -3302,10 +3540,20 @@ export default function TicketsScreen() {
                                 {/* Report Issue Button */}
                                 <TouchableOpacity
                                   style={styles.reportIssueButtonSmall}
-                                  onPress={() => router.push(`/dispute/${item.escrow_order_id}`)}
+                                  onPress={() =>
+                                    router.push(
+                                      `/dispute/${item.escrow_order_id}`
+                                    )
+                                  }
                                 >
-                                  <Ionicons name="alert-circle-outline" size={16} color="#ef4444" />
-                                  <Text style={styles.reportIssueButtonSmallText}>
+                                  <Ionicons
+                                    name="alert-circle-outline"
+                                    size={16}
+                                    color="#ef4444"
+                                  />
+                                  <Text
+                                    style={styles.reportIssueButtonSmallText}
+                                  >
                                     Report an Issue
                                   </Text>
                                 </TouchableOpacity>
@@ -3332,13 +3580,14 @@ export default function TicketsScreen() {
                   )}
 
                   {/* Empty state when only awaiting transfer exists */}
-                  {awaitingTransfer.length > 0 && otherPurchases.length === 0 && (
-                    <View style={styles.otherPurchasesEmpty}>
-                      <Text style={styles.otherPurchasesEmptyText}>
-                        Your confirmed purchases will appear here
-                      </Text>
-                    </View>
-                  )}
+                  {awaitingTransfer.length > 0 &&
+                    otherPurchases.length === 0 && (
+                      <View style={styles.otherPurchasesEmpty}>
+                        <Text style={styles.otherPurchasesEmptyText}>
+                          Your confirmed purchases will appear here
+                        </Text>
+                      </View>
+                    )}
                 </>
               ) : (
                 // Empty state for buying tab
@@ -3378,12 +3627,16 @@ export default function TicketsScreen() {
           setSelectedTicket(null);
         }}
         onSave={handleSaveEdit}
-        ticket={selectedTicket ? {
-          id: selectedTicket.id,
-          title: selectedTicket.title,
-          price: selectedTicket.price,
-          description: selectedTicket.description,
-        } : null}
+        ticket={
+          selectedTicket
+            ? {
+                id: selectedTicket.id,
+                title: selectedTicket.title,
+                price: selectedTicket.price,
+                description: selectedTicket.description,
+              }
+            : null
+        }
         isLoading={savingEdit}
         primaryColor={profile?.college?.primary_color || "#18453b"}
         secondaryColor={profile?.college?.secondary_color || "#ffd700"}
@@ -3575,6 +3828,21 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 60,
     right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 1000,
+    elevation: 5,
+  },
+  stripeButton: {
+    position: "absolute",
+    top: 60,
+    left: 20,
     width: 44,
     height: 44,
     borderRadius: 22,
