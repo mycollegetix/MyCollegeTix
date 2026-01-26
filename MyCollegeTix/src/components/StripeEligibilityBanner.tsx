@@ -153,20 +153,19 @@ export function StripeEligibilityBanner({
 }: StripeEligibilityBannerProps) {
   const theme = useTheme();
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="small" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.primary }]}>
-          Checking payment status...
-        </Text>
-      </View>
-    );
-  }
-
-  // No eligibility data or user can sell
+  // No eligibility data or user can sell - don't show banner
   if (!eligibility || eligibility.canSell) {
+    // Show loading only if actively checking AND no cached data
+    if (isLoading) {
+      return (
+        <View style={[styles.container, styles.loadingContainer]}>
+          <ActivityIndicator size="small" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.primary }]}>
+            Verifying payment status...
+          </Text>
+        </View>
+      );
+    }
     return null;
   }
 

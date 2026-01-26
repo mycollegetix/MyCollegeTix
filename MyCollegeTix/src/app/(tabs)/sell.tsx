@@ -94,27 +94,86 @@ export default function SellScreen() {
   const { refreshNotifications } = useNotifications();
   const { stripeAccountStatus, isStripeReady, refreshStripeStatus } = usePayment();
 
-  // Eligibility state (server-side check)
+  // Derive eligibility from cached PaymentProvider state (instant)
+  const getCachedEligibility = (): SellingEligibilityResult | null => {
+    if (!stripeAccountStatus) return null;
+
+    // No Stripe account
+    if (!stripeAccountStatus.hasAccount) {
+      return {
+        canSell: false,
+        reason: "no_account",
+        message: "To sell tickets, you need to set up payments. This only takes a minute.",
+        actionRequired: "create_account",
+      };
+    }
+
+    // Check if fully enabled
+    if (
+      stripeAccountStatus.chargesEnabled &&
+      stripeAccountStatus.payoutsEnabled &&
+      stripeAccountStatus.onboardingCompleted
+    ) {
+      return {
+        canSell: true,
+        reason: "eligible",
+        message: "Your payment account is ready.",
+      };
+    }
+
+    // Onboarding not complete
+    if (!stripeAccountStatus.onboardingCompleted) {
+      return {
+        canSell: false,
+        reason: "incomplete_onboarding",
+        message: "Please complete your payment setup to start selling tickets.",
+        actionRequired: "complete_onboarding",
+      };
+    }
+
+    // Has account but restricted (charges or payouts not enabled)
+    if (!stripeAccountStatus.chargesEnabled || !stripeAccountStatus.payoutsEnabled) {
+      return {
+        canSell: false,
+        reason: "restricted",
+        message: "Your payment account needs attention before you can sell.",
+        actionRequired: "update_info",
+      };
+    }
+
+    // Fallback
+    return {
+      canSell: false,
+      reason: "error",
+      message: "Unable to verify payment status.",
+      actionRequired: "retry",
+    };
+  };
+
+  // Use cached eligibility for instant display
+  const cachedEligibility = getCachedEligibility();
   const [eligibility, setEligibility] = useState<SellingEligibilityResult | null>(null);
-  const [isCheckingEligibility, setIsCheckingEligibility] = useState(true);
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
 
-  // Check selling eligibility on mount
+  // Update eligibility when cached status changes
   useEffect(() => {
-    checkEligibility();
-  }, []);
+    if (cachedEligibility) {
+      setEligibility(cachedEligibility);
+    }
+  }, [stripeAccountStatus]);
 
-  const checkEligibility = async () => {
+  // Full server-side check (only called when needed)
+  const checkEligibilityFromServer = async () => {
     setIsCheckingEligibility(true);
     try {
       const result = await StripeConnectService.checkSellingEligibility();
       if (result.data) {
         setEligibility(result.data);
       }
-      // Refresh the PaymentProvider status as well
+      // Refresh the PaymentProvider cache as well
       await refreshStripeStatus();
     } catch (error) {
       console.error("Error checking eligibility:", error);
-      // Set a blocking eligibility on error
       setEligibility({
         canSell: false,
         reason: "error",
@@ -126,8 +185,8 @@ export default function SellScreen() {
     }
   };
 
-  // Check if seller can sell (from server-side check)
-  const canSell = eligibility?.canSell ?? false;
+  // Check if seller can sell (from cached or server check)
+  const canSell = eligibility?.canSell ?? cachedEligibility?.canSell ?? false;
 
   // Load available events when sport changes
   useEffect(() => {
@@ -322,12 +381,18 @@ export default function SellScreen() {
     if (eligibility.onboardingUrl) {
       await openInAppBrowser(eligibility.onboardingUrl);
       // Recheck eligibility after returning from browser
-      setTimeout(() => checkEligibility(), 1000);
+      setTimeout(() => {
+        refreshStripeStatus();
+        checkEligibilityFromServer();
+      }, 1000);
     } else if (eligibility.actionRequired === "create_account") {
       const result = await StripeConnectService.createConnectAccount();
       if (result.success && result.data?.onboardingUrl) {
         await openInAppBrowser(result.data.onboardingUrl);
-        setTimeout(() => checkEligibility(), 1000);
+        setTimeout(() => {
+          refreshStripeStatus();
+          checkEligibilityFromServer();
+        }, 1000);
       } else {
         Alert.alert("Error", result.error || "Failed to start payment setup.");
       }
@@ -338,7 +403,10 @@ export default function SellScreen() {
       const result = await StripeConnectService.refreshOnboardingLink();
       if (result.success && result.data?.onboardingUrl) {
         await openInAppBrowser(result.data.onboardingUrl);
-        setTimeout(() => checkEligibility(), 1000);
+        setTimeout(() => {
+          refreshStripeStatus();
+          checkEligibilityFromServer();
+        }, 1000);
       } else {
         Alert.alert(
           "Error",
@@ -365,7 +433,7 @@ export default function SellScreen() {
             text: freshCheck.data?.actionRequired === "retry" ? "Try Again" : "Fix Now",
             onPress: () => {
               if (freshCheck.data?.actionRequired === "retry") {
-                checkEligibility();
+                checkEligibilityFromServer();
               } else {
                 handleEligibilityAction();
               }
@@ -621,7 +689,7 @@ export default function SellScreen() {
               eligibility={eligibility}
               isLoading={isCheckingEligibility}
               onAction={handleEligibilityAction}
-              onRetry={checkEligibility}
+              onRetry={checkEligibilityFromServer}
             />
 
             {/* Event Selection */}
