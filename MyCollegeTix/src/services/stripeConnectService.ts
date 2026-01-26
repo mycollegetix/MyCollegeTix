@@ -31,6 +31,31 @@ export interface DashboardLinkResult {
   message?: string;
 }
 
+export type EligibilityReason =
+  | "eligible"
+  | "no_account"
+  | "incomplete_onboarding"
+  | "restricted"
+  | "disabled"
+  | "pending_verification"
+  | "error";
+
+export type EligibilityAction =
+  | "create_account"
+  | "complete_onboarding"
+  | "update_info"
+  | "contact_support"
+  | "retry";
+
+export interface SellingEligibilityResult {
+  canSell: boolean;
+  reason: EligibilityReason;
+  message: string;
+  details?: string[];
+  actionRequired?: EligibilityAction;
+  onboardingUrl?: string;
+}
+
 export class StripeConnectService {
   // ============================================
   // ACCOUNT CREATION & ONBOARDING
@@ -128,6 +153,85 @@ export class StripeConnectService {
       console.error("💥 Unexpected error in getDashboardLink:", error);
       return {
         data: null,
+        error: error instanceof Error ? error.message : "Unknown error",
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Check if the current user is eligible to sell tickets
+   * Performs a server-side check against Stripe API for accurate status
+   * Returns detailed information about why they can't sell if blocked
+   */
+  static async checkSellingEligibility(): Promise<ServiceResponse<SellingEligibilityResult>> {
+    try {
+      console.log("🔍 Checking selling eligibility...");
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        return { data: null, error: "User not authenticated", success: false };
+      }
+
+      // Call Edge Function to check eligibility
+      const { data, error } = await supabase.functions.invoke("check-selling-eligibility", {
+        body: {},
+      });
+
+      if (error) {
+        console.error("❌ Error checking eligibility:", error);
+        // Return a blocking result on error (fail safely)
+        return {
+          data: {
+            canSell: false,
+            reason: "error",
+            message: "Unable to verify your payment account. Please check your connection and try again.",
+            actionRequired: "retry",
+          },
+          error: error.message,
+          success: false,
+        };
+      }
+
+      if (!data.success && data.error) {
+        // Edge function returned an error but with eligibility data
+        return {
+          data: {
+            canSell: data.canSell ?? false,
+            reason: data.reason ?? "error",
+            message: data.message ?? "An error occurred",
+            details: data.details,
+            actionRequired: data.actionRequired,
+            onboardingUrl: data.onboardingUrl,
+          },
+          error: data.error,
+          success: false,
+        };
+      }
+
+      console.log("✅ Eligibility check result:", data.canSell ? "eligible" : data.reason);
+      return {
+        data: {
+          canSell: data.canSell,
+          reason: data.reason,
+          message: data.message,
+          details: data.details,
+          actionRequired: data.actionRequired,
+          onboardingUrl: data.onboardingUrl,
+        },
+        error: null,
+        success: true,
+      };
+    } catch (error) {
+      console.error("💥 Unexpected error in checkSellingEligibility:", error);
+      // Return a blocking result on error (fail safely)
+      return {
+        data: {
+          canSell: false,
+          reason: "error",
+          message: "Unable to verify your payment account. Please try again.",
+          actionRequired: "retry",
+        },
         error: error instanceof Error ? error.message : "Unknown error",
         success: false,
       };

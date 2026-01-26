@@ -32,7 +32,11 @@ import { useTheme } from "@/src/providers/ThemeProvider";
 import { useNotifications } from "@/src/providers/NotificationProvider";
 import { usePayment } from "@/src/providers/PaymentProvider";
 import { formatEventDateTime } from "@/src/utils/dateUtils";
-import { StripeConnectService } from "@/src/services/stripeConnectService";
+import {
+  StripeConnectService,
+  SellingEligibilityResult,
+} from "@/src/services/stripeConnectService";
+import { StripeEligibilityBanner } from "@/src/components/StripeEligibilityBanner";
 
 const { width, height } = Dimensions.get("window");
 
@@ -88,10 +92,42 @@ export default function SellScreen() {
 
   const { profile } = useAuth();
   const { refreshNotifications } = useNotifications();
-  const { stripeAccountStatus, isStripeReady } = usePayment();
+  const { stripeAccountStatus, isStripeReady, refreshStripeStatus } = usePayment();
 
-  // Check if seller needs to complete Stripe onboarding
-  const needsStripeSetup = !stripeAccountStatus?.onboardingCompleted;
+  // Eligibility state (server-side check)
+  const [eligibility, setEligibility] = useState<SellingEligibilityResult | null>(null);
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(true);
+
+  // Check selling eligibility on mount
+  useEffect(() => {
+    checkEligibility();
+  }, []);
+
+  const checkEligibility = async () => {
+    setIsCheckingEligibility(true);
+    try {
+      const result = await StripeConnectService.checkSellingEligibility();
+      if (result.data) {
+        setEligibility(result.data);
+      }
+      // Refresh the PaymentProvider status as well
+      await refreshStripeStatus();
+    } catch (error) {
+      console.error("Error checking eligibility:", error);
+      // Set a blocking eligibility on error
+      setEligibility({
+        canSell: false,
+        reason: "error",
+        message: "Unable to verify your payment account. Please try again.",
+        actionRequired: "retry",
+      });
+    } finally {
+      setIsCheckingEligibility(false);
+    }
+  };
+
+  // Check if seller can sell (from server-side check)
+  const canSell = eligibility?.canSell ?? false;
 
   // Load available events when sport changes
   useEffect(() => {
@@ -279,17 +315,61 @@ export default function SellScreen() {
     }
   };
 
+  // Handle eligibility action (open onboarding/update info)
+  const handleEligibilityAction = async () => {
+    if (!eligibility) return;
+
+    if (eligibility.onboardingUrl) {
+      await openInAppBrowser(eligibility.onboardingUrl);
+      // Recheck eligibility after returning from browser
+      setTimeout(() => checkEligibility(), 1000);
+    } else if (eligibility.actionRequired === "create_account") {
+      const result = await StripeConnectService.createConnectAccount();
+      if (result.success && result.data?.onboardingUrl) {
+        await openInAppBrowser(result.data.onboardingUrl);
+        setTimeout(() => checkEligibility(), 1000);
+      } else {
+        Alert.alert("Error", result.error || "Failed to start payment setup.");
+      }
+    } else if (eligibility.actionRequired === "contact_support") {
+      router.push("/support/" as any);
+    } else {
+      // Default: try to refresh onboarding link
+      const result = await StripeConnectService.refreshOnboardingLink();
+      if (result.success && result.data?.onboardingUrl) {
+        await openInAppBrowser(result.data.onboardingUrl);
+        setTimeout(() => checkEligibility(), 1000);
+      } else {
+        Alert.alert(
+          "Error",
+          result.error || "Unable to open payment settings. Please try again."
+        );
+      }
+    }
+  };
+
   const handleSubmit = async () => {
-    // Check if Stripe is set up before allowing ticket posting
-    if (needsStripeSetup) {
+    // Re-check eligibility before allowing ticket posting (server-side verification)
+    setIsLoading(true);
+    const freshCheck = await StripeConnectService.checkSellingEligibility();
+
+    if (!freshCheck.data?.canSell) {
+      setIsLoading(false);
+      setEligibility(freshCheck.data);
       Alert.alert(
-        "Payment Setup Required",
-        "You need to set up your payment account before you can list tickets for sale. This ensures you can receive payments when your tickets sell.",
+        "Cannot List Ticket",
+        freshCheck.data?.message || "Please complete your payment setup before listing tickets.",
         [
           { text: "Cancel", style: "cancel" },
           {
-            text: "Set Up Now",
-            onPress: () => router.push("/stripe/onboarding" as any),
+            text: freshCheck.data?.actionRequired === "retry" ? "Try Again" : "Fix Now",
+            onPress: () => {
+              if (freshCheck.data?.actionRequired === "retry") {
+                checkEligibility();
+              } else {
+                handleEligibilityAction();
+              }
+            },
           },
         ]
       );
@@ -297,16 +377,16 @@ export default function SellScreen() {
     }
 
     if (!isFormValid()) {
+      setIsLoading(false);
       Alert.alert("Error", "Please fill in all required fields");
       return;
     }
 
     if (!selectedEvent) {
+      setIsLoading(false);
       Alert.alert("Error", "Please select an event");
       return;
     }
-
-    setIsLoading(true);
 
     try {
       const { data, error } = await TicketService.createTicket({
@@ -323,14 +403,14 @@ export default function SellScreen() {
         throw error;
       }
 
-      // Refresh notifications state
+      // Refresh notifications state and eligibility
       await refreshNotifications();
 
       Alert.alert("Success!", "Your ticket has been listed successfully!", [
         {
           text: "View Listing",
           onPress: () => {
-            resetForm(); // Clear form
+            resetForm();
             if (data) {
               (router.push as any)(`/ticket-details/${data.id}`);
             }
@@ -339,13 +419,13 @@ export default function SellScreen() {
         {
           text: "List Another",
           onPress: () => {
-            resetForm(); // Clear form
+            resetForm();
           },
         },
         {
           text: "Go to My Listings",
           onPress: () => {
-            resetForm(); // Clear form
+            resetForm();
             (router.push as any)("/(tabs)/tickets");
           },
         },
@@ -536,57 +616,13 @@ export default function SellScreen() {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
           >
-            {/* Stripe Onboarding Banner */}
-            {needsStripeSetup && (
-              <TouchableOpacity
-                style={[
-                  styles.stripeSetupBanner,
-                  {
-                    backgroundColor: theme.secondary,
-                    borderColor: theme.primary,
-                  },
-                ]}
-                onPress={() => router.push("/stripe/onboarding" as any)}
-              >
-                <View style={styles.stripeSetupContent}>
-                  <View
-                    style={[
-                      styles.stripeSetupIconContainer,
-                      { backgroundColor: theme.primary },
-                    ]}
-                  >
-                    <Ionicons
-                      name="card-outline"
-                      size={24}
-                      color={theme.secondary}
-                    />
-                  </View>
-                  <View style={styles.stripeSetupText}>
-                    <Text
-                      style={[
-                        styles.stripeSetupTitle,
-                        { color: theme.primary },
-                      ]}
-                    >
-                      Set Up Payments
-                    </Text>
-                    <Text
-                      style={[
-                        styles.stripeSetupSubtitle,
-                        { color: theme.primary },
-                      ]}
-                    >
-                      Complete setup to receive payments when your tickets sell
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={24}
-                    color={theme.primary}
-                  />
-                </View>
-              </TouchableOpacity>
-            )}
+            {/* Stripe Eligibility Banner */}
+            <StripeEligibilityBanner
+              eligibility={eligibility}
+              isLoading={isCheckingEligibility}
+              onAction={handleEligibilityAction}
+              onRetry={checkEligibility}
+            />
 
             {/* Event Selection */}
             <View style={styles.section}>
@@ -946,14 +982,14 @@ export default function SellScreen() {
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                !isFormValid() && styles.submitButtonDisabled,
+                (!isFormValid() || !canSell || isCheckingEligibility) && styles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={!isFormValid() || isLoading}
+              disabled={!isFormValid() || isLoading || !canSell || isCheckingEligibility}
             >
               <LinearGradient
                 colors={
-                  isFormValid()
+                  isFormValid() && canSell && !isCheckingEligibility
                     ? [theme.primary, `${theme.primary}E6`]
                     : ["#9ca3af", "#6b7280"]
                 }
