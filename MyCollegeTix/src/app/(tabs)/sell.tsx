@@ -12,9 +12,12 @@ import {
   Platform,
   Alert,
   Modal,
+  ActivityIndicator,
   FlatList,
   StatusBar,
 } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+WebBrowser.maybeCompleteAuthSession();
 import Colors from "@/src/constants/Colors";
 import { useColorScheme } from "@/src/components/useColorScheme";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -27,7 +30,13 @@ import { Event } from "@/src/types/database.types";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { useNotifications } from "@/src/providers/NotificationProvider";
+import { usePayment } from "@/src/providers/PaymentProvider";
 import { formatEventDateTime } from "@/src/utils/dateUtils";
+import {
+  StripeConnectService,
+  SellingEligibilityResult,
+} from "@/src/services/stripeConnectService";
+import { StripeEligibilityBanner } from "@/src/components/StripeEligibilityBanner";
 
 const { width, height } = Dimensions.get("window");
 
@@ -83,6 +92,101 @@ export default function SellScreen() {
 
   const { profile } = useAuth();
   const { refreshNotifications } = useNotifications();
+  const { stripeAccountStatus, isStripeReady, refreshStripeStatus } = usePayment();
+
+  // Derive eligibility from cached PaymentProvider state (instant)
+  const getCachedEligibility = (): SellingEligibilityResult | null => {
+    if (!stripeAccountStatus) return null;
+
+    // No Stripe account
+    if (!stripeAccountStatus.hasAccount) {
+      return {
+        canSell: false,
+        reason: "no_account",
+        message: "To sell tickets, you need to set up payments. This only takes a minute.",
+        actionRequired: "create_account",
+      };
+    }
+
+    // Check if fully enabled
+    if (
+      stripeAccountStatus.chargesEnabled &&
+      stripeAccountStatus.payoutsEnabled &&
+      stripeAccountStatus.onboardingCompleted
+    ) {
+      return {
+        canSell: true,
+        reason: "eligible",
+        message: "Your payment account is ready.",
+      };
+    }
+
+    // Onboarding not complete
+    if (!stripeAccountStatus.onboardingCompleted) {
+      return {
+        canSell: false,
+        reason: "incomplete_onboarding",
+        message: "Please complete your payment setup to start selling tickets.",
+        actionRequired: "complete_onboarding",
+      };
+    }
+
+    // Has account but restricted (charges or payouts not enabled)
+    if (!stripeAccountStatus.chargesEnabled || !stripeAccountStatus.payoutsEnabled) {
+      return {
+        canSell: false,
+        reason: "restricted",
+        message: "Your payment account needs attention before you can sell.",
+        actionRequired: "update_info",
+      };
+    }
+
+    // Fallback
+    return {
+      canSell: false,
+      reason: "error",
+      message: "Unable to verify payment status.",
+      actionRequired: "retry",
+    };
+  };
+
+  // Use cached eligibility for instant display
+  const cachedEligibility = getCachedEligibility();
+  const [eligibility, setEligibility] = useState<SellingEligibilityResult | null>(null);
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
+
+  // Update eligibility when cached status changes
+  useEffect(() => {
+    if (cachedEligibility) {
+      setEligibility(cachedEligibility);
+    }
+  }, [stripeAccountStatus]);
+
+  // Full server-side check (only called when needed)
+  const checkEligibilityFromServer = async () => {
+    setIsCheckingEligibility(true);
+    try {
+      const result = await StripeConnectService.checkSellingEligibility();
+      if (result.data) {
+        setEligibility(result.data);
+      }
+      // Refresh the PaymentProvider cache as well
+      await refreshStripeStatus();
+    } catch (error) {
+      console.error("Error checking eligibility:", error);
+      setEligibility({
+        canSell: false,
+        reason: "error",
+        message: "Unable to verify your payment account. Please try again.",
+        actionRequired: "retry",
+      });
+    } finally {
+      setIsCheckingEligibility(false);
+    }
+  };
+
+  // Check if seller can sell (from cached or server check)
+  const canSell = eligibility?.canSell ?? cachedEligibility?.canSell ?? false;
 
   // Load available events when sport changes
   useEffect(() => {
@@ -146,8 +250,7 @@ export default function SellScreen() {
       dateStyle: "medium",
       separator: " • ",
     });
-    
-    
+
     return formatted;
   };
 
@@ -181,18 +284,177 @@ export default function SellScreen() {
     });
   };
 
+  // Stripe dashboard loading state
+  const [isLoadingStripeDashboard, setIsLoadingStripeDashboard] =
+    useState(false);
+  const openInAppBrowser = async (url: string) => {
+    await WebBrowser.openBrowserAsync(url, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+      controlsColor: "#635bff", // Stripe purple (optional)
+      showTitle: true,
+      enableBarCollapsing: true,
+    });
+  };
+
+  const handleOpenStripeDashboard = async () => {
+    setIsLoadingStripeDashboard(true);
+
+    try {
+      const result = await StripeConnectService.getDashboardLink();
+
+      if (!result.success || !result.data) {
+        Alert.alert(
+          "Error",
+          result.error || "Unable to access payment settings. Please try again."
+        );
+        return;
+      }
+
+      const { hasAccount, onboardingComplete, url } = result.data;
+
+      // No Stripe account yet
+      if (!hasAccount) {
+        Alert.alert(
+          "Payment Setup Required",
+          "You need to set up your payment account to access the Stripe dashboard. Would you like to set it up now?",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Set Up Payments",
+              onPress: async () => {
+                const onboardingResult =
+                  await StripeConnectService.createConnectAccount();
+
+                if (
+                  onboardingResult.success &&
+                  onboardingResult.data?.onboardingUrl
+                ) {
+                  await openInAppBrowser(onboardingResult.data.onboardingUrl);
+                } else {
+                  Alert.alert(
+                    "Error",
+                    onboardingResult.error || "Failed to start payment setup."
+                  );
+                }
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // Account exists but onboarding incomplete
+      if (!onboardingComplete && url) {
+        Alert.alert(
+          "Complete Setup",
+          "Please complete your payment setup to access the full dashboard.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Continue Setup",
+              onPress: () => openInAppBrowser(url),
+            },
+          ]
+        );
+        return;
+      }
+
+      // Fully set up → open Stripe dashboard
+      if (url) {
+        await openInAppBrowser(url);
+      }
+    } catch (error) {
+      console.error("Error opening Stripe dashboard:", error);
+      Alert.alert(
+        "Error",
+        "Unable to open payment settings. Please try again."
+      );
+    } finally {
+      setIsLoadingStripeDashboard(false);
+    }
+  };
+
+  // Handle eligibility action (open onboarding/update info)
+  const handleEligibilityAction = async () => {
+    if (!eligibility) return;
+
+    if (eligibility.onboardingUrl) {
+      await openInAppBrowser(eligibility.onboardingUrl);
+      // Recheck eligibility after returning from browser
+      setTimeout(() => {
+        refreshStripeStatus();
+        checkEligibilityFromServer();
+      }, 1000);
+    } else if (eligibility.actionRequired === "create_account") {
+      const result = await StripeConnectService.createConnectAccount();
+      if (result.success && result.data?.onboardingUrl) {
+        await openInAppBrowser(result.data.onboardingUrl);
+        setTimeout(() => {
+          refreshStripeStatus();
+          checkEligibilityFromServer();
+        }, 1000);
+      } else {
+        Alert.alert("Error", result.error || "Failed to start payment setup.");
+      }
+    } else if (eligibility.actionRequired === "contact_support") {
+      router.push("/support/" as any);
+    } else {
+      // Default: try to refresh onboarding link
+      const result = await StripeConnectService.refreshOnboardingLink();
+      if (result.success && result.data?.onboardingUrl) {
+        await openInAppBrowser(result.data.onboardingUrl);
+        setTimeout(() => {
+          refreshStripeStatus();
+          checkEligibilityFromServer();
+        }, 1000);
+      } else {
+        Alert.alert(
+          "Error",
+          result.error || "Unable to open payment settings. Please try again."
+        );
+      }
+    }
+  };
+
   const handleSubmit = async () => {
+    // Re-check eligibility before allowing ticket posting (server-side verification)
+    setIsLoading(true);
+    const freshCheck = await StripeConnectService.checkSellingEligibility();
+
+    if (!freshCheck.data?.canSell) {
+      setIsLoading(false);
+      setEligibility(freshCheck.data);
+      Alert.alert(
+        "Cannot List Ticket",
+        freshCheck.data?.message || "Please complete your payment setup before listing tickets.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: freshCheck.data?.actionRequired === "retry" ? "Try Again" : "Fix Now",
+            onPress: () => {
+              if (freshCheck.data?.actionRequired === "retry") {
+                checkEligibilityFromServer();
+              } else {
+                handleEligibilityAction();
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     if (!isFormValid()) {
+      setIsLoading(false);
       Alert.alert("Error", "Please fill in all required fields");
       return;
     }
 
     if (!selectedEvent) {
+      setIsLoading(false);
       Alert.alert("Error", "Please select an event");
       return;
     }
-
-    setIsLoading(true);
 
     try {
       const { data, error } = await TicketService.createTicket({
@@ -209,14 +471,14 @@ export default function SellScreen() {
         throw error;
       }
 
-      // Refresh notifications state
+      // Refresh notifications state and eligibility
       await refreshNotifications();
 
       Alert.alert("Success!", "Your ticket has been listed successfully!", [
         {
           text: "View Listing",
           onPress: () => {
-            resetForm(); // Clear form
+            resetForm();
             if (data) {
               (router.push as any)(`/ticket-details/${data.id}`);
             }
@@ -225,13 +487,13 @@ export default function SellScreen() {
         {
           text: "List Another",
           onPress: () => {
-            resetForm(); // Clear form
+            resetForm();
           },
         },
         {
           text: "Go to My Listings",
           onPress: () => {
-            resetForm(); // Clear form
+            resetForm();
             (router.push as any)("/(tabs)/tickets");
           },
         },
@@ -296,19 +558,19 @@ export default function SellScreen() {
       style={styles.eventItem}
       onPress={() => handleEventSelect(item)}
     >
-        <View style={styles.eventItemContent}>
-          <View style={styles.eventItemInfo}>
-            <Text style={styles.eventItemTitle}>{item.title}</Text>
-            <Text style={styles.eventItemDate}>
-              {formatEventDate(item.event_date, item.game_time)}
-            </Text>
-            <Text style={styles.eventItemLocation}>
-              {item.venue || item.location}
-            </Text>
-            {item.opponent && (
-              <Text style={styles.eventItemOpponent}>vs {item.opponent}</Text>
-            )}
-          </View>
+      <View style={styles.eventItemContent}>
+        <View style={styles.eventItemInfo}>
+          <Text style={styles.eventItemTitle}>{item.title}</Text>
+          <Text style={styles.eventItemDate}>
+            {formatEventDate(item.event_date, item.game_time)}
+          </Text>
+          <Text style={styles.eventItemLocation}>
+            {item.venue || item.location}
+          </Text>
+          {item.opponent && (
+            <Text style={styles.eventItemOpponent}>vs {item.opponent}</Text>
+          )}
+        </View>
         <View style={styles.eventItemBadges}>
           <View
             style={[
@@ -379,6 +641,18 @@ export default function SellScreen() {
       >
         {/* Header Section */}
         <View style={styles.headerSection}>
+          {/* Stripe Dashboard Button - Top Left */}
+          <TouchableOpacity
+            style={styles.stripeButton}
+            onPress={handleOpenStripeDashboard}
+            disabled={isLoadingStripeDashboard}
+          >
+            {isLoadingStripeDashboard ? (
+              <ActivityIndicator size="small" color={theme.secondary} />
+            ) : (
+              <Ionicons name="card-outline" size={24} color={theme.secondary} />
+            )}
+          </TouchableOpacity>
           <View style={styles.logoContainer}>
             <LinearGradient
               colors={[theme.secondary, `${theme.secondary}DD`]}
@@ -410,6 +684,14 @@ export default function SellScreen() {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
           >
+            {/* Stripe Eligibility Banner */}
+            <StripeEligibilityBanner
+              eligibility={eligibility}
+              isLoading={isCheckingEligibility}
+              onAction={handleEligibilityAction}
+              onRetry={checkEligibilityFromServer}
+            />
+
             {/* Event Selection */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: theme.primary }]}>
@@ -768,14 +1050,14 @@ export default function SellScreen() {
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                !isFormValid() && styles.submitButtonDisabled,
+                (!isFormValid() || !canSell || isCheckingEligibility) && styles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={!isFormValid() || isLoading}
+              disabled={!isFormValid() || isLoading || !canSell || isCheckingEligibility}
             >
               <LinearGradient
                 colors={
-                  isFormValid()
+                  isFormValid() && canSell && !isCheckingEligibility
                     ? [theme.primary, `${theme.primary}E6`]
                     : ["#9ca3af", "#6b7280"]
                 }
@@ -1394,5 +1676,58 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
+  },
+  // Stripe Setup Banner Styles
+  stripeSetupBanner: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  stripeSetupContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  stripeSetupIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  stripeSetupText: {
+    flex: 1,
+    marginRight: 8,
+  },
+  stripeSetupTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  stripeSetupSubtitle: {
+    fontSize: 13,
+    opacity: 0.8,
+    lineHeight: 18,
+  },
+  stripeButton: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 1000,
+    elevation: 5,
   },
 });

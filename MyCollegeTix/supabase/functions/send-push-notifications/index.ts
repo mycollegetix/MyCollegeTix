@@ -1,6 +1,7 @@
 // supabase/functions/send-push-notification/index.ts
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { rateLimitMiddleware } from '../_shared/rateLimiter.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,6 +69,22 @@ Deno.serve(async (req: Request) => {
     const { data: { user }, error: authError } = await supabaseUser.auth.getUser()
     if (authError || !user) {
       throw new Error('Unauthorized: Invalid or expired token')
+    }
+
+    // Create service role client for rate limiting
+    const supabaseService = createClient(supabaseUrl, supabaseServiceKey)
+
+    // Rate limiting - 20 requests per minute per user (prevent notification spam)
+    const { response: rateLimitResponse } = await rateLimitMiddleware(
+      supabaseService,
+      req,
+      'send-push-notifications',
+      'notification',
+      user.id,
+      corsHeaders
+    )
+    if (rateLimitResponse) {
+      return rateLimitResponse
     }
 
     // Parse request body

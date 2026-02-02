@@ -2,7 +2,7 @@
   "expo": {
     "name": "MyCollegeTix",
     "slug": "msu-tickets",
-    "version": "1.5.2",
+    "version": "1.5.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mycollegetix",
@@ -26,11 +26,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mycollegetix.app",
-      "buildNumber": "1.6",
+      "buildNumber": "1.7",
       "requireFullScreen": false,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload ticket images",
-        "NSLocationWhenInUseUsageDescription": "This app uses location to show nearby events and verify ticket authenticity"
+        "NSLocationWhenInUseUsageDescription": "This app uses location to show nearby events and verify ticket authenticity",
+        "NSCameraUsageDescription": "This app uses the camera to scan payment cards for faster checkout"
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -42,7 +43,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.mycollegetix.newapp",
-      "versionCode": 27,
+      "versionCode": 32,
       "softwareKeyboardLayoutMode": "adjustResize",
       "navigationBar": {
         "visible": "leanback",
@@ -89,7 +90,14 @@
         }
       ],
       "./plugins/android-signing.js",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.mycollegetix.app",
+          "enableGooglePay": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

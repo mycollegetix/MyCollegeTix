@@ -1,9 +1,25 @@
 // src/providers/AuthProvider.tsx - Simple fix for registration
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+} from "react";
 import { Session, User } from "@supabase/supabase-js";
-import { AppState } from "react-native";
+import { AppState, AppStateStatus, View } from "react-native";
 import { supabase } from "@/src/lib/supabase";
-import { College } from "@/src/types/database.types";
+
+// Session timeout configuration (in milliseconds)
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of inactivity
+const SESSION_CHECK_INTERVAL_MS = 60 * 1000; // Check every minute
+const BACKGROUND_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes in background
+
+import { Tables } from "@/src/types/database.types";
+
+// College type from database
+type College = Tables<"colleges">;
 import { AccountService } from "@/src/services/accountService";
 import { ipTrackingService } from "@/src/services/ipTrackingService";
 import { googleAuthService } from "@/src/services/googleAuthService";
@@ -45,6 +61,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   deleteAccount: () => Promise<{ success: boolean; error?: any }>;
+  resetActivityTimer: () => void; // Call this on user interactions to prevent session timeout
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,6 +73,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+
+  // Session timeout tracking
+  const lastActivityRef = useRef<number>(Date.now());
+  const backgroundTimeRef = useRef<number | null>(null);
+  const sessionCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Reset activity timer (call this on user interactions)
+  const resetActivityTimer = useCallback(() => {
+    lastActivityRef.current = Date.now();
+  }, []);
+
+  // Check if session should timeout due to inactivity
+  const checkSessionTimeout = useCallback(async () => {
+    if (!session || !user) return;
+
+    const now = Date.now();
+    const timeSinceLastActivity = now - lastActivityRef.current;
+
+    if (timeSinceLastActivity >= SESSION_TIMEOUT_MS) {
+      console.log("⏰ Session timeout due to inactivity, signing out...");
+      await signOut();
+    }
+  }, [session, user]);
+
+  // Set up session timeout checker
+  useEffect(() => {
+    if (session && user) {
+      // Reset activity on session start
+      resetActivityTimer();
+
+      // Set up periodic check
+      sessionCheckIntervalRef.current = setInterval(
+        checkSessionTimeout,
+        SESSION_CHECK_INTERVAL_MS
+      );
+
+      return () => {
+        if (sessionCheckIntervalRef.current) {
+          clearInterval(sessionCheckIntervalRef.current);
+          sessionCheckIntervalRef.current = null;
+        }
+      };
+    }
+  }, [session, user, checkSessionTimeout, resetActivityTimer]);
+
+  // Handle background/foreground state for security
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === "background" || nextAppState === "inactive") {
+        // Record when app went to background
+        backgroundTimeRef.current = Date.now();
+      } else if (
+        nextAppState === "active" &&
+        backgroundTimeRef.current &&
+        session
+      ) {
+        // Check how long app was in background
+        const timeInBackground = Date.now() - backgroundTimeRef.current;
+        backgroundTimeRef.current = null;
+
+        if (timeInBackground >= BACKGROUND_TIMEOUT_MS) {
+          console.log(
+            "⏰ App was in background too long, signing out for security..."
+          );
+          signOut();
+        } else {
+          // Reset activity timer since user returned
+          resetActivityTimer();
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
+    return () => subscription.remove();
+  }, [session, resetActivityTimer]);
 
   useEffect(() => {
     let mounted = true;
@@ -86,15 +181,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Handle app state changes (when user returns from browser)
     const handleAppStateChange = async (nextAppState: string) => {
-      if (nextAppState === 'active') {
+      if (nextAppState === "active") {
         console.log("📱 App became active, checking for new session...");
         try {
-          const { data: { session }, error } = await supabase.auth.getSession();
+          const {
+            data: { session },
+            error,
+          } = await supabase.auth.getSession();
           if (error) {
             console.error("❌ Error checking session on app resume:", error);
             return;
           }
-          
+
           if (session && !user) {
             console.log("✅ New session found on app resume!");
             setSession(session);
@@ -109,7 +207,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+    const appStateSubscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
 
     const {
       data: { subscription: authSubscription },
@@ -120,7 +221,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Ignore spurious SIGNED_OUT events if we actually have a valid session
       if (event === "SIGNED_OUT" && session) {
-        console.log("⚠️ Ignoring spurious SIGNED_OUT event - session still valid");
+        console.log(
+          "⚠️ Ignoring spurious SIGNED_OUT event - session still valid"
+        );
         return;
       }
 
@@ -175,15 +278,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!profileData && !profileError) {
-        console.log("❌ No profile found for user - this may be expected for new users");
+        console.log(
+          "❌ No profile found for user - this may be expected for new users"
+        );
         return;
       }
 
       if (profileData) {
-        console.log("✅ Profile loaded:", profileData.email);
+        console.log("✅ Profile loaded for user");
 
         const fullProfile: ProfileWithCollege = {
           ...profileData,
+          accepted_terms: profileData.accepted_terms ?? false, // Handle null as false
           college: profileData.colleges || null,
         };
 
@@ -196,15 +302,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Track user IP address on login/profile load with smart throttling
-        ipTrackingService.trackUserIP(userId, { trigger: 'login' }).then((result) => {
-          if (result.success) {
-            console.log("🌐 Login IP tracking successful:", result.ip, result.reason);
-          } else {
-            console.log("⏰ Login IP tracking skipped:", result.reason);
-          }
-        }).catch((error) => {
-          console.log("❌ Login IP tracking error:", error);
-        });
+        ipTrackingService
+          .trackUserIP(userId, { trigger: "login" })
+          .then((result) => {
+            if (result.success) {
+              console.log(
+                "🌐 Login IP tracking successful:",
+                result.ip,
+                result.reason
+              );
+            } else {
+              console.log("⏰ Login IP tracking skipped:", result.reason);
+            }
+          })
+          .catch((error) => {
+            console.log("❌ Login IP tracking error:", error);
+          });
       }
     } catch (error) {
       console.error("💥 Unexpected error loading profile:", error);
@@ -217,19 +330,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log("🔐 Attempting sign in for:", email);
+      console.log("🔐 Attempting sign in...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
+
       if (error) {
         console.error("❌ Sign in failed:", error.message);
-        console.error("❌ Full error:", error);
       } else {
-        console.log("✅ Sign in successful for:", data.user?.email);
+        console.log("✅ Sign in successful");
       }
-      
+
       return { error };
     } catch (error) {
       console.error("💥 Unexpected sign in error:", error);
@@ -245,8 +357,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ) => {
     try {
       console.log("🔄 Starting registration with trigger...");
-      console.log("📧 Email:", email);
-      console.log("👤 Name:", name);
       console.log("🏫 College ID:", collegeId);
 
       // Pass user data in metadata for the trigger to use
@@ -316,7 +426,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (result.user) {
-        console.log("✅ Google sign-in successful for:", result.user.email);
+        console.log("✅ Google sign-in successful");
         // The session is already set by googleAuthService, so we just return success
         // The auth state change listener will handle the rest
         return { error: null };
@@ -325,7 +435,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // This should not happen, but handle it just in case
       console.error("❌ Unexpected Google sign-in result");
       return { error: new Error("Unexpected authentication result") };
-
     } catch (error: any) {
       console.error("💥 Unexpected Google sign-in error:", error);
       return { error: new Error(`Google sign-in failed: ${error.message}`) };
@@ -336,7 +445,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("🔐 Starting Microsoft sign-in flow...");
 
-      const result = await microsoftAuthService.signInWithMicrosoft(termsAccepted);
+      const result = await microsoftAuthService.signInWithMicrosoft(
+        termsAccepted
+      );
 
       if (result.error) {
         console.error("❌ Microsoft sign-in failed:", result.error.message);
@@ -349,7 +460,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (result.user) {
-        console.log("✅ Microsoft sign-in successful for:", result.user.email);
+        console.log("✅ Microsoft sign-in successful");
         // The session is already set by microsoftAuthService, so we just return success
         // The auth state change listener will handle the rest
         return { error: null };
@@ -358,7 +469,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // This should not happen, but handle it just in case
       console.error("❌ Unexpected Microsoft sign-in result");
       return { error: new Error("Unexpected authentication result") };
-
     } catch (error: any) {
       console.error("💥 Unexpected Microsoft sign-in error:", error);
       return { error: new Error(`Microsoft sign-in failed: ${error.message}`) };
@@ -420,19 +530,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     refreshProfile,
     deleteAccount,
+    resetActivityTimer,
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
-      {user && (
-        <TermsAcceptanceModal
-          visible={showTermsModal}
-          userId={user.id}
-          onAccept={handleTermsAccept}
-          onDecline={handleTermsDecline}
-        />
-      )}
+      <View
+        style={{ flex: 1 }}
+        onTouchStart={resetActivityTimer}
+        onTouchMove={resetActivityTimer}
+      >
+        {children}
+        {user && (
+          <TermsAcceptanceModal
+            visible={showTermsModal}
+            userId={user.id}
+            onAccept={handleTermsAccept}
+            onDecline={handleTermsDecline}
+          />
+        )}
+      </View>
     </AuthContext.Provider>
   );
 }

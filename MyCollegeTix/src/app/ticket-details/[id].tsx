@@ -471,24 +471,30 @@ export default function TicketDetailsScreen() {
           <View style={styles.actionButtonsContainer}>
             {/* Message Seller Button */}
             <TouchableOpacity
-              style={styles.messageButton}
+              style={styles.messageButtonSmall}
               onPress={handleContactSeller}
             >
-              <View
-                style={[
-                  styles.messageButtonGradient,
-                  {
-                    backgroundColor: theme.primary,
-                  },
-                ]}
+              <View style={styles.messageButtonSmallInner}>
+                <Ionicons name="chatbubble-outline" size={20} color={theme.primary} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Buy Now Button */}
+            <TouchableOpacity
+              style={styles.buyButton}
+              onPress={() => router.push(`/checkout/${ticket.id}` as any)}
+            >
+              <LinearGradient
+                colors={[theme.primary, `${theme.primary}E6`]}
+                style={styles.buyButtonGradient}
               >
-                <View style={styles.messageButtonContent}>
-                  <Ionicons name="chatbubble-outline" size={20} color="white" />
-                  <Text style={styles.messageButtonText}>
-                    Message About Ticket
+                <View style={styles.buyButtonContent}>
+                  <Ionicons name="card-outline" size={20} color="white" />
+                  <Text style={styles.buyButtonText}>
+                    Buy Now - ${ticket.price.toFixed(2)}
                   </Text>
                 </View>
-              </View>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </BlurView>
@@ -894,5 +900,48 @@ const styles = StyleSheet.create({
   },
   transferButton: {
     alignSelf: "stretch",
+  },
+  // Buy Now Button Styles
+  messageButtonSmall: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  messageButtonSmallInner: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buyButton: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  buyButtonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buyButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  buyButtonText: {
+    color: "white",
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 });

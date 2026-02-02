@@ -2,12 +2,13 @@
 import React from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Tabs } from "expo-router";
-import { View, Platform } from "react-native";
+import { View, Platform, Text, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemeProvider, useTheme } from "@/src/providers/ThemeProvider";
 import { NotificationBadge } from "@/src/components/NotificationBadge";
 import { KeyboardDismiss } from "@/src/components/KeyboardDismiss";
+import { usePendingOrders } from "@/src/hooks/usePendingOrders";
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -29,6 +30,50 @@ function ChatTabIcon({ color }: { color: string }) {
     </View>
   );
 }
+
+function TicketsTabIcon({ color }: { color: string }) {
+  const { totalPending } = usePendingOrders();
+
+  return (
+    <View style={ticketStyles.container}>
+      <FontAwesome name="list-alt" size={24} color={color} style={{ marginBottom: -3 }} />
+      {totalPending > 0 && (
+        <View style={ticketStyles.badge}>
+          <Text style={ticketStyles.badgeText}>
+            {totalPending > 9 ? "9+" : totalPending}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const ticketStyles = StyleSheet.create({
+  container: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badge: {
+    position: "absolute",
+    top: -8,
+    right: -10,
+    backgroundColor: "#ef4444",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "white",
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "white",
+    textAlign: "center",
+  },
+});
 
 export default function TabLayout() {
   const theme = useTheme();
@@ -89,9 +134,7 @@ export default function TabLayout() {
           name="tickets"
           options={{
             title: "Tickets",
-            tabBarIcon: ({ color }) => (
-              <TabBarIcon name="list-alt" color={color} />
-            ),
+            tabBarIcon: ({ color }) => <TicketsTabIcon color={color} />,
           }}
         />
         <Tabs.Screen

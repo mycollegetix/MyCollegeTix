@@ -9,21 +9,17 @@ const ALLOWED_DOMAINS = [
   'umich.edu',    // University of Michigan
 ];
 
-// Test accounts (only for gmail.com domain)
-const ALLOWED_TEST_EMAILS = [
-  'aditi.dron@gmail.com',
-  'agarwal.vijay@gmail.com',
-  'cotejosephr@gmail.com',
-  'dinguspickle07@gmail.com',
-  'mycollegetix+2@gmail.com',
-  'mycollegetix@gmail.com',
-  'nikhilmamtani@gmail.com',
-  'nikhilmamtani6@gmail.com',
-  'riyamathur2014@gmail.com',
-  'rohanm.0304@gmail.com',
-  'smithhhannee@gmail.com',
-  'vivekapatel2005@gmail.com',
-];
+// Test accounts loaded from environment variable (more secure than hardcoding)
+// Format: comma-separated list of emails
+const getTestEmails = (): string[] => {
+  const envEmails = process.env.EXPO_PUBLIC_ALLOWED_TEST_EMAILS;
+  if (!envEmails) {
+    return [];
+  }
+  return envEmails.split(',').map(email => email.trim().toLowerCase());
+};
+
+const ALLOWED_TEST_EMAILS = getTestEmails();
 
 /**
  * Validates if an email is allowed to access the application

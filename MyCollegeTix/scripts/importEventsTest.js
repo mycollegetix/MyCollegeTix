@@ -6,12 +6,13 @@ require("dotenv").config();
 
 console.log("🔧 Starting test import script...");
 
-// Environment variables
+// Environment variables - SERVICE ROLE KEY for admin access (server-side only)
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error("❌ Missing Supabase credentials in .env file");
+  console.error("Make sure you have SUPABASE_SERVICE_ROLE_KEY set");
   process.exit(1);
 }
 

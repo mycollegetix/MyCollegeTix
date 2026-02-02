@@ -35,6 +35,8 @@ interface ConversationSection {
   eventTitle?: string | null;
   eventDate?: string | null;
   isEventSection?: boolean;
+  isExpiredSection?: boolean;
+  conversationCount: number; // Track count even when collapsed
 }
 
 type ConversationFilter = "all" | "seller" | "buyer";
@@ -66,6 +68,22 @@ export default function ChatListScreen() {
   const slideAnimation = useRef(new Animated.Value(0)).current;
   const fadeAnimation = useRef(new Animated.Value(1)).current;
   const [trustedUsers, setTrustedUsers] = useState<Set<string>>(new Set());
+  // Track which sections are expanded - most recent event will be added automatically
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [initialExpandSet, setInitialExpandSet] = useState(false);
+
+  // Toggle section expansion
+  const toggleSection = (sectionKey: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionKey)) {
+        next.delete(sectionKey);
+      } else {
+        next.add(sectionKey);
+      }
+      return next;
+    });
+  };
 
   // Initialize animations
   useEffect(() => {
@@ -287,26 +305,32 @@ export default function ChatListScreen() {
         });
 
       if (activeConvs.length > 0) {
+        const sectionKey = `event-active-${eventKey}`;
+        const sortedData = sortConversations(activeConvs);
         activeEventSections.push({
           title: ticket?.title || "Unknown Event",
-          data: sortConversations(activeConvs),
-          key: `event-active-${eventKey}`,
+          data: expandedSections.has(sectionKey) ? sortedData : [],
+          key: sectionKey,
           eventId: ticket?.event_id,
           eventTitle: ticket?.title,
           eventDate: ticket?.event_date,
           isEventSection: true,
+          conversationCount: activeConvs.length,
         });
       }
 
       if (expiredConvs.length > 0) {
+        const sectionKey = `event-expired-${eventKey}`;
+        const sortedData = sortConversations(expiredConvs);
         expiredEventSections.push({
           title: `${ticket?.title || "Unknown Event"} (Expired)`,
-          data: sortConversations(expiredConvs),
-          key: `event-expired-${eventKey}`,
+          data: expandedSections.has(sectionKey) ? sortedData : [],
+          key: sectionKey,
           eventId: ticket?.event_id,
           eventTitle: ticket?.title,
           eventDate: ticket?.event_date,
           isEventSection: true,
+          conversationCount: expiredConvs.length,
         });
       }
     });
@@ -321,24 +345,27 @@ export default function ChatListScreen() {
       );
 
       if (activeNoEvent.length > 0) {
+        const sectionKey = "no-event-active";
+        const sortedData = activeNoEvent.sort((a, b) => {
+          // Prioritize unread conversations
+          if (a.unread_count > 0 && b.unread_count === 0) return -1;
+          if (a.unread_count === 0 && b.unread_count > 0) return 1;
+
+          // Then sort by most recent
+          const aTime = a.last_message_at
+            ? new Date(a.last_message_at).getTime()
+            : 0;
+          const bTime = b.last_message_at
+            ? new Date(b.last_message_at).getTime()
+            : 0;
+          return bTime - aTime;
+        });
         sections.push({
           title: "Other Conversations",
-          data: activeNoEvent.sort((a, b) => {
-            // Prioritize unread conversations
-            if (a.unread_count > 0 && b.unread_count === 0) return -1;
-            if (a.unread_count === 0 && b.unread_count > 0) return 1;
-
-            // Then sort by most recent
-            const aTime = a.last_message_at
-              ? new Date(a.last_message_at).getTime()
-              : 0;
-            const bTime = b.last_message_at
-              ? new Date(b.last_message_at).getTime()
-              : 0;
-            return bTime - aTime;
-          }),
-          key: "no-event-active",
+          data: expandedSections.has(sectionKey) ? sortedData : [],
+          key: sectionKey,
           isEventSection: false,
+          conversationCount: activeNoEvent.length,
         });
       }
     }
@@ -361,24 +388,41 @@ export default function ChatListScreen() {
 
     // Create single expired section if we have any expired conversations
     if (allExpiredConversations.length > 0) {
+      const sectionKey = "all-expired";
+      const sortedExpired = allExpiredConversations.sort((a, b) => {
+        const aTime = a.last_message_at
+          ? new Date(a.last_message_at).getTime()
+          : 0;
+        const bTime = b.last_message_at
+          ? new Date(b.last_message_at).getTime()
+          : 0;
+        return bTime - aTime;
+      });
+
       sections.push({
         title: "Expired Events",
-        data: allExpiredConversations.sort((a, b) => {
-          const aTime = a.last_message_at
-            ? new Date(a.last_message_at).getTime()
-            : 0;
-          const bTime = b.last_message_at
-            ? new Date(b.last_message_at).getTime()
-            : 0;
-          return bTime - aTime;
-        }),
-        key: "all-expired",
+        data: expandedSections.has(sectionKey) ? sortedExpired : [],
+        key: sectionKey,
         isEventSection: false,
+        isExpiredSection: true,
+        conversationCount: allExpiredConversations.length,
       });
     }
 
+    // Auto-expand the first section if not yet initialized
+    if (sections.length > 0 && !initialExpandSet) {
+      const firstSectionKey = sections[0].key;
+      if (!expandedSections.has(firstSectionKey)) {
+        // Use setTimeout to avoid state update during render
+        setTimeout(() => {
+          setExpandedSections(new Set([firstSectionKey]));
+          setInitialExpandSet(true);
+        }, 0);
+      }
+    }
+
     return sections;
-  }, [filteredConversations]);
+  }, [filteredConversations, expandedSections, initialExpandSet]);
 
   const getOtherParticipant = (conversation: ConversationWithDetails) => {
     return conversation.participant_1_id === user?.id
@@ -528,7 +572,7 @@ export default function ChatListScreen() {
     );
   };
 
-  // Enhanced section header with event information
+  // Enhanced section header with event information - all sections are collapsible
   const renderSectionHeader = ({
     section,
   }: {
@@ -536,41 +580,46 @@ export default function ChatListScreen() {
   }) => {
     const isExpired = section.key.includes("expired");
     const isEventSection = section.isEventSection;
+    const isExpiredSection = section.isExpiredSection;
+    const isExpanded = expandedSections.has(section.key);
+
+    // Determine icon and colors based on section type
+    const iconName = isExpiredSection
+      ? "time-outline"
+      : isEventSection
+      ? isExpired
+        ? "calendar-outline"
+        : "calendar"
+      : section.key === "active"
+      ? "chatbubbles"
+      : "chatbubble-outline";
+
+    const iconColor = isExpiredSection || isExpired
+      ? "#94a3b8"
+      : theme.primary;
+
+    const badgeColor = isExpiredSection || isExpired
+      ? "#94a3b8"
+      : theme.primary;
 
     return (
-      <View
+      <TouchableOpacity
         style={[
           styles.sectionHeader,
           isEventSection && styles.eventSectionHeader,
+          isExpiredSection && styles.expiredSectionHeader,
+          styles.collapsibleHeader,
         ]}
+        onPress={() => toggleSection(section.key)}
+        activeOpacity={0.7}
       >
         <View style={styles.sectionHeaderContent}>
-          <Ionicons
-            name={
-              isEventSection
-                ? isExpired
-                  ? "calendar-outline"
-                  : "calendar"
-                : section.key === "active"
-                ? "chatbubbles"
-                : "time-outline"
-            }
-            size={16}
-            color={
-              isEventSection
-                ? isExpired
-                  ? "#94a3b8"
-                  : theme.primary
-                : section.key === "active"
-                ? theme.primary
-                : "#94a3b8"
-            }
-          />
+          <Ionicons name={iconName} size={16} color={iconColor} />
           <View style={styles.sectionTitleContainer}>
             <Text
               style={[
                 styles.sectionHeaderText,
-                isExpired && styles.expiredSectionText,
+                (isExpired || isExpiredSection) && styles.expiredSectionText,
                 isEventSection && styles.eventSectionTitle,
               ]}
             >
@@ -582,24 +631,19 @@ export default function ChatListScreen() {
               </Text>
             )}
           </View>
-          <View
-            style={[
-              styles.sectionCount,
-              {
-                backgroundColor: isEventSection
-                  ? isExpired
-                    ? "#94a3b8"
-                    : theme.primary
-                  : section.key === "active"
-                  ? theme.primary
-                  : "#94a3b8",
-              },
-            ]}
-          >
-            <Text style={styles.sectionCountText}>{section.data.length}</Text>
+          <View style={[styles.sectionCount, { backgroundColor: badgeColor }]}>
+            <Text style={styles.sectionCountText}>
+              {section.conversationCount}
+            </Text>
           </View>
+          <Ionicons
+            name={isExpanded ? "chevron-up" : "chevron-down"}
+            size={18}
+            color={iconColor}
+            style={{ marginLeft: 8 }}
+          />
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -1182,6 +1226,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#e2e8f0",
+  },
+  expiredSectionHeader: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  collapsibleHeader: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
   },
   sectionHeaderContent: {
     flexDirection: "row",

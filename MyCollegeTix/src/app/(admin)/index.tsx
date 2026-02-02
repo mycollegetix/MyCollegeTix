@@ -19,18 +19,6 @@ import { AdminService } from "@/src/services/adminService";
 
 const { width } = Dimensions.get("window");
 
-interface AdminStats {
-  totalUsers: number;
-  totalTickets: number;
-  totalEvents: number;
-  totalOrders: number;
-  activeTickets: number;
-  soldTickets: number;
-  totalRevenue: number;
-  recentSignups: number;
-  totalColleges: number;
-}
-
 import AdminLayout from "@/src/components/AdminLayout";
 
 interface AdminStats {
@@ -43,6 +31,7 @@ interface AdminStats {
   totalRevenue: number;
   recentSignups: number;
   totalColleges: number;
+  openDisputes: number;
 }
 
 export default function AdminDashboard() {
@@ -58,6 +47,7 @@ export default function AdminDashboard() {
     totalRevenue: 0,
     recentSignups: 0,
     totalColleges: 0,
+    openDisputes: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -82,14 +72,15 @@ export default function AdminDashboard() {
         ticketsResult,
         eventsResult,
         ordersResult,
-        collegesResult, // ← Add this line
+        collegesResult,
         recentSignupsResult,
+        openDisputesResult,
       ] = await Promise.all([
         supabase.from("profiles").select("*", { count: "exact", head: true }),
         supabase.from("tickets").select("*"),
         supabase.from("events").select("*", { count: "exact", head: true }),
         supabase.from("orders").select("*"),
-        supabase.from("colleges").select("*", { count: "exact", head: true }), // ← Add this line
+        supabase.from("colleges").select("*", { count: "exact", head: true }),
         supabase
           .from("profiles")
           .select("*", { count: "exact", head: true })
@@ -97,6 +88,10 @@ export default function AdminDashboard() {
             "created_at",
             new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
           ),
+        supabase
+          .from("escrow_disputes")
+          .select("*", { count: "exact", head: true })
+          .in("status", ["open", "under_review"]),
       ]);
 
       // Process tickets data
@@ -121,7 +116,8 @@ export default function AdminDashboard() {
         soldTickets,
         totalRevenue,
         recentSignups: recentSignupsResult.count || 0,
-        totalColleges: collegesResult.count || 0, // ← Add this line
+        totalColleges: collegesResult.count || 0,
+        openDisputes: openDisputesResult.count || 0,
       });
     } catch (error) {
       console.error("Error fetching admin stats:", error);
@@ -242,6 +238,13 @@ export default function AdminDashboard() {
               color="#16a34a"
             /> */}
             <StatCard
+              title="Open Disputes"
+              value={stats.openDisputes}
+              icon="alert-circle"
+              color="#ef4444"
+              onPress={() => router.push("/(admin)/disputes")}
+            />
+            <StatCard
               title="Recent Signups"
               value={stats.recentSignups}
               icon="person-add"
@@ -281,6 +284,13 @@ export default function AdminDashboard() {
               icon="school"
               color="#8b5cf6"
               onPress={() => (router.push as any)("/(admin)/colleges")}
+            />
+            <QuickActionCard
+              title="Dispute Management"
+              description="Review and resolve user disputes"
+              icon="alert-circle"
+              color="#ef4444"
+              onPress={() => router.push("/(admin)/disputes")}
             />
             <QuickActionCard
               title="Analytics"

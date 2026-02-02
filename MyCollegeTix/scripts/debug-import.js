@@ -10,20 +10,12 @@ console.log("🏫 College key:", process.argv[3]);
 // Check environment variables
 console.log("🌍 Environment check:");
 console.log(
-  "  SUPABASE_URL:",
-  process.env.SUPABASE_URL ? "✅ Set" : "❌ Missing"
-);
-console.log(
   "  EXPO_PUBLIC_SUPABASE_URL:",
   process.env.EXPO_PUBLIC_SUPABASE_URL ? "✅ Set" : "❌ Missing"
 );
 console.log(
   "  SUPABASE_SERVICE_ROLE_KEY:",
   process.env.SUPABASE_SERVICE_ROLE_KEY ? "✅ Set" : "❌ Missing"
-);
-console.log(
-  "  EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY:",
-  process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ? "✅ Set" : "❌ Missing"
 );
 
 const inputPath = process.argv[2];

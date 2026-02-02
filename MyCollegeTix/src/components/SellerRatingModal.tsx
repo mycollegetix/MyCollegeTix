@@ -26,6 +26,8 @@ interface SellerRatingModalProps {
   isLoading?: boolean;
   primaryColor?: string;
   secondaryColor?: string;
+  /** Set to true when seller is rating the buyer (flips the perspective) */
+  isSellerRatingBuyer?: boolean;
 }
 
 export interface SellerRatingData {
@@ -41,7 +43,14 @@ export default function SellerRatingModal({
   isLoading = false,
   primaryColor = "#18453b",
   secondaryColor = "#ffd700",
+  isSellerRatingBuyer = false,
 }: SellerRatingModalProps) {
+  // Dynamic labels based on perspective
+  const headerTitle = isSellerRatingBuyer ? "Rate Buyer" : "Rate Seller";
+  const personLabel = isSellerRatingBuyer ? "buyer" : "seller";
+  const reviewPlaceholder = isSellerRatingBuyer
+    ? "Share details about your experience with this buyer..."
+    : "Share details about your experience with this seller...";
   const [ratingData, setRatingData] = useState<SellerRatingData>({
     rating: 0,
     review: "",
@@ -98,7 +107,7 @@ export default function SellerRatingModal({
             >
               <Ionicons name="close" size={24} color="white" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Rate Seller</Text>
+            <Text style={styles.headerTitle}>{headerTitle}</Text>
             <View style={styles.placeholder} />
           </View>
           <Text style={styles.headerSubtitle}>{ticket.title}</Text>
@@ -195,7 +204,7 @@ export default function SellerRatingModal({
                 <Text style={styles.reviewLabel}>Review (Optional)</Text>
                 <TextInput
                   style={styles.reviewInput}
-                  placeholder="Share details about your experience with this seller..."
+                  placeholder={reviewPlaceholder}
                   placeholderTextColor="#9ca3af"
                   value={ratingData.review || ""}
                   onChangeText={(text) => setRatingData({...ratingData, review: text})}

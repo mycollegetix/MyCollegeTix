@@ -21,7 +21,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { CollegeService } from "@/src/services/collegeService";
-import { College } from "@/src/types/database.types";
+import { Tables } from "@/src/types/database.types";
+
+// College type from database
+type College = Tables<"colleges">;
 
 const { width, height } = Dimensions.get("window");
 
@@ -216,12 +219,6 @@ export default function EnhancedRegisterScreen() {
     const emailDomain = email.split("@")[1]?.toLowerCase().trim();
     const expectedDomain = selectedCollege.email_domain.toLowerCase().trim();
 
-    console.log("🔍 Email validation:");
-    console.log("🔍 Email:", email);
-    console.log("🔍 Extracted domain:", `"${emailDomain}"`);
-    console.log("🔍 Expected domain:", `"${expectedDomain}"`);
-    console.log("🔍 Match:", emailDomain === expectedDomain);
-
     if (!emailDomain) {
       setEmailValidationMessage("Please enter a valid email address");
       return;
@@ -243,11 +240,6 @@ export default function EnhancedRegisterScreen() {
     const emailDomain = email.split("@")[1]?.toLowerCase().trim();
     const expectedDomain = selectedCollege.email_domain.toLowerCase().trim();
 
-    console.log("🔍 isEmailValid check:");
-    console.log("🔍 emailDomain:", `"${emailDomain}"`);
-    console.log("🔍 expectedDomain:", `"${expectedDomain}"`);
-    console.log("🔍 Result:", emailDomain === expectedDomain);
-
     return emailDomain === expectedDomain;
   };
 
@@ -264,12 +256,6 @@ export default function EnhancedRegisterScreen() {
 
     // Check for exact match
     const exactMatch = emailDomain === expectedDomain;
-
-    console.log("🔍 Flexible validation:");
-    console.log("🔍 Email parts:", emailParts);
-    console.log("🔍 emailDomain:", `"${emailDomain}"`);
-    console.log("🔍 expectedDomain:", `"${expectedDomain}"`);
-    console.log("🔍 Exact match:", exactMatch);
 
     return exactMatch;
   };
@@ -335,7 +321,7 @@ export default function EnhancedRegisterScreen() {
     console.log("🔄 Starting registration process...");
 
     try {
-      console.log("🔄 Starting registration for:", email);
+      console.log("🔄 Starting registration...");
       console.log("🏫 Selected college:", selectedCollege.name);
 
       // Use the AuthProvider signUp method which handles college assignment
@@ -451,8 +437,8 @@ export default function EnhancedRegisterScreen() {
   const getThemeColors = () => {
     if (selectedCollege) {
       return {
-        primary: selectedCollege.primary_color,
-        secondary: selectedCollege.secondary_color,
+        primary: selectedCollege.primary_color ?? "#18453b",
+        secondary: selectedCollege.secondary_color ?? "#ffd700",
       };
     }
     // Default MSU colors

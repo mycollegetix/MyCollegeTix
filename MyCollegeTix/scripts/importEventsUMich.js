@@ -6,17 +6,15 @@ require("dotenv").config(); // Load environment variables
 
 //KEEP THIS IN HOW TO RUN THIS : node scripts/importEventsUMich.js ./calendar-data/umich
 
-// Use your existing environment variables - SERVICE ROLE KEY for admin access
+// Use environment variables - SERVICE ROLE KEY for admin access (server-side only)
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error("❌ Missing Supabase credentials in .env file");
   console.error("Make sure you have:");
   console.error("  EXPO_PUBLIC_SUPABASE_URL=your_url_here");
-  console.error(
-    "  EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here"
-  );
+  console.error("  SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here");
   process.exit(1);
 }
 
@@ -248,7 +246,9 @@ function parseEventLines(eventLines, date, sourceFile) {
         eventLine.includes("Exhibition") || eventLine.includes("exhibition");
 
       const genderPrefix = isWomens ? "Women's " : isMens ? "Men's " : "";
-      title = `${genderPrefix}${sport} vs ${opponent}${isExhibition ? " (Exhibition)" : ""}`;
+      title = `${genderPrefix}${sport} vs ${opponent}${
+        isExhibition ? " (Exhibition)" : ""
+      }`;
       isHomeGame = true;
 
       // Process location lines
@@ -292,7 +292,9 @@ function parseEventLines(eventLines, date, sourceFile) {
         eventLine.includes("Exhibition") || eventLine.includes("exhibition");
 
       const genderPrefix = isWomens ? "Women's " : isMens ? "Men's " : "";
-      title = `${genderPrefix}${sport} at ${opponent}${isExhibition ? " (Exhibition)" : ""}`;
+      title = `${genderPrefix}${sport} at ${opponent}${
+        isExhibition ? " (Exhibition)" : ""
+      }`;
       isHomeGame = false;
       venue = null; // Away games don't have our venue
 

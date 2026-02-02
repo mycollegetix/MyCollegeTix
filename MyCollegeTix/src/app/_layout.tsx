@@ -3,6 +3,8 @@ import { AuthProvider, useAuth } from "@/src/providers/AuthProvider";
 import { NotificationProvider } from "@/src/providers/NotificationProvider";
 import { ThemeProvider } from "@/src/providers/ThemeProvider";
 import { ChatProvider } from "@/src/providers/ChatProvider";
+import { PaymentProvider } from "@/src/providers/PaymentProvider";
+import { PendingOrdersProvider } from "@/src/providers/PendingOrdersProvider";
 import NotificationDeepLinkHandler from "@/src/components/NotificationDeepLinkHandler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useColorScheme, KeyboardAvoidingView, Platform, AppState, AppStateStatus } from "react-native";
@@ -39,6 +41,10 @@ function RootLayoutNav() {
     const inNotificationsGroup = segments[0] === "notifications";
     const inSupportGroup = segments[0] === "support";
     const inTicketDetailsGroup = segments[0] === "ticket-details";
+    const inCheckoutGroup = segments[0] === "checkout";
+    const inStripeGroup = segments[0] === "stripe";
+    const inOrdersGroup = segments[0] === "orders";
+    const inDisputeGroup = segments[0] === "dispute";
 
     console.log("🧭 Navigation check:", {
       session: !!session,
@@ -49,6 +55,10 @@ function RootLayoutNav() {
       inNotificationsGroup,
       inSupportGroup,
       inTicketDetailsGroup,
+      inCheckoutGroup,
+      inStripeGroup,
+      inOrdersGroup,
+      inDisputeGroup,
       segments: segments.join('/'),
       profileLoaded: !!profile
     });
@@ -68,8 +78,9 @@ function RootLayoutNav() {
     }
 
     // If user has session but is not in a recognized route group, redirect them to tabs
-    const isInValidGroup = inAuthGroup || inTabsGroup || inAdminGroup || inLegalGroup || 
-                          inNotificationsGroup || inSupportGroup || inTicketDetailsGroup;
+    const isInValidGroup = inAuthGroup || inTabsGroup || inAdminGroup || inLegalGroup ||
+                          inNotificationsGroup || inSupportGroup || inTicketDetailsGroup ||
+                          inCheckoutGroup || inStripeGroup || inOrdersGroup || inDisputeGroup;
     
     if (session && !isInValidGroup) {
       console.log("✅ Authenticated user not in valid route group, redirecting to tabs...");
@@ -147,6 +158,10 @@ function RootLayoutNav() {
           }} 
         />
         <Stack.Screen name="support" options={{ headerShown: false }} />
+        <Stack.Screen name="checkout" options={{ headerShown: false }} />
+        <Stack.Screen name="stripe" options={{ headerShown: false }} />
+        <Stack.Screen name="orders" options={{ headerShown: false }} />
+        <Stack.Screen name="dispute" options={{ headerShown: false }} />
       </Stack>
     </>
   );
@@ -164,13 +179,17 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NotificationProvider>
-          <ChatProvider>
-            <ThemeProvider>
-              <RootLayoutNav />
-            </ThemeProvider>
-          </ChatProvider>
-        </NotificationProvider>
+        <PaymentProvider>
+          <PendingOrdersProvider>
+            <NotificationProvider>
+              <ChatProvider>
+                <ThemeProvider>
+                  <RootLayoutNav />
+                </ThemeProvider>
+              </ChatProvider>
+            </NotificationProvider>
+          </PendingOrdersProvider>
+        </PaymentProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
