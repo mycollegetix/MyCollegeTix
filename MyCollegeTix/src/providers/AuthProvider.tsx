@@ -1,4 +1,4 @@
-// src/providers/AuthProvider.tsx - Simple fix for registration
+// src/providers/AuthProvider.tsx - Production-grade auth with proper lifecycle handling
 import React, {
   createContext,
   useContext,
@@ -15,6 +15,8 @@ import { supabase } from "@/src/lib/supabase";
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of inactivity
 const SESSION_CHECK_INTERVAL_MS = 60 * 1000; // Check every minute
 const BACKGROUND_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes in background
+const PROFILE_LOAD_TIMEOUT_MS = 10 * 1000; // 10 second profile load timeout
+const AUTH_RECOVERY_TIMEOUT_MS = 5 * 1000; // 5 second recovery timeout before force logout
 
 import { Tables } from "@/src/types/database.types";
 
@@ -74,10 +76,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
 
+  // Auth lifecycle states to prevent race conditions
+  const [isResuming, setIsResuming] = useState(false); // Blocks operations during app resume
+  const [isSigningOut, setIsSigningOut] = useState(false); // Prevents concurrent signouts
+
   // Session timeout tracking
   const lastActivityRef = useRef<number>(Date.now());
   const backgroundTimeRef = useRef<number | null>(null);
   const sessionCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const profileAbortControllerRef = useRef<AbortController | null>(null);
+  const authRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset activity timer (call this on user interactions)
   const resetActivityTimer = useCallback(() => {
@@ -86,20 +94,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check if session should timeout due to inactivity
   const checkSessionTimeout = useCallback(async () => {
-    if (!session || !user) return;
+    if (!session || !user || isSigningOut || isResuming) return;
 
     const now = Date.now();
     const timeSinceLastActivity = now - lastActivityRef.current;
 
     if (timeSinceLastActivity >= SESSION_TIMEOUT_MS) {
       console.log("⏰ Session timeout due to inactivity, signing out...");
-      await signOut();
+      await signOutInternal("inactivity_timeout");
     }
-  }, [session, user]);
+  }, [session, user, isSigningOut, isResuming]);
 
   // Set up session timeout checker
   useEffect(() => {
-    if (session && user) {
+    if (session && user && !isSigningOut) {
       // Reset activity on session start
       resetActivityTimer();
 
@@ -116,150 +124,220 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       };
     }
-  }, [session, user, checkSessionTimeout, resetActivityTimer]);
+  }, [session, user, checkSessionTimeout, resetActivityTimer, isSigningOut]);
 
-  // Handle background/foreground state for security
+  // SINGLE consolidated AppState handler - prevents race conditions
   useEffect(() => {
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      // Going to background
       if (nextAppState === "background" || nextAppState === "inactive") {
-        // Record when app went to background
         backgroundTimeRef.current = Date.now();
-      } else if (
-        nextAppState === "active" &&
-        backgroundTimeRef.current &&
-        session
-      ) {
-        // Check how long app was in background
+        console.log("📱 App going to background");
+        return;
+      }
+
+      // Returning to foreground
+      if (nextAppState === "active" && backgroundTimeRef.current) {
         const timeInBackground = Date.now() - backgroundTimeRef.current;
         backgroundTimeRef.current = null;
 
-        if (timeInBackground >= BACKGROUND_TIMEOUT_MS) {
-          console.log(
-            "⏰ App was in background too long, signing out for security..."
-          );
-          signOut();
-        } else {
-          // Reset activity timer since user returned
+        console.log(`📱 App returning to foreground after ${Math.round(timeInBackground / 1000)}s`);
+
+        // Prevent concurrent resume handling
+        if (isResuming || isSigningOut) {
+          console.log("⏳ Already handling resume or signout, skipping...");
+          return;
+        }
+
+        setIsResuming(true);
+
+        try {
+          // STEP 1: Check if background timeout exceeded - MUST complete before anything else
+          if (timeInBackground >= BACKGROUND_TIMEOUT_MS) {
+            console.log("⏰ Background timeout exceeded, signing out for security...");
+            await signOutInternal("background_timeout");
+            return; // Exit early - no session refresh needed
+          }
+
+          // STEP 2: Reset activity timer since user returned within allowed time
           resetActivityTimer();
+
+          // STEP 3: Refresh session from Supabase (handles token refresh + OAuth returns)
+          console.log("🔄 Checking session after resume...");
+          const { data: { session: freshSession }, error } = await supabase.auth.getSession();
+
+          if (error) {
+            console.error("❌ Error checking session on resume:", error);
+            // Don't sign out on error - might be network issue
+            return;
+          }
+
+          // STEP 4: Handle session state changes
+          if (freshSession && !session) {
+            // New session appeared (OAuth callback or refresh)
+            console.log("✅ New session detected on resume");
+            setSession(freshSession);
+            setUser(freshSession.user);
+            if (freshSession.user) {
+              // Don't await - let profile load in background
+              loadUserProfile(freshSession.user.id);
+            }
+          } else if (!freshSession && session) {
+            // Session was invalidated while in background
+            console.log("⚠️ Session invalidated while in background, signing out...");
+            await signOutInternal("session_expired");
+          } else if (freshSession && session) {
+            // Session still valid - just refresh profile if needed
+            if (!profile && freshSession.user) {
+              console.log("🔄 Session valid but no profile, loading...");
+              // Don't await - let profile load in background
+              loadUserProfile(freshSession.user.id);
+            }
+          }
+          // If !freshSession && !session, user is already logged out - nothing to do
+
+        } catch (error) {
+          console.error("❌ Error during app resume:", error);
+        } finally {
+          setIsResuming(false);
         }
       }
     };
 
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange
-    );
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
     return () => subscription.remove();
-  }, [session, resetActivityTimer]);
+  }, [session, profile, isResuming, isSigningOut, resetActivityTimer]);
 
+  // Auth initialization and subscription effect
   useEffect(() => {
     let mounted = true;
 
     const initializeAuth = async () => {
       try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+        console.log("🔐 Initializing auth...");
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
 
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
+        if (!mounted) return;
 
-          if (session?.user) {
-            await loadUserProfile(session.user.id);
-          }
+        if (error) {
+          console.error("❌ Error getting initial session:", error);
           setIsLoading(false);
+          return;
+        }
+
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+
+        // Set loading false BEFORE profile load - don't block navigation
+        setIsLoading(false);
+        console.log("✅ Auth initialized:", { hasSession: !!initialSession });
+
+        // Load profile in background - don't await
+        if (initialSession?.user) {
+          loadUserProfile(initialSession.user.id);
         }
       } catch (error) {
-        console.error("Error initializing auth:", error);
+        console.error("💥 Error initializing auth:", error);
         if (mounted) setIsLoading(false);
       }
     };
 
     initializeAuth();
 
-    // Handle app state changes (when user returns from browser)
-    const handleAppStateChange = async (nextAppState: string) => {
-      if (nextAppState === "active") {
-        console.log("📱 App became active, checking for new session...");
-        try {
-          const {
-            data: { session },
-            error,
-          } = await supabase.auth.getSession();
-          if (error) {
-            console.error("❌ Error checking session on app resume:", error);
-            return;
-          }
+    // Auth state change listener (handles sign in, sign out, token refresh)
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        console.log("🔄 Auth event:", event);
 
-          if (session && !user) {
-            console.log("✅ New session found on app resume!");
-            setSession(session);
-            setUser(session.user);
-            if (session.user) {
-              await loadUserProfile(session.user.id);
-            }
-          }
-        } catch (error) {
-          console.error("❌ Error refreshing session:", error);
+        if (!mounted) return;
+
+        // Ignore events during signout to prevent race conditions
+        if (isSigningOut && event !== "SIGNED_OUT") {
+          console.log("⏳ Ignoring auth event during signout:", event);
+          return;
         }
-      }
-    };
 
-    const appStateSubscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange
+        // Ignore spurious SIGNED_OUT events if we actually have a valid session
+        if (event === "SIGNED_OUT" && newSession) {
+          console.log("⚠️ Ignoring spurious SIGNED_OUT event - session still valid");
+          return;
+        }
+
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+
+        if (event === "SIGNED_IN" && newSession?.user) {
+          // Cancel any existing profile load
+          if (profileAbortControllerRef.current) {
+            profileAbortControllerRef.current.abort();
+          }
+          // Load profile in background - don't block auth state
+          loadUserProfile(newSession.user.id);
+        } else if (event === "SIGNED_OUT") {
+          setProfile(null);
+          setIsFetchingProfile(false);
+        } else if (event === "TOKEN_REFRESHED" && newSession?.user && !profile) {
+          // Profile might have been lost during token refresh
+          loadUserProfile(newSession.user.id);
+        }
+
+        setIsLoading(false);
+      }
     );
-
-    const {
-      data: { subscription: authSubscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("🔄 Auth event:", event);
-
-      if (!mounted) return;
-
-      // Ignore spurious SIGNED_OUT events if we actually have a valid session
-      if (event === "SIGNED_OUT" && session) {
-        console.log(
-          "⚠️ Ignoring spurious SIGNED_OUT event - session still valid"
-        );
-        return;
-      }
-
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (event === "SIGNED_IN" && session?.user) {
-        // Load profile immediately without delay to improve performance
-        loadUserProfile(session.user.id);
-      } else if (event === "SIGNED_OUT") {
-        setProfile(null);
-      }
-
-      setIsLoading(false);
-    });
 
     return () => {
       mounted = false;
       authSubscription.unsubscribe();
-      appStateSubscription?.remove();
+      // Cancel any pending profile load
+      if (profileAbortControllerRef.current) {
+        profileAbortControllerRef.current.abort();
+      }
+      // Clear recovery timeout
+      if (authRecoveryTimeoutRef.current) {
+        clearTimeout(authRecoveryTimeoutRef.current);
+      }
     };
-  }, []);
+  }, [isSigningOut]);
 
   const loadUserProfile = async (userId: string) => {
-    if (isFetchingProfile) return;
+    // Allow retry if currently fetching but with abort
+    if (isFetchingProfile) {
+      console.log("⏳ Profile fetch already in progress, aborting previous...");
+      if (profileAbortControllerRef.current) {
+        profileAbortControllerRef.current.abort();
+      }
+    }
+
+    // Don't load profile during signout
+    if (isSigningOut) {
+      console.log("⏳ Skipping profile load during signout");
+      return;
+    }
+
+    // Create new abort controller for this request
+    const abortController = new AbortController();
+    profileAbortControllerRef.current = abortController;
 
     setIsFetchingProfile(true);
     console.log("👤 Loading profile for user:", userId);
 
-    // Set a timeout to prevent indefinite loading
+    // Set a timeout to prevent indefinite loading - just abort and continue
     const timeoutId = setTimeout(() => {
-      console.log("⚠️ Profile loading timeout, continuing without profile...");
-      setIsFetchingProfile(false);
-    }, 10000); // 10 second timeout
+      if (!abortController.signal.aborted) {
+        console.log("⚠️ Profile loading timeout, continuing without profile...");
+        abortController.abort();
+        setIsFetchingProfile(false);
+        // Don't force logout - just continue without profile
+        // The app should work, user can retry or refresh
+      }
+    }, PROFILE_LOAD_TIMEOUT_MS);
 
     try {
+      // Check if aborted before making request
+      if (abortController.signal.aborted) {
+        return;
+      }
+
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select(
@@ -271,60 +349,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq("id", userId)
         .single();
 
-      if (profileError) {
-        console.error("❌ Profile fetch error:", profileError.message);
-        console.error("❌ Full error details:", profileError);
-        // Don't return early, let the auth system continue
-      }
-
-      if (!profileData && !profileError) {
-        console.log(
-          "❌ No profile found for user - this may be expected for new users"
-        );
+      // Check if aborted after request
+      if (abortController.signal.aborted) {
+        console.log("⏳ Profile load aborted, discarding result");
         return;
       }
 
-      if (profileData) {
-        console.log("✅ Profile loaded for user");
-
-        const fullProfile: ProfileWithCollege = {
-          ...profileData,
-          accepted_terms: profileData.accepted_terms ?? false, // Handle null as false
-          college: profileData.colleges || null,
-        };
-
-        setProfile(fullProfile);
-
-        // Check if user needs to accept terms
-        if (!profileData.accepted_terms) {
-          console.log("⚠️ User has not accepted terms, showing modal");
-          setShowTermsModal(true);
-        }
-
-        // Track user IP address on login/profile load with smart throttling
-        ipTrackingService
-          .trackUserIP(userId, { trigger: "login" })
-          .then((result) => {
-            if (result.success) {
-              console.log(
-                "🌐 Login IP tracking successful:",
-                result.ip,
-                result.reason
-              );
-            } else {
-              console.log("⏰ Login IP tracking skipped:", result.reason);
-            }
-          })
-          .catch((error) => {
-            console.log("❌ Login IP tracking error:", error);
-          });
+      // Clear recovery timeout since we got a response
+      if (authRecoveryTimeoutRef.current) {
+        clearTimeout(authRecoveryTimeoutRef.current);
+        authRecoveryTimeoutRef.current = null;
       }
-    } catch (error) {
+
+      if (profileError) {
+        console.error("❌ Profile fetch error:", profileError.message);
+        // If profile doesn't exist, this might be a new user - don't break auth
+        if (profileError.code === "PGRST116") {
+          console.log("⚠️ No profile found - may be new user, waiting for trigger");
+        }
+        return;
+      }
+
+      if (!profileData) {
+        console.log("❌ No profile data returned");
+        return;
+      }
+
+      console.log("✅ Profile loaded for user");
+
+      const fullProfile: ProfileWithCollege = {
+        ...profileData,
+        accepted_terms: profileData.accepted_terms ?? false,
+        college: profileData.colleges || null,
+      };
+
+      setProfile(fullProfile);
+
+      // Check if user needs to accept terms
+      if (!profileData.accepted_terms) {
+        console.log("⚠️ User has not accepted terms, showing modal");
+        setShowTermsModal(true);
+      }
+
+      // Track user IP address on login/profile load (non-blocking)
+      ipTrackingService
+        .trackUserIP(userId, { trigger: "login" })
+        .then((result) => {
+          if (result.success) {
+            console.log("🌐 Login IP tracking successful:", result.ip, result.reason);
+          } else {
+            console.log("⏰ Login IP tracking skipped:", result.reason);
+          }
+        })
+        .catch((error) => {
+          console.log("❌ Login IP tracking error:", error);
+        });
+
+    } catch (error: any) {
+      if (error.name === "AbortError" || abortController.signal.aborted) {
+        console.log("⏳ Profile load was aborted");
+        return;
+      }
       console.error("💥 Unexpected error loading profile:", error);
-      // Continue operation rather than breaking auth
     } finally {
       clearTimeout(timeoutId);
-      setIsFetchingProfile(false);
+      // Only clear fetching state if this is still the current request
+      if (profileAbortControllerRef.current === abortController) {
+        setIsFetchingProfile(false);
+      }
     }
   };
 
@@ -475,22 +567,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signOut = async () => {
+  // Internal signOut with reason tracking - prevents concurrent signouts
+  const signOutInternal = async (reason: string) => {
+    // Prevent concurrent signouts
+    if (isSigningOut) {
+      console.log("⏳ Signout already in progress, skipping duplicate");
+      return;
+    }
+
+    setIsSigningOut(true);
+    console.log(`🚪 Starting sign out process (reason: ${reason})...`);
+
     try {
-      console.log("🚪 Starting sign out process...");
+      // Cancel any pending profile load
+      if (profileAbortControllerRef.current) {
+        profileAbortControllerRef.current.abort();
+        profileAbortControllerRef.current = null;
+      }
+
+      // Clear recovery timeout
+      if (authRecoveryTimeoutRef.current) {
+        clearTimeout(authRecoveryTimeoutRef.current);
+        authRecoveryTimeoutRef.current = null;
+      }
+
+      // Clear session check interval
+      if (sessionCheckIntervalRef.current) {
+        clearInterval(sessionCheckIntervalRef.current);
+        sessionCheckIntervalRef.current = null;
+      }
 
       // Clear state immediately to prevent components from making requests
       setSession(null);
       setUser(null);
       setProfile(null);
+      setIsFetchingProfile(false);
+      setShowTermsModal(false);
 
-      // Sign out from all services (only Supabase triggers auth state change)
+      // Sign out from Supabase
       await supabase.auth.signOut();
 
-      console.log("✅ Sign out complete, redirecting to login");
+      console.log("✅ Sign out complete");
     } catch (error) {
       console.error("❌ Error signing out:", error);
+      // Even on error, ensure state is cleared
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+    } finally {
+      setIsSigningOut(false);
+      setIsResuming(false);
     }
+  };
+
+  // Public signOut function
+  const signOut = async () => {
+    await signOutInternal("user_initiated");
   };
 
   const refreshProfile = async () => {

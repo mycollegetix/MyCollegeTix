@@ -1,4 +1,4 @@
-// app/_layout.tsx - Fixed to prevent infinite loops and loading issues
+// app/_layout.tsx - Production-grade navigation with auth state handling
 import { AuthProvider, useAuth } from "@/src/providers/AuthProvider";
 import { NotificationProvider } from "@/src/providers/NotificationProvider";
 import { ThemeProvider } from "@/src/providers/ThemeProvider";
@@ -7,32 +7,98 @@ import { PaymentProvider } from "@/src/providers/PaymentProvider";
 import { PendingOrdersProvider } from "@/src/providers/PendingOrdersProvider";
 import NotificationDeepLinkHandler from "@/src/components/NotificationDeepLinkHandler";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { useColorScheme, KeyboardAvoidingView, Platform, AppState, AppStateStatus } from "react-native";
-import { useEffect, useRef } from "react";
+import { useColorScheme, KeyboardAvoidingView, Platform, AppState, AppStateStatus, View, ActivityIndicator, Text, StyleSheet } from "react-native";
+import { useEffect, useRef, useState, useCallback } from "react";
 import * as Font from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ipTrackingService } from "@/src/services/ipTrackingService";
+
+// Navigation timeout - prevents infinite loading states
+const NAVIGATION_TIMEOUT_MS = 5000;
+// Maximum time to show loading screen before forcing action
+const LOADING_SCREEN_TIMEOUT_MS = 8000;
+
+// Loading screen component with timeout failsafe
+function LoadingScreen({ onTimeout }: { onTimeout: () => void }) {
+  const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
+
+  useEffect(() => {
+    const warningTimeout = setTimeout(() => {
+      setShowTimeoutMessage(true);
+    }, LOADING_SCREEN_TIMEOUT_MS / 2);
+
+    const forceTimeout = setTimeout(() => {
+      console.log("🚨 Loading screen timeout, forcing action...");
+      onTimeout();
+    }, LOADING_SCREEN_TIMEOUT_MS);
+
+    return () => {
+      clearTimeout(warningTimeout);
+      clearTimeout(forceTimeout);
+    };
+  }, [onTimeout]);
+
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#18453b" />
+      <Text style={styles.loadingText}>
+        {showTimeoutMessage ? "Taking longer than usual..." : "Loading..."}
+      </Text>
+    </View>
+  );
+}
 
 function RootLayoutNav() {
   const { session, isLoading, profile, user } = useAuth();
   const router = useRouter();
   const segments = useSegments();
   const appState = useRef(AppState.currentState);
+  const [forceShowContent, setForceShowContent] = useState(false);
+
+  // Track if we've already navigated to prevent duplicate redirects
+  const hasNavigatedRef = useRef(false);
+  const lastNavigationTimeRef = useRef(0);
+
+  // Handle loading screen timeout
+  const handleLoadingTimeout = useCallback(() => {
+    console.log("⚠️ Loading timeout - showing content anyway");
+    setForceShowContent(true);
+    // If no session after timeout, go to login
+    if (!session && !user) {
+      router.replace("/(auth)/login" as any);
+    }
+  }, [session, user, router]);
+
+  // Reset force show when auth state changes
+  useEffect(() => {
+    if (!isLoading) {
+      setForceShowContent(false);
+    }
+  }, [isLoading]);
+
+  // Debounce navigation to prevent rapid-fire redirects during auth transitions
+  const navigateWithDebounce = (path: string) => {
+    const now = Date.now();
+    if (now - lastNavigationTimeRef.current < 500) {
+      console.log("⏳ Navigation debounced, too soon after last navigation");
+      return;
+    }
+    lastNavigationTimeRef.current = now;
+    router.replace(path as any);
+  };
+
+  // Reset navigation flag when auth state changes significantly
+  useEffect(() => {
+    hasNavigatedRef.current = false;
+  }, [!!session, !!user]);
 
   useEffect(() => {
+    // Don't run navigation logic while auth is still initializing
     if (isLoading) {
       console.log("🔄 Auth still loading, waiting...");
       return;
     }
-
-    // Add timeout to prevent infinite loading on Android
-    const timeoutId = setTimeout(() => {
-      if (session && !profile) {
-        console.log("⚠️ Session exists but profile still loading after timeout, forcing navigation...");
-        router.replace("/(tabs)" as any);
-      }
-    }, 3000); // 3 second timeout
 
     const inAuthGroup = segments[0] === "(auth)";
     const inAdminGroup = segments[0] === "(admin)";
@@ -46,61 +112,73 @@ function RootLayoutNav() {
     const inOrdersGroup = segments[0] === "orders";
     const inDisputeGroup = segments[0] === "dispute";
 
-    console.log("🧭 Navigation check:", {
-      session: !!session,
-      inAuthGroup,
-      inAdminGroup,
-      inTabsGroup,
-      inLegalGroup,
-      inNotificationsGroup,
-      inSupportGroup,
-      inTicketDetailsGroup,
-      inCheckoutGroup,
-      inStripeGroup,
-      inOrdersGroup,
-      inDisputeGroup,
-      segments: segments.join('/'),
-      profileLoaded: !!profile
-    });
-
-    // If user is in admin group but not an admin, redirect them out
-    if (inAdminGroup && session && profile && !profile.is_admin) {
-      console.log("🚫 Non-admin trying to access admin area, redirecting...");
-      router.replace("/(tabs)" as any);
-      return;
-    }
-
-    // Handle normal authentication flow
-    if (session && inAuthGroup) {
-      console.log("✅ Authenticated user in auth pages, redirecting to tabs...");
-      router.replace("/(tabs)" as any);
-      return;
-    }
-
-    // If user has session but is not in a recognized route group, redirect them to tabs
     const isInValidGroup = inAuthGroup || inTabsGroup || inAdminGroup || inLegalGroup ||
                           inNotificationsGroup || inSupportGroup || inTicketDetailsGroup ||
                           inCheckoutGroup || inStripeGroup || inOrdersGroup || inDisputeGroup;
-    
-    if (session && !isInValidGroup) {
-      console.log("✅ Authenticated user not in valid route group, redirecting to tabs...");
-      router.replace("/(tabs)" as any);
+
+    console.log("🧭 Navigation check:", {
+      session: !!session,
+      user: !!user,
+      profile: !!profile,
+      segment: segments[0] || "root",
+      inAuthGroup,
+      isInValidGroup
+    });
+
+    // CASE 1: No session and no user - must go to login (unless legal pages)
+    if (!session && !user) {
+      if (!inAuthGroup && !inLegalGroup) {
+        console.log("🔐 No auth, redirecting to login...");
+        navigateWithDebounce("/(auth)/login");
+      }
       return;
     }
 
-    // Allow access to legal pages without authentication
-    if (!session && !inAuthGroup && !inLegalGroup) {
-      console.log("🔐 Unauthenticated user accessing protected area, redirecting to login...");
-      router.replace("/(auth)/login" as any);
+    // CASE 2: Session exists - user is authenticated
+    if (session && user) {
+      // Redirect from auth pages to tabs
+      if (inAuthGroup) {
+        console.log("✅ Authenticated, leaving auth pages...");
+        navigateWithDebounce("/(tabs)");
+        return;
+      }
+
+      // Redirect from invalid routes to tabs
+      if (!isInValidGroup) {
+        console.log("✅ Authenticated, going to tabs from unknown route...");
+        navigateWithDebounce("/(tabs)");
+        return;
+      }
+
+      // Redirect non-admins from admin pages
+      if (inAdminGroup && profile && !profile.is_admin) {
+        console.log("🚫 Non-admin in admin area, redirecting...");
+        navigateWithDebounce("/(tabs)");
+        return;
+      }
+
+      // User is authenticated and in valid location
+      console.log("✅ Navigation check passed");
       return;
     }
 
-    console.log("✅ Navigation check passed, staying in current location");
+    // CASE 3: Inconsistent state (session without user or vice versa)
+    // This is the "auth limbo" - wait briefly then force to login
+    console.log("⚠️ Inconsistent auth state detected, waiting for resolution...");
 
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [session, segments, isLoading, router, profile]);
+    const recoveryTimeout = setTimeout(() => {
+      // Re-check state
+      if (!session || !user) {
+        console.log("🚨 Auth state not recovered, forcing to login...");
+        if (!inAuthGroup && !inLegalGroup) {
+          navigateWithDebounce("/(auth)/login");
+        }
+      }
+    }, NAVIGATION_TIMEOUT_MS);
+
+    return () => clearTimeout(recoveryTimeout);
+
+  }, [session, user, segments, isLoading, profile]);
 
   // AppState listener for IP tracking on app resume
   useEffect(() => {
@@ -135,10 +213,15 @@ function RootLayoutNav() {
     };
   }, [user?.id]);
 
+  // Show loading screen during initial auth, unless timeout forces content
+  if (isLoading && !forceShowContent) {
+    return <LoadingScreen onTimeout={handleLoadingTimeout} />;
+  }
+
   return (
     <>
       <NotificationDeepLinkHandler />
-      <Stack screenOptions={{ 
+      <Stack screenOptions={{
         headerShown: false,
         gestureEnabled: true,
         gestureDirection: 'horizontal'
@@ -194,3 +277,17 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+});
