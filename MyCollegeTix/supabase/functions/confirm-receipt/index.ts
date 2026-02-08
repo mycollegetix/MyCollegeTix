@@ -101,7 +101,7 @@ Deno.serve(async (req: Request) => {
         'refunded': 'This order has been refunded.',
         'disputed': 'This order is currently under dispute.',
         'payment_pending': 'Payment has not been completed yet.',
-        'payout_pending': 'Payment is already being processed.',
+        'payout_pending': 'Receipt already confirmed! The seller\'s payment is being processed and will arrive within 1-2 business days.',
       }
       throw new Error(statusMessages[order.escrow_status] || 'This order cannot be confirmed at this time.')
     }
@@ -155,41 +155,70 @@ Deno.serve(async (req: Request) => {
       .eq('id', escrowPayment.id)
 
     // ESCROW: Now transfer funds from platform to seller's Connect account
-    const transfer = await stripe.transfers.create({
-      amount: escrowPayment.amount_cents,
-      currency: 'usd',
-      destination: sellerAccount.stripe_account_id,
-      metadata: {
-        order_id: orderId,
-        escrow_payment_id: escrowPayment.id,
-        seller_id: order.seller_id,
-        buyer_id: order.buyer_id,
-      },
-    })
+    let transfer: Stripe.Transfer | null = null
+    let transferPending = false
 
-    // Record the transfer
-    await supabase
-      .from('seller_transfers')
-      .insert({
-        escrow_payment_id: escrowPayment.id,
-        seller_id: order.seller_id,
-        stripe_transfer_id: transfer.id,
-        stripe_account_id: sellerAccount.stripe_account_id,
-        amount_cents: escrowPayment.amount_cents,
-        status: 'paid',
-        transferred_at: new Date().toISOString(),
+    try {
+      transfer = await stripe.transfers.create({
+        amount: escrowPayment.amount_cents,
+        currency: 'usd',
+        destination: sellerAccount.stripe_account_id,
+        metadata: {
+          order_id: orderId,
+          escrow_payment_id: escrowPayment.id,
+          seller_id: order.seller_id,
+          buyer_id: order.buyer_id,
+        },
       })
+    } catch (transferError: any) {
+      // Handle insufficient balance - this is expected in test mode and sometimes in production
+      // The receipt is confirmed, but the transfer will happen when funds are available
+      if (transferError?.code === 'balance_insufficient') {
+        console.log(`⏳ Transfer delayed for order ${orderId} - insufficient available balance, will retry later`)
+        transferPending = true
+      } else {
+        // Re-throw other errors
+        throw transferError
+      }
+    }
 
-    // Mark order as completed
-    await supabase
-      .from('orders')
-      .update({ escrow_status: 'completed' })
-      .eq('id', orderId)
+    if (transfer) {
+      // Record the transfer
+      await supabase
+        .from('seller_transfers')
+        .insert({
+          escrow_payment_id: escrowPayment.id,
+          seller_id: order.seller_id,
+          stripe_transfer_id: transfer.id,
+          stripe_account_id: sellerAccount.stripe_account_id,
+          amount_cents: escrowPayment.amount_cents,
+          status: 'paid',
+          transferred_at: new Date().toISOString(),
+        })
 
-    await supabase
-      .from('escrow_payments')
-      .update({ status: 'paid_out' })
-      .eq('id', escrowPayment.id)
+      // Mark order as completed
+      await supabase
+        .from('orders')
+        .update({ escrow_status: 'completed' })
+        .eq('id', orderId)
+
+      await supabase
+        .from('escrow_payments')
+        .update({ status: 'paid_out' })
+        .eq('id', escrowPayment.id)
+    } else {
+      // Transfer pending - record that we need to retry later
+      await supabase
+        .from('seller_transfers')
+        .insert({
+          escrow_payment_id: escrowPayment.id,
+          seller_id: order.seller_id,
+          stripe_transfer_id: null,
+          stripe_account_id: sellerAccount.stripe_account_id,
+          amount_cents: escrowPayment.amount_cents,
+          status: 'pending',
+        })
+    }
 
     // Get ticket and buyer info for notification
     const { data: ticket } = await supabase
@@ -209,12 +238,16 @@ Deno.serve(async (req: Request) => {
     const amountDollars = (escrowPayment.amount_cents / 100).toFixed(2)
 
     // Send notification to seller about payment release
+    const notificationMessage = transferPending
+      ? `${buyerName} confirmed receipt of "${ticketTitle}". Your payment of $${amountDollars} will be transferred to your account within 1-2 business days.`
+      : `${buyerName} confirmed receipt of "${ticketTitle}". $${amountDollars} has been transferred to your account and will arrive within 1-2 business days.`
+
     await supabase
       .from('notifications')
       .insert({
         user_id: order.seller_id,
-        title: 'Payment Released!',
-        message: `${buyerName} confirmed receipt of "${ticketTitle}". $${amountDollars} has been transferred to your account.`,
+        title: transferPending ? 'Payment Pending!' : 'Payment Released!',
+        message: notificationMessage,
         type: 'sale',
         related_ticket_id: order.ticket_id,
         related_order_id: orderId,
@@ -279,14 +312,24 @@ Deno.serve(async (req: Request) => {
     } else {
       console.log(`⭐ Rating prompt created for buyer to rate seller`)
     }
-    console.log(`✅ Receipt confirmed for order ${orderId}, transfer ${transfer.id} sent to seller`)
+
+    if (transferPending) {
+      console.log(`⏳ Receipt confirmed for order ${orderId}, transfer pending (will be processed within 1-2 business days)`)
+    } else {
+      console.log(`✅ Receipt confirmed for order ${orderId}, transfer ${transfer?.id} sent to seller`)
+    }
+
+    const responseMessage = transferPending
+      ? 'Receipt confirmed! The seller\'s payment will be processed within 1-2 business days.'
+      : 'Receipt confirmed! Payment has been released to the seller and will arrive in their account within 1-2 business days.'
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Receipt confirmed! Payment has been released to the seller.',
-        transferId: transfer.id,
+        message: responseMessage,
+        transferId: transfer?.id || null,
         amountCents: escrowPayment.amount_cents,
+        transferPending,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
@@ -307,7 +350,8 @@ Deno.serve(async (req: Request) => {
 
     // Make certain Stripe errors more user-friendly
     if (error?.code === 'balance_insufficient') {
-      errorMessage = 'The seller\'s Stripe account has insufficient funds. Please contact support.'
+      // This shouldn't happen anymore since we handle it above, but just in case
+      errorMessage = 'Receipt confirmed, but the payout is being processed. The seller will receive payment within 1-2 business days.'
     }
 
     return new Response(
