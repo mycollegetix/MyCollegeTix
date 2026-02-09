@@ -8,5 +8,7 @@ export { SectionBanner, InfoBanner, WarningBanner, ErrorBanner } from "./Section
 
 export { ActionRequiredSection } from "./ActionRequiredSection";
 export { ActiveDisputesSection } from "./ActiveDisputesSection";
+export { AwaitingConfirmationSection } from "./AwaitingConfirmationSection";
+export { AwaitingTransferSection } from "./AwaitingTransferSection";
 
 export * from "./types";
