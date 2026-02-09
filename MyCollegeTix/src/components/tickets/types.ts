@@ -128,3 +128,33 @@ export function formatEventTime(dateString: string): string {
     hour12: true,
   });
 }
+
+// Status configuration for ticket cards
+export interface StatusConfig {
+  color: string;
+  icon: string;
+  text: string;
+}
+
+export function getStatusConfig(status: string, themeSecondary?: string): StatusConfig {
+  switch (status.toLowerCase()) {
+    case "sold":
+      return { color: "#10b981", icon: "checkmark-circle-outline", text: "Sold" };
+    case "available":
+      return { color: "#10b981", icon: "pricetag-outline", text: "Listed" };
+    case "cancelled":
+      return { color: "#ef4444", icon: "close-circle-outline", text: "Cancelled" };
+    case "completed":
+      return { color: "#10b981", icon: "checkmark-circle-outline", text: "Completed" };
+    case "purchased":
+      return { color: "#3b82f6", icon: "receipt", text: "Purchased" };
+    case "awaiting_transfer":
+      return { color: "#f59e0b", icon: "time-outline", text: "Awaiting Transfer" };
+    case "pending":
+      return { color: themeSecondary || "#f59e0b", icon: "time-outline", text: "Pending" };
+    case "disputed":
+      return { color: "#ef4444", icon: "alert-circle-outline", text: "Under Review" };
+    default:
+      return { color: "#6b7280", icon: "help-circle-outline", text: status };
+  }
+}

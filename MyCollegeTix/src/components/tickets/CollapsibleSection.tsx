@@ -1,6 +1,6 @@
 // src/components/tickets/CollapsibleSection.tsx
 // Reusable collapsible section with variant-based theming
-// Used for Action Required (amber), Active Disputes (purple), and other ticket sections
+// Used for Action Required (amber), Active Disputes (slate-blue), and other ticket sections
 
 import React from "react";
 import {
@@ -25,14 +25,14 @@ const VARIANT_THEMES = {
     chevronColor: "#f59e0b",
   },
   dispute: {
-    headerBg: "#f5f3ff", // Violet-50
-    border: "#c4b5fd", // Violet-300
-    iconColor: "#6366f1", // Indigo-500
-    textColor: "#4c1d95", // Violet-900
-    subtitleColor: "#5b21b6", // Violet-800
+    headerBg: "#f1f5f9", // Slate-100
+    border: "#cbd5e1", // Slate-300
+    iconColor: "#64748b", // Slate-500
+    textColor: "#334155", // Slate-700
+    subtitleColor: "#475569", // Slate-600
     leftBorder: false,
     leftBorderColor: "transparent",
-    chevronColor: "#6366f1",
+    chevronColor: "#64748b",
   },
   awaiting: {
     headerBg: "#f0fdfa", // Teal-50

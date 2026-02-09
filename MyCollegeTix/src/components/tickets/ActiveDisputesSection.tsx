@@ -1,6 +1,6 @@
 // src/components/tickets/ActiveDisputesSection.tsx
 // Informational section for disputes under review
-// Uses purple/indigo styling to differentiate from urgent action-required sections
+// Uses cool slate-blue styling to differentiate from urgent action-required sections
 
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
@@ -40,8 +40,8 @@ export function ActiveDisputesSection({
       expanded={expanded}
       onToggle={onToggle}
       badge={{
-        text: "MONITORING",
-        backgroundColor: "#6366f1",
+        text: "IN REVIEW",
+        backgroundColor: "#64748b",
         textColor: "#ffffff",
       }}
     >
@@ -52,7 +52,7 @@ export function ActiveDisputesSection({
           {/* Status Banner */}
           <View style={styles.statusBanner}>
             <View style={styles.statusIconContainer}>
-              <Ionicons name="hourglass-outline" size={14} color="#6366f1" />
+              <Ionicons name="hourglass-outline" size={14} color="#64748b" />
             </View>
             <Text style={styles.statusText}>Under Review</Text>
           </View>
@@ -119,10 +119,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#c4b5fd",
+    borderColor: "#cbd5e1",
     overflow: "hidden",
     marginBottom: 12,
-    shadowColor: "#6366f1",
+    shadowColor: "#64748b",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   statusBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f3ff",
+    backgroundColor: "#f1f5f9",
     paddingVertical: 10,
     paddingHorizontal: 14,
     gap: 8,
@@ -140,14 +140,14 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#ede9fe",
+    backgroundColor: "#e2e8f0",
     alignItems: "center",
     justifyContent: "center",
   },
   statusText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#5b21b6",
+    color: "#475569",
     letterSpacing: 0.3,
   },
   ticketContent: {
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#6366f1",
+    backgroundColor: "#475569",
     marginHorizontal: 12,
     marginBottom: 12,
     paddingVertical: 12,

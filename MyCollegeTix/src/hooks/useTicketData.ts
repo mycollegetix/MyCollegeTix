@@ -16,7 +16,12 @@ function isEventExpired(eventDate: string): boolean {
   return now > endOfEventDay;
 }
 
-interface UseTicketDataReturn {
+interface TabStats {
+  count: number;
+  total: number;
+}
+
+export interface UseTicketDataReturn {
   // Raw data
   purchases: OrderItem[];
   listings: OrderItem[];
@@ -46,6 +51,13 @@ interface UseTicketDataReturn {
     disputed: OrderItem[];
     awaitingTransfer: OrderItem[];
     other: OrderItem[];
+  };
+
+  // Tab stats for badge counts
+  tabStats: {
+    selling: TabStats;
+    bought: TabStats;
+    watchlist: TabStats;
   };
 }
 
@@ -518,6 +530,28 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
     [purchases]
   );
 
+  // Memoized tab stats for badge counts
+  const tabStats = useMemo(() => {
+    // Selling: count active items (disputed + pending transfers + awaiting confirmation + active listings)
+    const sellingActive = [
+      ...selling.disputed,
+      ...selling.pendingTransfers,
+      ...selling.awaitingConfirmation,
+      ...selling.active,
+    ];
+    const sellingTotal = sellingActive.reduce((sum, o) => sum + o.price, 0);
+
+    // Bought: count active items (disputed + awaiting transfer)
+    const boughtActive = [...buying.disputed, ...buying.awaitingTransfer];
+    const boughtTotal = boughtActive.reduce((sum, o) => sum + o.price, 0);
+
+    return {
+      selling: { count: sellingActive.length, total: sellingTotal },
+      bought: { count: boughtActive.length, total: boughtTotal },
+      watchlist: { count: watchlistCount, total: 0 },
+    };
+  }, [selling, buying, watchlistCount]);
+
   return {
     purchases,
     listings,
@@ -528,6 +562,7 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
     loadData,
     selling,
     buying,
+    tabStats,
   };
 }
 
