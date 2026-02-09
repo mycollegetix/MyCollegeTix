@@ -64,7 +64,8 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
       // Load from ticket_sales
       const { data: salesData, error: salesError } = await supabase
         .from("ticket_sales")
-        .select(`
+        .select(
+          `
           id,
           created_at,
           sale_price,
@@ -90,7 +91,8 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
             away_college_id,
             event:events (id, is_season_pass)
           )
-        `)
+        `
+        )
         .eq("buyer_id", userId)
         .order("created_at", { ascending: false });
 
@@ -108,72 +110,79 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
             .eq("ticket_sale_id", sale.id);
 
           const totalRatings = ratingsData?.length || 0;
-          const buyerRatedSeller = ratingsData?.some(
-            (r) => r.rater_id === userId && r.rated_user_id === sale.seller_id
-          ) || false;
+          const buyerRatedSeller =
+            ratingsData?.some(
+              (r) => r.rater_id === userId && r.rated_user_id === sale.seller_id
+            ) || false;
 
           return {
             ...sale,
             ratingCount: totalRatings,
-            needsSellerRating: totalRatings > 0 && !buyerRatedSeller && totalRatings < 2,
+            needsSellerRating:
+              totalRatings > 0 && !buyerRatedSeller && totalRatings < 2,
           };
         })
       );
 
       // Transform to OrderItem format
-      const ticketSalePurchases: OrderItem[] = purchasesWithRatings.map((sale): OrderItem => {
-        const ticket = sale.tickets as any;
-        if (!ticket) {
+      const ticketSalePurchases: OrderItem[] = purchasesWithRatings.map(
+        (sale): OrderItem => {
+          const ticket = sale.tickets as any;
+          if (!ticket) {
+            return {
+              id: sale.id,
+              title: "Purchased Ticket (Details Unavailable)",
+              description: `Purchased from ${
+                sale.seller_name || "Unknown Seller"
+              }`,
+              price: sale.sale_price,
+              event_date: sale.created_at,
+              location: "Location Unavailable",
+              status: "purchased",
+              created_at: sale.created_at,
+              order_id: sale.id,
+              type: "purchase",
+              seller_name: sale.seller_name ?? undefined,
+              seller_id: sale.seller_id ?? undefined,
+              payment_method: sale.payment_method ?? undefined,
+              needsSellerRating: sale.needsSellerRating,
+              ratingCount: sale.ratingCount,
+            };
+          }
+
           return {
-            id: sale.id,
-            title: "Purchased Ticket (Details Unavailable)",
-            description: `Purchased from ${sale.seller_name || "Unknown Seller"}`,
+            id: ticket.id,
+            title: ticket.title,
+            description: ticket.description,
             price: sale.sale_price,
-            event_date: sale.created_at,
-            location: "Location Unavailable",
+            event_date: ticket.event_date,
+            location: ticket.location,
+            sport: ticket.sport,
+            section: ticket.section,
+            row_number: ticket.row_number,
+            seat_number: ticket.seat_number,
             status: "purchased",
             created_at: sale.created_at,
             order_id: sale.id,
+            home_college_id: ticket.home_college_id,
+            away_college_id: ticket.away_college_id,
             type: "purchase",
+            ticket_type: ticket.ticket_type,
+            event: ticket.event,
             seller_name: sale.seller_name ?? undefined,
             seller_id: sale.seller_id ?? undefined,
-            payment_method: sale.payment_method,
+            payment_method: sale.payment_method ?? undefined,
             needsSellerRating: sale.needsSellerRating,
             ratingCount: sale.ratingCount,
           };
         }
-
-        return {
-          id: ticket.id,
-          title: ticket.title,
-          description: ticket.description,
-          price: sale.sale_price,
-          event_date: ticket.event_date,
-          location: ticket.location,
-          sport: ticket.sport,
-          section: ticket.section,
-          row_number: ticket.row_number,
-          seat_number: ticket.seat_number,
-          status: "purchased",
-          created_at: sale.created_at,
-          order_id: sale.id,
-          home_college_id: ticket.home_college_id,
-          away_college_id: ticket.away_college_id,
-          type: "purchase",
-          ticket_type: ticket.ticket_type,
-          event: ticket.event,
-          seller_name: sale.seller_name ?? undefined,
-          seller_id: sale.seller_id ?? undefined,
-          payment_method: sale.payment_method,
-          needsSellerRating: sale.needsSellerRating,
-          ratingCount: sale.ratingCount,
-        };
-      });
+      );
 
       // Load Stripe escrow orders
       const { data: stripeOrders, error: ordersError } = await supabase
         .from("orders")
-        .select(`
+        .select(
+          `
           id, status, escrow_status, amount, buyer_id, seller_id,
           ticket_id, transfer_deadline, created_at,
           ticket:tickets (
@@ -184,7 +193,8 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
           ),
           seller:profiles!orders_seller_id_fkey (id, full_name, username),
           dispute:escrow_disputes (id, status)
-        `)
+        `
+        )
         .eq("buyer_id", userId)
         .order("created_at", { ascending: false });
 
@@ -198,7 +208,9 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
         .map((order: any): OrderItem => {
           const ticket = order.ticket;
           const seller = order.seller;
-          const dispute = Array.isArray(order.dispute) ? order.dispute[0] : order.dispute;
+          const dispute = Array.isArray(order.dispute)
+            ? order.dispute[0]
+            : order.dispute;
 
           return {
             id: ticket?.id || order.id,
@@ -211,10 +223,14 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
             section: ticket?.section,
             row_number: ticket?.row_number,
             seat_number: ticket?.seat_number,
-            status: order.escrow_status === "disputed" ? "disputed"
-              : order.escrow_status === "payment_held" ? "awaiting_transfer"
-              : order.escrow_status === "completed" ? "completed"
-              : "purchased",
+            status:
+              order.escrow_status === "disputed"
+                ? "disputed"
+                : order.escrow_status === "payment_held"
+                ? "awaiting_transfer"
+                : order.escrow_status === "completed"
+                ? "completed"
+                : "purchased",
             created_at: order.created_at,
             order_id: order.id,
             home_college_id: ticket?.home_college_id,
@@ -239,7 +255,8 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
       stripeOrderItems.forEach((o) => allPurchases.set(o.id, o));
 
       return Array.from(allPurchases.values()).sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
     } catch (error) {
       console.error("Error in loadUserPurchases:", error);
@@ -254,13 +271,15 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
     try {
       const { data, error } = await supabase
         .from("tickets")
-        .select(`
+        .select(
+          `
           id, title, description, price, event_date, location, sport,
           section, row_number, seat_number, status, created_at,
           home_college_id, away_college_id, ticket_type,
           event:events!tickets_event_id_fkey (id, is_season_pass),
           ticket_sales (buyer_name, buyer_id, created_at, sale_price)
-        `)
+        `
+        )
         .eq("seller_id", userId)
         .order("created_at", { ascending: false });
 
@@ -272,12 +291,14 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
       // Load seller orders for escrow info
       const { data: sellerOrders } = await supabase
         .from("orders")
-        .select(`
+        .select(
+          `
           id, status, escrow_status, amount, buyer_id, seller_id,
           ticket_id, transfer_deadline, created_at,
           buyer:profiles!orders_buyer_id_fkey (id, full_name, username),
           dispute:escrow_disputes (id, status)
-        `)
+        `
+        )
         .eq("seller_id", userId)
         .order("created_at", { ascending: false });
 
@@ -286,7 +307,13 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
       (sellerOrders || []).forEach((order) => {
         if (order.escrow_status !== "payment_pending") {
           const existing = ordersMap.get(order.ticket_id);
-          if (!existing || (order.escrow_status && ["payment_held", "transfer_pending", "completed"].includes(order.escrow_status))) {
+          if (
+            !existing ||
+            (order.escrow_status &&
+              ["payment_held", "transfer_pending", "completed"].includes(
+                order.escrow_status
+              ))
+          ) {
             ordersMap.set(order.ticket_id, order);
           }
         }
@@ -296,11 +323,14 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
       return (data || []).map((ticket: any): OrderItem => {
         const order = ordersMap.get(ticket.id);
         const dispute = order?.dispute
-          ? Array.isArray(order.dispute) ? order.dispute[0] : order.dispute
+          ? Array.isArray(order.dispute)
+            ? order.dispute[0]
+            : order.dispute
           : undefined;
 
         const hasPendingTransfer = order?.escrow_status === "payment_held";
-        const awaitingConfirmation = order?.escrow_status === "transfer_pending";
+        const awaitingConfirmation =
+          order?.escrow_status === "transfer_pending";
         const isDisputed = order?.escrow_status === "disputed";
 
         return {
@@ -321,15 +351,18 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
           ticket_type: ticket.ticket_type,
           event: ticket.event,
           type: "listing",
-          sale: ticket.ticket_sales?.[0] ? {
-            buyer_name: ticket.ticket_sales[0].buyer_name,
-            sale_date: ticket.ticket_sales[0].created_at,
-            sale_price: ticket.ticket_sales[0].sale_price,
-          } : undefined,
+          sale: ticket.ticket_sales?.[0]
+            ? {
+                buyer_name: ticket.ticket_sales[0].buyer_name,
+                sale_date: ticket.ticket_sales[0].created_at,
+                sale_price: ticket.ticket_sales[0].sale_price,
+              }
+            : undefined,
           escrow_status: order?.escrow_status,
           escrow_order_id: order?.id,
           transfer_deadline: order?.transfer_deadline,
-          buyer_name: order?.buyer?.full_name || ticket.ticket_sales?.[0]?.buyer_name,
+          buyer_name:
+            order?.buyer?.full_name || ticket.ticket_sales?.[0]?.buyer_name,
           buyer_id: order?.buyer_id || ticket.ticket_sales?.[0]?.buyer_id,
           pending_transfer: hasPendingTransfer,
           awaiting_confirmation: awaitingConfirmation,
@@ -385,65 +418,105 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
   }, [userId]);
 
   // Memoized filtered data for Selling tab
-  const selling = useMemo(() => ({
-    disputed: listings
-      .filter((t) => t.escrow_status === "disputed")
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+  const selling = useMemo(
+    () => ({
+      disputed: listings
+        .filter((t) => t.escrow_status === "disputed")
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
 
-    pendingTransfers: listings
-      .filter((t) => t.pending_transfer === true)
-      .sort((a, b) => {
-        if (a.transfer_deadline && b.transfer_deadline) {
-          return new Date(a.transfer_deadline).getTime() - new Date(b.transfer_deadline).getTime();
-        }
-        return 0;
-      }),
+      pendingTransfers: listings
+        .filter((t) => t.pending_transfer === true)
+        .sort((a, b) => {
+          if (a.transfer_deadline && b.transfer_deadline) {
+            return (
+              new Date(a.transfer_deadline).getTime() -
+              new Date(b.transfer_deadline).getTime()
+            );
+          }
+          return 0;
+        }),
 
-    awaitingConfirmation: listings
-      .filter((t) => t.awaiting_confirmation === true)
-      .sort((a, b) => {
-        if (a.sold_at && b.sold_at) {
-          return new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime();
-        }
-        return 0;
-      }),
+      awaitingConfirmation: listings
+        .filter((t) => t.awaiting_confirmation === true)
+        .sort((a, b) => {
+          if (a.sold_at && b.sold_at) {
+            return (
+              new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime()
+            );
+          }
+          return 0;
+        }),
 
-    active: listings
-      .filter((t) =>
-        t.status === "available" &&
-        !isEventExpired(t.event_date) &&
-        !t.pending_transfer &&
-        !t.awaiting_confirmation
-      )
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+      active: listings
+        .filter(
+          (t) =>
+            t.status === "available" &&
+            !isEventExpired(t.event_date) &&
+            !t.pending_transfer &&
+            !t.awaiting_confirmation
+        )
+        .sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        ),
 
-    sold: listings
-      .filter((t) => t.status === "sold")
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+      sold: listings
+        .filter((t) => t.status === "sold")
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
 
-    cancelled: listings
-      .filter((t) => t.status === "cancelled")
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+      cancelled: listings
+        .filter((t) => t.status === "cancelled")
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
 
-    expired: listings
-      .filter((t) => t.status === "available" && isEventExpired(t.event_date))
-      .sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime()),
-  }), [listings]);
+      expired: listings
+        .filter((t) => t.status === "available" && isEventExpired(t.event_date))
+        .sort(
+          (a, b) =>
+            new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
+        ),
+    }),
+    [listings]
+  );
 
   // Memoized filtered data for Buying tab
-  const buying = useMemo(() => ({
-    disputed: purchases
-      .filter((p) => p.escrow_status === "disputed")
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+  const buying = useMemo(
+    () => ({
+      disputed: purchases
+        .filter((p) => p.escrow_status === "disputed")
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
 
-    awaitingTransfer: purchases
-      .filter((p) => p.escrow_status === "transfer_pending")
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+      awaitingTransfer: purchases
+        .filter((p) => p.escrow_status === "transfer_pending")
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
 
-    other: purchases
-      .filter((p) => p.escrow_status !== "transfer_pending" && p.escrow_status !== "disputed")
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-  }), [purchases]);
+      other: purchases
+        .filter(
+          (p) =>
+            p.escrow_status !== "transfer_pending" &&
+            p.escrow_status !== "disputed"
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
+    }),
+    [purchases]
+  );
 
   return {
     purchases,
