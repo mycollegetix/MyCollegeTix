@@ -14,7 +14,8 @@ import { supabase } from "@/src/lib/supabase";
 // Session timeout configuration (in milliseconds)
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of inactivity
 const SESSION_CHECK_INTERVAL_MS = 60 * 1000; // Check every minute
-const BACKGROUND_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes in background
+// Note: No background timeout - users should not be logged out just for using other apps
+// The inactivity timeout only counts when user is actively using THIS app
 const PROFILE_LOAD_TIMEOUT_MS = 10 * 1000; // 10 second profile load timeout
 const AUTH_RECOVERY_TIMEOUT_MS = 5 * 1000; // 5 second recovery timeout before force logout
 
@@ -152,17 +153,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsResuming(true);
 
         try {
-          // STEP 1: Check if background timeout exceeded - MUST complete before anything else
-          if (timeInBackground >= BACKGROUND_TIMEOUT_MS) {
-            console.log("⏰ Background timeout exceeded, signing out for security...");
-            await signOutInternal("background_timeout");
-            return; // Exit early - no session refresh needed
-          }
-
-          // STEP 2: Reset activity timer since user returned within allowed time
+          // Reset activity timer since user returned to the app
+          // Note: We don't log users out for being in background - only for inactivity
+          // while actively using the app (30 min timeout)
           resetActivityTimer();
 
-          // STEP 3: Refresh session from Supabase (handles token refresh + OAuth returns)
+          // Refresh session from Supabase (handles token refresh + OAuth returns)
           console.log("🔄 Checking session after resume...");
           const { data: { session: freshSession }, error } = await supabase.auth.getSession();
 
@@ -172,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          // STEP 4: Handle session state changes
+          // Handle session state changes
           if (freshSession && !session) {
             // New session appeared (OAuth callback or refresh)
             console.log("✅ New session detected on resume");
