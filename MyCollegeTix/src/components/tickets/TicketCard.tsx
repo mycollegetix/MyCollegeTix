@@ -12,8 +12,8 @@ interface TicketCardProps {
   item: OrderItem;
   activeTab: "selling" | "bought" | "watchlist";
   theme: ThemeColors;
-  onEdit: (item: OrderItem) => void;
-  onCancel: (id: string) => void;
+  onEdit?: (item: OrderItem) => void;
+  onCancel?: (id: string) => void;
   onRateSeller: (item: OrderItem) => void;
 }
 
@@ -348,7 +348,7 @@ export function TicketCard({
             style={[styles.actionButton, styles.editButton]}
             onPress={(e) => {
               e.stopPropagation();
-              onEdit(item);
+              onEdit?.(item);
             }}
           >
             <Ionicons name="pencil" size={16} color="white" />
@@ -359,7 +359,7 @@ export function TicketCard({
             style={[styles.actionButton, styles.cancelButton]}
             onPress={(e) => {
               e.stopPropagation();
-              onCancel(item.id);
+              onCancel?.(item.id);
             }}
           >
             <Ionicons name="close" size={16} color="white" />

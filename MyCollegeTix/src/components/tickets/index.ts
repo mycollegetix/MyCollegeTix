@@ -10,6 +10,7 @@ export { ActionRequiredSection } from "./ActionRequiredSection";
 export { ActiveDisputesSection } from "./ActiveDisputesSection";
 export { AwaitingConfirmationSection } from "./AwaitingConfirmationSection";
 export { AwaitingTransferSection } from "./AwaitingTransferSection";
+export { BuyerAwaitingTransferSection } from "./BuyerAwaitingTransferSection";
 export { TicketCard } from "./TicketCard";
 export { SellingTab } from "./SellingTab";
 export { BuyingTab } from "./BuyingTab";

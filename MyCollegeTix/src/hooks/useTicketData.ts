@@ -49,8 +49,9 @@ export interface UseTicketDataReturn {
   // Filtered data for Buying tab
   buying: {
     disputed: OrderItem[];
+    actionRequired: OrderItem[];
     awaitingTransfer: OrderItem[];
-    other: OrderItem[];
+    purchased: OrderItem[];
   };
 
   // Tab stats for badge counts
@@ -509,18 +510,26 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         ),
 
-      awaitingTransfer: purchases
+      actionRequired: purchases
         .filter((p) => p.escrow_status === "transfer_pending")
         .sort(
           (a, b) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         ),
 
-      other: purchases
+      awaitingTransfer: purchases
+        .filter((p) => p.escrow_status === "payment_held")
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
+
+      purchased: purchases
         .filter(
           (p) =>
             p.escrow_status !== "transfer_pending" &&
-            p.escrow_status !== "disputed"
+            p.escrow_status !== "disputed" &&
+            p.escrow_status !== "payment_held"
         )
         .sort(
           (a, b) =>
@@ -541,8 +550,8 @@ export function useTicketData(userId: string | undefined): UseTicketDataReturn {
     ];
     const sellingTotal = sellingActive.reduce((sum, o) => sum + o.price, 0);
 
-    // Bought: count active items (disputed + awaiting transfer)
-    const boughtActive = [...buying.disputed, ...buying.awaitingTransfer];
+    // Bought: count active items (disputed + action required + awaiting transfer)
+    const boughtActive = [...buying.disputed, ...buying.actionRequired, ...buying.awaitingTransfer];
     const boughtTotal = boughtActive.reduce((sum, o) => sum + o.price, 0);
 
     return {

@@ -703,8 +703,6 @@ export default function TicketsScreen() {
                   theme={{ primary: theme.primary, secondary: theme.secondary }}
                   onConfirmReceipt={handleConfirmTransfer}
                   confirmingTransfer={confirmingTransfer}
-                  onEdit={handleEditTicket}
-                  onCancel={handleCancelListing}
                   onRateSeller={ratings.sellerRating.onRate}
                   hasPurchases={currentData.length > 0}
                 />

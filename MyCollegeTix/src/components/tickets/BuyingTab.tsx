@@ -15,20 +15,21 @@ import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { ActiveDisputesSection } from "./ActiveDisputesSection";
 import { AwaitingTransferSection } from "./AwaitingTransferSection";
+import { BuyerAwaitingTransferSection } from "./BuyerAwaitingTransferSection";
+import { CollapsibleSection } from "./CollapsibleSection";
 import { TicketCard } from "./TicketCard";
 import { OrderItem, ThemeColors } from "./types";
 
 interface BuyingTabProps {
   data: {
     disputed: OrderItem[];
+    actionRequired: OrderItem[];
     awaitingTransfer: OrderItem[];
-    other: OrderItem[];
+    purchased: OrderItem[];
   };
   theme: ThemeColors;
   onConfirmReceipt: (item: OrderItem) => void;
   confirmingTransfer: boolean;
-  onEdit: (item: OrderItem) => void;
-  onCancel: (id: string) => void;
   onRateSeller: (item: OrderItem) => void;
   hasPurchases: boolean;
 }
@@ -38,8 +39,6 @@ export function BuyingTab({
   theme,
   onConfirmReceipt,
   confirmingTransfer,
-  onEdit,
-  onCancel,
   onRateSeller,
   hasPurchases,
 }: BuyingTabProps) {
@@ -47,15 +46,15 @@ export function BuyingTab({
 
   // Section expand/collapse state — managed locally
   const [disputedExpanded, setDisputedExpanded] = useState(true);
+  const [confirmReceiptExpanded, setConfirmReceiptExpanded] = useState(true);
   const [awaitingTransferExpanded, setAwaitingTransferExpanded] = useState(true);
+  const [purchasedExpanded, setPurchasedExpanded] = useState(true);
 
   const renderOrder = ({ item }: { item: OrderItem }) => (
     <TicketCard
       item={item}
       activeTab="bought"
       theme={theme}
-      onEdit={onEdit}
-      onCancel={onCancel}
       onRateSeller={onRateSeller}
     />
   );
@@ -90,37 +89,44 @@ export function BuyingTab({
         role="buyer"
       />
 
-      {/* Awaiting Transfer Section */}
+      {/* Confirm Receipt Section (transfer_pending — seller has sent) */}
       <AwaitingTransferSection
-        items={data.awaitingTransfer}
-        expanded={awaitingTransferExpanded}
-        onToggle={() =>
-          setAwaitingTransferExpanded(!awaitingTransferExpanded)
-        }
+        items={data.actionRequired}
+        expanded={confirmReceiptExpanded}
+        onToggle={() => setConfirmReceiptExpanded(!confirmReceiptExpanded)}
         onConfirmReceipt={onConfirmReceipt}
         confirmingTransfer={confirmingTransfer}
       />
 
-      {/* Other Purchases */}
-      {data.other.length > 0 && (
-        <FlatList
-          data={data.other}
-          renderItem={renderOrder}
-          keyExtractor={(item) => `${item.type}-${item.id}`}
-          scrollEnabled={false}
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled={true}
-          removeClippedSubviews={Platform.OS === "android"}
-          keyboardShouldPersistTaps="handled"
-        />
-      )}
+      {/* Awaiting Transfer Section (payment_held — seller hasn't sent yet) */}
+      <BuyerAwaitingTransferSection
+        items={data.awaitingTransfer}
+        expanded={awaitingTransferExpanded}
+        onToggle={() => setAwaitingTransferExpanded(!awaitingTransferExpanded)}
+      />
 
-      {data.awaitingTransfer.length > 0 && data.other.length === 0 && (
-        <View style={styles.otherPurchasesEmpty}>
-          <Text style={styles.otherPurchasesEmptyText}>
-            Your confirmed purchases will appear here
-          </Text>
-        </View>
+      {/* Purchased — completed purchases */}
+      {data.purchased.length > 0 && (
+        <CollapsibleSection
+          title="Purchased"
+          subtitle={`${data.purchased.length} completed purchase${data.purchased.length !== 1 ? "s" : ""}`}
+          count={data.purchased.length}
+          icon="checkmark-done-outline"
+          variant="sold"
+          expanded={purchasedExpanded}
+          onToggle={() => setPurchasedExpanded(!purchasedExpanded)}
+        >
+          <FlatList
+            data={data.purchased}
+            renderItem={renderOrder}
+            keyExtractor={(item) => `${item.type}-${item.id}`}
+            scrollEnabled={false}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}
+            removeClippedSubviews={Platform.OS === "android"}
+            keyboardShouldPersistTaps="handled"
+          />
+        </CollapsibleSection>
       )}
     </>
   );
@@ -167,15 +173,6 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
     fontWeight: "600",
-  },
-  otherPurchasesEmpty: {
-    padding: 16,
-    alignItems: "center",
-  },
-  otherPurchasesEmptyText: {
-    fontSize: 14,
-    color: "#6b7280",
-    fontStyle: "italic",
   },
 });
 

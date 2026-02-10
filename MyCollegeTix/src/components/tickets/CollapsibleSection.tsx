@@ -94,6 +94,16 @@ const VARIANT_THEMES = {
     leftBorderColor: "transparent",
     chevronColor: "#6b7280",
   },
+  pending: {
+    headerBg: "#eff6ff", // Blue-50
+    border: "#bfdbfe", // Blue-200
+    iconColor: "#3b82f6", // Blue-500
+    textColor: "#1e40af", // Blue-800
+    subtitleColor: "#1d4ed8", // Blue-700
+    leftBorder: false,
+    leftBorderColor: "transparent",
+    chevronColor: "#3b82f6",
+  },
 };
 
 export type SectionVariant = keyof typeof VARIANT_THEMES;
