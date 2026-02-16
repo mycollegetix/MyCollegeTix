@@ -31,7 +31,10 @@
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload ticket images",
         "NSLocationWhenInUseUsageDescription": "This app uses location to show nearby events and verify ticket authenticity",
-        "NSCameraUsageDescription": "This app uses the camera to scan payment cards for faster checkout"
+        "NSCameraUsageDescription": "This app uses the camera to scan payment cards for faster checkout",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
       },
       "config": {
         "usesNonExemptEncryption": false

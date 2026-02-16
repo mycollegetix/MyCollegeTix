@@ -8,27 +8,27 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		2683DF3C1B2958A971244C7C /* libPods-MyCollegeTix.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E335D630C84294F6BD2F7152 /* libPods-MyCollegeTix.a */; };
-		2AB6FF351387495E9C701E93 /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6123E41883CD41908046939E /* noop-file.swift */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		5771FBB4ED077926CC906825 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 47C661973C4531EEA8920A2D /* PrivacyInfo.xcprivacy */; };
-		6C5F032706F4E893A3AD264E /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E74AEA4CA47E298F760B05D /* ExpoModulesProvider.swift */; };
+		4757B28B084377BF8F4C1F50 /* libPods-MyCollegeTix.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C5C2C3CAA9C086E033FC9E9A /* libPods-MyCollegeTix.a */; };
+		74E40A62CBF94031B4AD779B /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CB9F6B07E114C4ABC44E31D /* noop-file.swift */; };
+		A844C5A1FD159CE801C86735 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64B7D7242308106C29C43B4A /* ExpoModulesProvider.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
+		F6ACB5D50CDA948DB9CEAAA2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 107367CBB90E1148B907064E /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		107367CBB90E1148B907064E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = MyCollegeTix/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* MyCollegeTix.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyCollegeTix.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = MyCollegeTix/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = MyCollegeTix/Info.plist; sourceTree = "<group>"; };
-		47C661973C4531EEA8920A2D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = MyCollegeTix/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		6123E41883CD41908046939E /* noop-file.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = "noop-file.swift"; path = "MyCollegeTix/noop-file.swift"; sourceTree = "<group>"; };
-		6E74AEA4CA47E298F760B05D /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MyCollegeTix/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		5CB9F6B07E114C4ABC44E31D /* noop-file.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = "noop-file.swift"; path = "MyCollegeTix/noop-file.swift"; sourceTree = "<group>"; };
+		64B7D7242308106C29C43B4A /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MyCollegeTix/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = MyCollegeTix/SplashScreen.storyboard; sourceTree = "<group>"; };
-		B7DCDF3DF4EC87CBC385BE88 /* Pods-MyCollegeTix.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.debug.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.debug.xcconfig"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		C95846A8C689E2903B45859A /* Pods-MyCollegeTix.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.release.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.release.xcconfig"; sourceTree = "<group>"; };
-		E335D630C84294F6BD2F7152 /* libPods-MyCollegeTix.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MyCollegeTix.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C5C2C3CAA9C086E033FC9E9A /* libPods-MyCollegeTix.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MyCollegeTix.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D6213A2F691DA44430B246D6 /* Pods-MyCollegeTix.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.debug.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.debug.xcconfig"; sourceTree = "<group>"; };
+		DA57533AABE7F688DE971171 /* Pods-MyCollegeTix.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyCollegeTix.release.xcconfig"; path = "Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = MyCollegeTix/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* MyCollegeTix-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MyCollegeTix-Bridging-Header.h"; path = "MyCollegeTix/MyCollegeTix-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -39,7 +39,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2683DF3C1B2958A971244C7C /* libPods-MyCollegeTix.a in Frameworks */,
+				4757B28B084377BF8F4C1F50 /* libPods-MyCollegeTix.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -55,16 +55,8 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				6123E41883CD41908046939E /* noop-file.swift */,
-				47C661973C4531EEA8920A2D /* PrivacyInfo.xcprivacy */,
-			);
-			name = MyCollegeTix;
-			sourceTree = "<group>";
-		};
-		1B438CC4E568E2800604AF7D /* MyCollegeTix */ = {
-			isa = PBXGroup;
-			children = (
-				6E74AEA4CA47E298F760B05D /* ExpoModulesProvider.swift */,
+				5CB9F6B07E114C4ABC44E31D /* noop-file.swift */,
+				107367CBB90E1148B907064E /* PrivacyInfo.xcprivacy */,
 			);
 			name = MyCollegeTix;
 			sourceTree = "<group>";
@@ -73,18 +65,9 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				E335D630C84294F6BD2F7152 /* libPods-MyCollegeTix.a */,
+				C5C2C3CAA9C086E033FC9E9A /* libPods-MyCollegeTix.a */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		2FDA129BEC526DB88AA20A5B /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				B7DCDF3DF4EC87CBC385BE88 /* Pods-MyCollegeTix.debug.xcconfig */,
-				C95846A8C689E2903B45859A /* Pods-MyCollegeTix.release.xcconfig */,
-			);
-			path = Pods;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -101,8 +84,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				2FDA129BEC526DB88AA20A5B /* Pods */,
-				D4F284A6452495AB53C9DCFA /* ExpoModulesProviders */,
+				A752031239D400426A9BA63E /* Pods */,
+				989832CC3D00BD9A943285BD /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -117,6 +100,32 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		989832CC3D00BD9A943285BD /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				A75FC64F108452A75A6CA67A /* MyCollegeTix */,
+			);
+			name = ExpoModulesProviders;
+			sourceTree = "<group>";
+		};
+		A752031239D400426A9BA63E /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				D6213A2F691DA44430B246D6 /* Pods-MyCollegeTix.debug.xcconfig */,
+				DA57533AABE7F688DE971171 /* Pods-MyCollegeTix.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		A75FC64F108452A75A6CA67A /* MyCollegeTix */ = {
+			isa = PBXGroup;
+			children = (
+				64B7D7242308106C29C43B4A /* ExpoModulesProvider.swift */,
+			);
+			name = MyCollegeTix;
+			sourceTree = "<group>";
+		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
 			isa = PBXGroup;
 			children = (
@@ -126,14 +135,6 @@
 			path = MyCollegeTix/Supporting;
 			sourceTree = "<group>";
 		};
-		D4F284A6452495AB53C9DCFA /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				1B438CC4E568E2800604AF7D /* MyCollegeTix */,
-			);
-			name = ExpoModulesProviders;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -141,14 +142,14 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "MyCollegeTix" */;
 			buildPhases = (
-				355F63FF9D8E35A3097D5116 /* [CP] Check Pods Manifest.lock */,
-				1A536DA5532682D514409F18 /* [Expo] Configure project */,
+				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
+				6F399D22B9E991EB359B9A55 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				730A6AF12B1B7F944915059A /* [CP] Embed Pods Frameworks */,
-				B6191DAE96190894BA4E9197 /* [CP] Copy Pods Resources */,
+				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
+				580A2B996A05F2C16ADD597A /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -198,7 +199,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				5771FBB4ED077926CC906825 /* PrivacyInfo.xcprivacy in Resources */,
+				F6ACB5D50CDA948DB9CEAAA2 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -220,26 +221,7 @@
 			shellPath = /bin/sh;
 			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  export SKIP_BUNDLING=1\nfi\nif [[ -z \"$ENTRY_FILE\" ]]; then\n  # Set the entry JS file using the bundler's entry resolution.\n  export ENTRY_FILE=\"$(\"$NODE_BINARY\" -e \"require('expo/scripts/resolveAppEntry')\" \"$PROJECT_ROOT\" ios absolute | tail -n 1)\"\nfi\n\nif [[ -z \"$CLI_PATH\" ]]; then\n  # Use Expo CLI\n  export CLI_PATH=\"$(\"$NODE_BINARY\" --print \"require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })\")\"\nfi\nif [[ -z \"$BUNDLE_COMMAND\" ]]; then\n  # Default Expo CLI command for bundling\n  export BUNDLE_COMMAND=\"export:embed\"\nfi\n\n# Source .xcode.env.updates if it exists to allow\n# SKIP_BUNDLING to be unset if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.updates\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.updates\"\nfi\n# Source local changes to allow overrides\n# if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n\n";
 		};
-		1A536DA5532682D514409F18 /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-MyCollegeTix/expo-configure-project.sh\"\n";
-		};
-		355F63FF9D8E35A3097D5116 /* [CP] Check Pods Manifest.lock */ = {
+		08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -261,7 +243,7 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		730A6AF12B1B7F944915059A /* [CP] Embed Pods Frameworks */ = {
+		580A2B996A05F2C16ADD597A /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -279,7 +261,26 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MyCollegeTix/Pods-MyCollegeTix-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		B6191DAE96190894BA4E9197 /* [CP] Copy Pods Resources */ = {
+		6F399D22B9E991EB359B9A55 /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-MyCollegeTix/expo-configure-project.sh\"\n";
+		};
+		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -353,8 +354,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				2AB6FF351387495E9C701E93 /* noop-file.swift in Sources */,
-				6C5F032706F4E893A3AD264E /* ExpoModulesProvider.swift in Sources */,
+				74E40A62CBF94031B4AD779B /* noop-file.swift in Sources */,
+				A844C5A1FD159CE801C86735 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -363,13 +364,12 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = B7DCDF3DF4EC87CBC385BE88 /* Pods-MyCollegeTix.debug.xcconfig */;
+			baseConfigurationReference = D6213A2F691DA44430B246D6 /* Pods-MyCollegeTix.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = MyCollegeTix/MyCollegeTix.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 366TNV3V9S;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -400,13 +400,12 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C95846A8C689E2903B45859A /* Pods-MyCollegeTix.release.xcconfig */;
+			baseConfigurationReference = DA57533AABE7F688DE971171 /* Pods-MyCollegeTix.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = MyCollegeTix/MyCollegeTix.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 366TNV3V9S;
 				INFOPLIST_FILE = MyCollegeTix/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
