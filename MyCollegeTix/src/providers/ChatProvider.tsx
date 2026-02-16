@@ -230,8 +230,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           device_info: null,
           location_data: null,
           user_agent: null,
-          is_trusted: false,
-          trust_earned_at: null,
         },
       };
 

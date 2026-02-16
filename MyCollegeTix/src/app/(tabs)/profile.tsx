@@ -666,7 +666,7 @@ export default function ProfileScreen() {
                     </View>
                   </View>
 
-                  {/* Trust & Reputation Section */}
+                  {/* Reviews & Reputation Section */}
                   <View style={styles.premiumSection}>
                     <View style={styles.sectionHeader}>
                       <View
@@ -688,10 +688,10 @@ export default function ProfileScreen() {
                             { color: theme.secondary },
                           ]}
                         >
-                          Trust & Reputation
+                          Reviews & Reputation
                         </Text>
                         <Text style={styles.premiumSectionSubtitle}>
-                          Your community standing and transaction history
+                          Your community standing and reviews
                         </Text>
                       </View>
                     </View>

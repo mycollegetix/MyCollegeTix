@@ -14,7 +14,6 @@ import {
   Image,
   Platform,
 } from "react-native";
-import { TicketCard } from "@/src/components/TicketCard";
 import { EventFolder } from "@/src/components/EventFolder";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -34,7 +33,6 @@ import {
   EventGroup,
   EventGroupingResult
 } from "@/src/utils/eventGroupingUtils";
-import SellerTrustBadge from "@/src/components/SellerTrustBadge";
 import { formatEventDateTime } from "@/src/utils/dateUtils";
 
 const sports = [
@@ -468,7 +466,6 @@ export default function BrowseScreen() {
         collegeMatchup={formattedTicket.collegeMatchup}
         isSeasonPass={ticket.event?.is_season_pass}
         ticketId={ticket.id}
-        sellerId={ticket.seller.id}
       />
     );
   };
@@ -902,7 +899,6 @@ const EnhancedTicketCard = ({
   collegeMatchup,
   isSeasonPass,
   ticketId,
-  sellerId,
 }: {
   sport: string;
   event: string;
@@ -916,7 +912,6 @@ const EnhancedTicketCard = ({
   collegeMatchup?: string | null;
   isSeasonPass?: boolean;
   ticketId: string;
-  sellerId: string;
 }) => {
   const theme = useTheme();
   const { isInWatchlist } = useWatchlistStatus(ticketId);
@@ -951,7 +946,6 @@ const EnhancedTicketCard = ({
             </View>
           )}
         </View>
-        <SellerTrustBadge sellerId={sellerId} />
       </View>
 
       {/* Content */}
