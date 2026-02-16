@@ -90,6 +90,13 @@ export function baseTemplate(params: BaseTemplateParams): string {
 `
 }
 
+// Helper to build a web URL that redirects to the app via deep link.
+// Email clients block custom URL schemes (mycollegetix://), so we route
+// through open-app.html which does the redirect client-side.
+export function appLink(deepLinkPath: string): string {
+  return `https://www.mycollegetix.com/open-app.html?path=${encodeURIComponent(deepLinkPath)}`
+}
+
 // Helper function to create a highlight box (for amounts, status, etc.)
 export function highlightBox(label: string, value: string, color: 'blue' | 'green' | 'amber' = 'blue'): string {
   const colors = {

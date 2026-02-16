@@ -1,7 +1,7 @@
 // supabase/functions/_shared/email/templates/transferSent.ts
 // Email template for when seller transfers ticket to buyer
 
-import { baseTemplate, infoRow, infoTable } from './baseTemplate.ts'
+import { baseTemplate, infoRow, infoTable, appLink } from './baseTemplate.ts'
 
 export interface TransferSentParams {
   ticketTitle: string
@@ -46,6 +46,6 @@ export function transferSentEmail(params: TransferSentParams): string {
     preheader: `${sellerName} sent you "${ticketTitle}"`,
     content,
     ctaText: 'Confirm Receipt',
-    ctaUrl: `mycollegetix://orders/${orderId}`,
+    ctaUrl: appLink(`orders/${orderId}`),
   })
 }

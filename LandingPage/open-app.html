@@ -55,12 +55,20 @@
 
     <div class="fallback">
         <p>App didn't open automatically?</p>
-        <a href="mycollegetix://verified" class="btn">Open MyCollegeTix App</a>
+        <a id="fallback-link" href="mycollegetix://verified" class="btn">Open MyCollegeTix App</a>
     </div>
 
     <script>
+        // Read the ?path= query parameter to build the deep link
+        var params = new URLSearchParams(window.location.search);
+        var path = params.get('path');
+        var deepLink = path ? 'mycollegetix://' + path : 'mycollegetix://verified';
+
+        // Update fallback button
+        document.getElementById('fallback-link').href = deepLink;
+
         // Immediately try to open the app
-        window.location.href = 'mycollegetix://verified';
+        window.location.href = deepLink;
     </script>
 </body>
 </html>

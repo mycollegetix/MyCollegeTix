@@ -1,7 +1,7 @@
 // supabase/functions/_shared/email/templates/receiptConfirmed.ts
 // Email template for when buyer confirms receipt and payment is released to seller
 
-import { baseTemplate, highlightBox, infoRow, infoTable } from './baseTemplate.ts'
+import { baseTemplate, highlightBox, infoRow, infoTable, appLink } from './baseTemplate.ts'
 
 export interface ReceiptConfirmedParams {
   ticketTitle: string
@@ -43,6 +43,6 @@ export function receiptConfirmedEmail(params: ReceiptConfirmedParams): string {
     preheader: `${amount} has been transferred to your account`,
     content,
     ctaText: 'View Earnings',
-    ctaUrl: 'mycollegetix://profile/earnings',
+    ctaUrl: appLink('profile/earnings'),
   })
 }

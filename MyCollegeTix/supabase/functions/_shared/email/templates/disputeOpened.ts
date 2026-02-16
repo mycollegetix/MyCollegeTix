@@ -1,7 +1,7 @@
 // supabase/functions/_shared/email/templates/disputeOpened.ts
 // Email template for when a dispute is opened - sent to team members
 
-import { baseTemplate, highlightBox, infoRow, infoTable } from './baseTemplate.ts'
+import { baseTemplate, highlightBox, infoRow, infoTable, appLink } from './baseTemplate.ts'
 
 export interface DisputeOpenedParams {
   disputeId: string
@@ -82,6 +82,6 @@ export function disputeOpenedEmail(params: DisputeOpenedParams): string {
     preheader: `Dispute filed for "${ticketTitle}" - ${reasonDisplay}`,
     content,
     ctaText: 'View in Admin Panel',
-    ctaUrl: 'mycollegetix://admin/disputes',
+    ctaUrl: appLink('admin/disputes'),
   })
 }
