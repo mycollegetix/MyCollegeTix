@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/src/providers/ThemeProvider";
 import { ChatProvider } from "@/src/providers/ChatProvider";
 import { PaymentProvider } from "@/src/providers/PaymentProvider";
 import { PendingOrdersProvider } from "@/src/providers/PendingOrdersProvider";
+import { AnalyticsProvider } from "@/src/providers/AnalyticsProvider";
 import NotificationDeepLinkHandler from "@/src/components/NotificationDeepLinkHandler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useColorScheme, KeyboardAvoidingView, Platform, AppState, AppStateStatus, View, ActivityIndicator, Text, StyleSheet } from "react-native";
@@ -262,6 +263,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
+        <AnalyticsProvider>
         <PaymentProvider>
           <PendingOrdersProvider>
             <NotificationProvider>
@@ -273,6 +275,7 @@ export default function RootLayout() {
             </NotificationProvider>
           </PendingOrdersProvider>
         </PaymentProvider>
+        </AnalyticsProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

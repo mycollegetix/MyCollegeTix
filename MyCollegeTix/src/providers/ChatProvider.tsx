@@ -10,6 +10,7 @@ import React, {
 import { ChatService } from "../services/chatService";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "./AuthProvider";
+import { analyticsService } from "../services/analyticsService";
 import {
   ConversationWithDetails,
   MessageWithSender,
@@ -272,6 +273,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log("✅ Message sent successfully, replacing optimistic message");
+      analyticsService.logMessageSent(conversationId);
 
       // ✅ REPLACE: Update optimistic message with real server data
       setMessagesMap((prev) => {

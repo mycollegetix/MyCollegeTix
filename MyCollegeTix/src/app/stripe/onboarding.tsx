@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { useStripeConnect } from "@/src/hooks/useStripeConnect";
+import { analyticsService } from "@/src/services/analyticsService";
 
 export default function StripeOnboardingScreen() {
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function StripeOnboardingScreen() {
 
   useEffect(() => {
     fetchAccountStatus();
+    analyticsService.logStripeOnboardingStarted();
   }, []);
 
   const handleStartOnboarding = async () => {

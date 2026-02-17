@@ -1,6 +1,7 @@
 // src/services/watchlistService.ts
 import { supabase } from "../lib/supabase";
 import { Database } from "../types/database.types";
+import { analyticsService } from "./analyticsService";
 
 type Watchlist = Database["public"]["Tables"]["watchlists"]["Row"];
 type WatchlistInsert = Database["public"]["Tables"]["watchlists"]["Insert"];
@@ -61,6 +62,7 @@ export class WatchlistService {
 
       if (error) throw error;
 
+      analyticsService.logAddToWishlist({ id: ticketId, title: ticketId });
       return { data, error: null };
     } catch (error) {
       console.error("Error adding to watchlist:", error);
@@ -87,6 +89,7 @@ export class WatchlistService {
 
       if (error) throw error;
 
+      analyticsService.logRemoveFromWishlist(ticketId);
       return { error: null };
     } catch (error) {
       console.error("Error removing from watchlist:", error);

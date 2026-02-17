@@ -26,6 +26,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mycollegetix.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "buildNumber": "1.7",
       "requireFullScreen": false,
       "infoPlist": {
@@ -41,6 +42,7 @@
       }
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -100,7 +102,9 @@
           "merchantIdentifier": "merchant.com.mycollegetix.app",
           "enableGooglePay": true
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "./plugins/firebase-modular-headers.js"
     ],
     "experiments": {
       "typedRoutes": true

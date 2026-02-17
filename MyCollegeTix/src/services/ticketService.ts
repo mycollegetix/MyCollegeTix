@@ -7,6 +7,7 @@ import {
   Tables,
 } from "../types/database.types";
 import { ipTrackingService } from "./ipTrackingService";
+import { analyticsService } from "./analyticsService";
 
 type Ticket = Tables<"tickets">;
 type TicketInsert = TablesInsert<"tickets">;
@@ -366,6 +367,13 @@ export class TicketService {
         .single();
 
       if (error) throw error;
+
+      analyticsService.logListItem({
+        id: data.id,
+        title: data.title,
+        sport: data.sport,
+        price: data.price,
+      });
 
       // Track IP address for ticket creation (important action)
       ipTrackingService.trackOnAction(user.id, 'ticket_created').then((result) => {

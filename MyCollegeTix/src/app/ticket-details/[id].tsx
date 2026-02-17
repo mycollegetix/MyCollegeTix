@@ -24,6 +24,7 @@ import { TicketTransferButton } from "@/src/components/TicketTransferButton";
 import UserProfileCard from "@/src/components/UserProfileCard";
 import { formatEventDateSeparate } from "@/src/utils/dateUtils";
 import { supabase } from "@/src/lib/supabase";
+import { analyticsService } from "@/src/services/analyticsService";
 
 const { width, height } = Dimensions.get("window");
 
@@ -81,6 +82,14 @@ export default function TicketDetailsScreen() {
       }
 
       setTicket(data);
+      if (data) {
+        analyticsService.logViewItem({
+          id: data.id,
+          title: data.title,
+          sport: data.sport,
+          price: data.price,
+        });
+      }
     } catch (error) {
       console.error("Error loading ticket:", error);
       Alert.alert("Error", "Failed to load ticket details. Please try again.");

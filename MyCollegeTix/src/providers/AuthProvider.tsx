@@ -25,6 +25,7 @@ import { Tables } from "@/src/types/database.types";
 type College = Tables<"colleges">;
 import { AccountService } from "@/src/services/accountService";
 import { ipTrackingService } from "@/src/services/ipTrackingService";
+import { analyticsService } from "@/src/services/analyticsService";
 import { googleAuthService } from "@/src/services/googleAuthService";
 import { microsoftAuthService } from "@/src/services/microsoftAuthService";
 import { TermsAcceptanceModal } from "@/src/components/TermsAcceptanceModal";
@@ -428,6 +429,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("❌ Sign in failed:", error.message);
       } else {
         console.log("✅ Sign in successful");
+        analyticsService.logLogin("email");
       }
 
       return { error };
@@ -490,6 +492,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("📧 Check your email for confirmation link");
       }
 
+      analyticsService.logSignUp("email");
       return { error: null, data };
     } catch (error) {
       console.error("💥 Unexpected signup error:", error);
@@ -515,6 +518,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (result.user) {
         console.log("✅ Google sign-in successful");
+        analyticsService.logLogin("google");
         // The session is already set by googleAuthService, so we just return success
         // The auth state change listener will handle the rest
         return { error: null };
@@ -549,6 +553,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (result.user) {
         console.log("✅ Microsoft sign-in successful");
+        analyticsService.logLogin("microsoft");
         // The session is already set by microsoftAuthService, so we just return success
         // The auth state change listener will handle the rest
         return { error: null };
@@ -618,6 +623,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Public signOut function
   const signOut = async () => {
+    analyticsService.logLogout();
     await signOutInternal("user_initiated");
   };
 
