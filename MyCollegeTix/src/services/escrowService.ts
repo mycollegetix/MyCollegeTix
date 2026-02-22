@@ -1,6 +1,7 @@
 // src/services/escrowService.ts - Escrow Payment Management Service
 import { supabase } from "@/src/lib/supabase";
 import { Tables, TablesInsert, TablesUpdate } from "@/src/types/database.types";
+import { analyticsService } from "./analyticsService";
 
 // Types
 export interface ServiceResponse<T> {
@@ -480,6 +481,7 @@ export class EscrowService {
       }
 
       console.log("✅ Receipt confirmed, payout pending");
+      analyticsService.logReceiptConfirmed(orderId);
       return { data: { success: true }, error: null, success: true };
     } catch (error) {
       console.error("💥 Error confirming receipt:", error);

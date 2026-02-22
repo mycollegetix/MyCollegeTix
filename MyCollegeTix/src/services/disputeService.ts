@@ -1,6 +1,7 @@
 // src/services/disputeService.ts - Escrow Dispute Management
 import { supabase } from "@/src/lib/supabase";
 import { Tables } from "@/src/types/database.types";
+import { analyticsService } from "./analyticsService";
 
 export interface ServiceResponse<T> {
   data: T | null;
@@ -209,6 +210,7 @@ export class DisputeService {
         console.error("⚠️ Error sending dispute notification:", notifyErr);
       }
 
+      analyticsService.logDisputeOpened(params.orderId, params.reason);
       return { data: dispute, error: null, success: true };
     } catch (error) {
       console.error("💥 Error in openDispute:", error);

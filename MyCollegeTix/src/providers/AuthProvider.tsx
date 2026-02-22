@@ -14,7 +14,8 @@ import { supabase } from "@/src/lib/supabase";
 // Session timeout configuration (in milliseconds)
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of inactivity
 const SESSION_CHECK_INTERVAL_MS = 60 * 1000; // Check every minute
-const BACKGROUND_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes in background
+// Note: No background timeout - users should not be logged out just for using other apps
+// The inactivity timeout only counts when user is actively using THIS app
 const PROFILE_LOAD_TIMEOUT_MS = 10 * 1000; // 10 second profile load timeout
 const AUTH_RECOVERY_TIMEOUT_MS = 5 * 1000; // 5 second recovery timeout before force logout
 
@@ -24,6 +25,7 @@ import { Tables } from "@/src/types/database.types";
 type College = Tables<"colleges">;
 import { AccountService } from "@/src/services/accountService";
 import { ipTrackingService } from "@/src/services/ipTrackingService";
+import { analyticsService } from "@/src/services/analyticsService";
 import { googleAuthService } from "@/src/services/googleAuthService";
 import { microsoftAuthService } from "@/src/services/microsoftAuthService";
 import { TermsAcceptanceModal } from "@/src/components/TermsAcceptanceModal";
@@ -152,17 +154,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsResuming(true);
 
         try {
-          // STEP 1: Check if background timeout exceeded - MUST complete before anything else
-          if (timeInBackground >= BACKGROUND_TIMEOUT_MS) {
-            console.log("⏰ Background timeout exceeded, signing out for security...");
-            await signOutInternal("background_timeout");
-            return; // Exit early - no session refresh needed
-          }
-
-          // STEP 2: Reset activity timer since user returned within allowed time
+          // Reset activity timer since user returned to the app
+          // Note: We don't log users out for being in background - only for inactivity
+          // while actively using the app (30 min timeout)
           resetActivityTimer();
 
-          // STEP 3: Refresh session from Supabase (handles token refresh + OAuth returns)
+          // Refresh session from Supabase (handles token refresh + OAuth returns)
           console.log("🔄 Checking session after resume...");
           const { data: { session: freshSession }, error } = await supabase.auth.getSession();
 
@@ -172,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          // STEP 4: Handle session state changes
+          // Handle session state changes
           if (freshSession && !session) {
             // New session appeared (OAuth callback or refresh)
             console.log("✅ New session detected on resume");
@@ -432,6 +429,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("❌ Sign in failed:", error.message);
       } else {
         console.log("✅ Sign in successful");
+        analyticsService.logLogin("email");
       }
 
       return { error };
@@ -494,6 +492,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("📧 Check your email for confirmation link");
       }
 
+      analyticsService.logSignUp("email");
       return { error: null, data };
     } catch (error) {
       console.error("💥 Unexpected signup error:", error);
@@ -519,6 +518,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (result.user) {
         console.log("✅ Google sign-in successful");
+        analyticsService.logLogin("google");
         // The session is already set by googleAuthService, so we just return success
         // The auth state change listener will handle the rest
         return { error: null };
@@ -553,6 +553,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (result.user) {
         console.log("✅ Microsoft sign-in successful");
+        analyticsService.logLogin("microsoft");
         // The session is already set by microsoftAuthService, so we just return success
         // The auth state change listener will handle the rest
         return { error: null };
@@ -622,6 +623,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Public signOut function
   const signOut = async () => {
+    analyticsService.logLogout();
     await signOutInternal("user_initiated");
   };
 

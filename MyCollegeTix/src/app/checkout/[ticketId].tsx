@@ -20,6 +20,7 @@ import { useStripePayment, CheckoutDetails } from "@/src/hooks/useStripePayment"
 import { TicketService } from "@/src/services/ticketService";
 import { TicketWithSeller } from "@/src/types/database.types";
 import { formatEventDateSeparate } from "@/src/utils/dateUtils";
+import { analyticsService } from "@/src/services/analyticsService";
 
 export default function CheckoutScreen() {
   const { ticketId } = useLocalSearchParams<{ ticketId: string }>();
@@ -65,6 +66,12 @@ export default function CheckoutScreen() {
       }
 
       setTicket(data);
+      analyticsService.logBeginCheckout({
+        id: data.id,
+        title: data.title,
+        sport: data.sport,
+        price: data.price,
+      });
     } catch (err) {
       console.error("Error loading ticket:", err);
       Alert.alert("Error", "Failed to load ticket details");

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "284628597909",
+    "project_id": "mycollegetix-b2153",
+    "storage_bucket": "mycollegetix-b2153.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:284628597909:android:927c09eb96130dbb3d6f9c",
+        "android_client_info": {
+          "package_name": "com.mycollegetix.newapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmeTO0pP0plIz12WprWdBwT8_dHpI_eiA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

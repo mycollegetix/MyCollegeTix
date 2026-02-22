@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { analyticsService } from "@/src/services/analyticsService";
 
 /**
  * Extract error message from edge function response
@@ -225,6 +226,17 @@ export function useStripePayment() {
       const result = await completePayment();
 
       if (result.success) {
+        if (checkoutDetails.ticket) {
+          analyticsService.logPurchase(
+            checkoutDetails.orderId,
+            {
+              id: checkoutDetails.ticket.id,
+              title: checkoutDetails.ticket.title,
+              price: checkoutDetails.amount,
+            },
+            checkoutDetails.amount
+          );
+        }
         return {
           success: true,
           orderId: checkoutDetails.orderId,

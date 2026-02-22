@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/src/providers/ThemeProvider";
 import { useStripeConnect } from "@/src/hooks/useStripeConnect";
+import { analyticsService } from "@/src/services/analyticsService";
 
 export default function StripeCompleteScreen() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function StripeCompleteScreen() {
 
   useEffect(() => {
     const handleComplete = async () => {
+      analyticsService.logStripeOnboardingCompleted();
       // Refresh status
       await fetchAccountStatus();
 

@@ -1,7 +1,7 @@
 // supabase/functions/_shared/email/templates/refundProcessed.ts
 // Email template for when a refund is processed for a buyer
 
-import { baseTemplate, highlightBox, infoRow, infoTable } from './baseTemplate.ts'
+import { baseTemplate, highlightBox, infoRow, infoTable, appLink } from './baseTemplate.ts'
 
 export interface RefundProcessedParams {
   ticketTitle: string
@@ -43,6 +43,6 @@ export function refundProcessedEmail(params: RefundProcessedParams): string {
     preheader: `Your ${amount} refund is on its way`,
     content,
     ctaText: 'Browse Tickets',
-    ctaUrl: 'mycollegetix://browse',
+    ctaUrl: appLink('browse'),
   })
 }

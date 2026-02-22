@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import TrustedBadge from "./TrustedBadge";
 import StarRating from "./StarRating";
-import { TrustService, UserTrustStatus } from "@/src/services/trustService";
+import { supabase } from "@/src/lib/supabase";
 
 interface UserProfileCardProps {
   userId: string;
@@ -22,7 +20,6 @@ export default function UserProfileCard({
   showFullProfile = false,
   style,
 }: UserProfileCardProps) {
-  const [trustStatus, setTrustStatus] = useState<UserTrustStatus | null>(null);
   const [userRating, setUserRating] = useState<{
     rating: number;
     count: number;
@@ -31,83 +28,49 @@ export default function UserProfileCard({
 
   useEffect(() => {
     if (userId) {
-      loadUserTrustData();
+      loadUserData();
     }
   }, [userId]);
 
-  const loadUserTrustData = async () => {
+  const loadUserData = async () => {
     setIsLoading(true);
     try {
-      // Load trust status
-      const trustResult = await TrustService.getUserTrustStatus(userId);
-      if (trustResult.success && trustResult.data) {
-        setTrustStatus(trustResult.data);
-      }
+      const [ratingsResult, profileResult] = await Promise.all([
+        supabase
+          .from("user_ratings")
+          .select("rating")
+          .eq("rated_user_id", userId),
+        supabase
+          .from("profiles")
+          .select("seller_rating_adjustment")
+          .eq("id", userId)
+          .single(),
+      ]);
 
-      // Load rating stats
-      const ratingResult = await TrustService.getUserRatingStats(userId);
-      if (ratingResult.success && ratingResult.data) {
+      if (!ratingsResult.error) {
+        const ratings = ratingsResult.data || [];
+        const totalRatings = ratings.length;
+        const baseRating =
+          totalRatings > 0
+            ? ratings.reduce((sum, r) => sum + r.rating, 0) / totalRatings
+            : 0;
+        const ratingAdjustment =
+          profileResult.data?.seller_rating_adjustment || 0;
+        const adjustedRating = Math.max(
+          0,
+          Math.min(5, baseRating + ratingAdjustment)
+        );
+
         setUserRating({
-          rating: ratingResult.data.averageRating,
-          count: ratingResult.data.totalRatings,
+          rating: Math.round(adjustedRating * 10) / 10,
+          count: totalRatings,
         });
       }
     } catch (error) {
-      console.error("Error loading user trust data:", error);
+      console.error("Error loading user data:", error);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const renderTrustBadge = () => {
-    const isTrusted = trustStatus?.is_trusted;
-
-    if (isTrusted) {
-      return <TrustedBadge size="medium" />;
-    }
-
-    // Show "not trusted yet" badge for users without trust status
-    return (
-      <View style={styles.notTrustedBadge}>
-        <Ionicons name="shield-outline" size={14} color="#9ca3af" />
-        <Text style={styles.notTrustedText}>Not verified</Text>
-      </View>
-    );
-  };
-
-  const getTrustStatusMessage = () => {
-    if (!trustStatus) return "Building reputation...";
-
-    const totalTransactions = trustStatus.total_transactions || 0;
-
-    if (trustStatus.is_trusted) {
-      return trustStatus.trust_earned_at
-        ? `Trusted since ${new Date(
-            trustStatus.trust_earned_at
-          ).toLocaleDateString()}`
-        : "Trusted member";
-    }
-
-    if (totalTransactions === 0) {
-      return "New to the platform";
-    }
-
-    // Calculate what they need for trust (example: 2+ transactions, 4.0+ rating)
-    const requiredTransactions = 2;
-    const requiredRating = 4.0;
-
-    if (totalTransactions < requiredTransactions) {
-      const needed = requiredTransactions - totalTransactions;
-      return `${needed} more transaction${
-        needed !== 1 ? "s" : ""
-      } needed for verification`;
-    }
-
-    if (userRating.rating < requiredRating) {
-      return `Maintain ${requiredRating}+ rating for verification`;
-    }
-
-    return "Verification pending review";
   };
 
   if (isLoading) {
@@ -124,34 +87,14 @@ export default function UserProfileCard({
         <View style={styles.userInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.fullName}>{fullName}</Text>
-            {renderTrustBadge()}
           </View>
           <Text style={styles.username}>@{username}</Text>
           {collegeName && <Text style={styles.collegeName}>{collegeName}</Text>}
         </View>
       </View>
 
-      {/* Trust Status Message */}
-      <View style={styles.trustStatusContainer}>
-        <Text
-          style={[
-            styles.trustStatusText,
-            trustStatus?.is_trusted ? styles.trustedText : styles.pendingText,
-          ]}
-        >
-          {getTrustStatusMessage()}
-        </Text>
-      </View>
-
       {showFullProfile && (
         <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {trustStatus?.total_transactions || 0}
-            </Text>
-            <Text style={styles.statLabel}>Transactions</Text>
-          </View>
-
           <View style={styles.statItem}>
             {userRating.count > 0 ? (
               <>
@@ -171,20 +114,6 @@ export default function UserProfileCard({
                 <Text style={styles.statLabel}>No ratings yet</Text>
               </>
             )}
-          </View>
-
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {trustStatus?.successful_sales || 0}
-            </Text>
-            <Text style={styles.statLabel}>Sales</Text>
-          </View>
-
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {trustStatus?.successful_purchases || 0}
-            </Text>
-            <Text style={styles.statLabel}>Purchases</Text>
           </View>
         </View>
       )}
@@ -235,42 +164,6 @@ const styles = StyleSheet.create({
     color: "#18453b",
     fontWeight: "500",
   },
-  notTrustedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f3f4f6",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  notTrustedText: {
-    fontSize: 11,
-    color: "#6b7280",
-    fontWeight: "600",
-  },
-  trustStatusContainer: {
-    backgroundColor: "#f9fafb",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#f3f4f6",
-  },
-  trustStatusText: {
-    fontSize: 12,
-    textAlign: "center",
-    fontWeight: "500",
-  },
-  trustedText: {
-    color: "#10b981",
-  },
-  pendingText: {
-    color: "#6b7280",
-  },
   statsContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -281,12 +174,6 @@ const styles = StyleSheet.create({
   statItem: {
     alignItems: "center",
     flex: 1,
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: 4,
   },
   noRatingValue: {
     fontSize: 14,

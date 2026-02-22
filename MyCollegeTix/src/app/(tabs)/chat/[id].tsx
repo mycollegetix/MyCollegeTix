@@ -24,8 +24,6 @@ import { useTheme } from "@/src/providers/ThemeProvider";
 import { MessageWithSender } from "@/src/types/database.types";
 import { ReportModal } from "@/src/components/ReportModal";
 import { reportingService } from "@/src/services/reportingService";
-import { TrustService } from "@/src/services/trustService";
-import TrustedBadge from "@/src/components/TrustedBadge";
 
 const { width, height } = Dimensions.get("window");
 
@@ -52,7 +50,6 @@ export default function ChatConversationScreen() {
   const [isUserBlocked, setIsUserBlocked] = useState(false);
   const [hasAutoSentFirstMessage, setHasAutoSentFirstMessage] = useState(false);
   const [isAutoSending, setIsAutoSending] = useState(false);
-  const [isOtherParticipantTrusted, setIsOtherParticipantTrusted] = useState(false);
 
   // ✅ REMOVED: hasLoadedMessages and isConversationSwitching - provider handles this
   const flatListRef = useRef<FlatList>(null);
@@ -151,21 +148,16 @@ export default function ChatConversationScreen() {
     };
   }, []);
 
-  // Check if user is blocked and trusted status
+  // Check if user is blocked
   useEffect(() => {
     const checkUserStatus = async () => {
       if (currentConversation) {
         const otherParticipant = getOtherParticipant();
         if (otherParticipant) {
-          // Check if user is blocked
           const blocked = await reportingService.isUserBlocked(
             otherParticipant.id
           );
           setIsUserBlocked(blocked);
-
-          // Check if user is trusted
-          const trusted = await TrustService.isUserTrusted(otherParticipant.id);
-          setIsOtherParticipantTrusted(trusted);
         }
       }
     };
@@ -543,9 +535,6 @@ export default function ChatConversationScreen() {
               <Text style={styles.participantName}>
                 {otherParticipant.full_name}
               </Text>
-              {isOtherParticipantTrusted && (
-                <TrustedBadge size="small" />
-              )}
             </View>
             <Text style={styles.participantUsername}>
               @{otherParticipant.username}

@@ -1,7 +1,7 @@
 // supabase/functions/_shared/email/templates/paymentSuccess.ts
 // Email templates for successful payment notifications
 
-import { baseTemplate, highlightBox, infoRow, infoTable } from './baseTemplate.ts'
+import { baseTemplate, highlightBox, infoRow, infoTable, appLink } from './baseTemplate.ts'
 
 export interface PaymentSuccessBuyerParams {
   ticketTitle: string
@@ -45,7 +45,7 @@ export function paymentSuccessBuyerEmail(params: PaymentSuccessBuyerParams): str
     preheader: `Your purchase of "${ticketTitle}" is confirmed`,
     content,
     ctaText: 'View Order',
-    ctaUrl: `mycollegetix://orders/${orderId}`,
+    ctaUrl: appLink(`orders/${orderId}`),
   })
 }
 
@@ -91,6 +91,6 @@ export function paymentSuccessSellerEmail(params: PaymentSuccessSellerParams): s
     preheader: `"${ticketTitle}" has been purchased`,
     content,
     ctaText: 'Transfer Ticket Now',
-    ctaUrl: `mycollegetix://orders/${orderId}`,
+    ctaUrl: appLink(`orders/${orderId}`),
   })
 }
