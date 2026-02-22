@@ -25,3 +25,6 @@ export type { RefundProcessedParams } from './templates/refundProcessed.ts'
 
 export { disputeOpenedEmail } from './templates/disputeOpened.ts'
 export type { DisputeOpenedParams } from './templates/disputeOpened.ts'
+
+export { supportRequestEmail } from './templates/supportRequest.ts'
+export type { SupportRequestParams } from './templates/supportRequest.ts'

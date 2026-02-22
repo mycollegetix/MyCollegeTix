@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/providers/ThemeProvider";
+import { supabase } from "@/src/lib/supabase";
 import Constants from "expo-constants";
 
 const { width, height } = Dimensions.get("window");
@@ -161,27 +162,42 @@ export default function HelpAndSupportScreen() {
       return;
     }
 
-    const email = "support@mycollegetix.com";
-    const subject = `${contactForm.subject} - MyCollegeTix App`;
-    
-    // Automatically include version information
+    setIsSubmitting(true);
+
     const appVersion = Constants.expoConfig?.version || "1.1.0";
-    const buildNumber = Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode?.toString() || "10";
+    const buildNumber =
+      Constants.expoConfig?.ios?.buildNumber ||
+      Constants.expoConfig?.android?.versionCode?.toString() ||
+      "10";
     const platform = Platform.OS === "ios" ? "iOS" : "Android";
-    
-    const systemInfo = `\n\n--- System Information ---\nApp Version: ${appVersion}\nBuild Number: ${buildNumber}\nPlatform: ${platform}\nPriority: ${contactForm.priority}\n---`;
-    
-    const body = contactForm.message + systemInfo;
-    const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(body)}`;
 
     try {
-      await Linking.openURL(mailtoUrl);
+      const { error } = await supabase.functions.invoke("submit-support-request", {
+        body: {
+          subject: contactForm.subject.trim(),
+          message: contactForm.message.trim(),
+          priority: contactForm.priority,
+          appVersion,
+          buildNumber,
+          platform,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
       setShowContactForm(false);
       setContactForm({ subject: "", message: "", priority: "medium" });
+      Alert.alert(
+        "Message Sent",
+        "Your support request has been sent. We'll get back to you as soon as possible."
+      );
     } catch (error) {
-      Alert.alert("Error", "Could not open email client.");
+      console.error("Support request error:", error);
+      Alert.alert("Error", "Failed to send your message. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
