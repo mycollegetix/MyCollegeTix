@@ -262,13 +262,15 @@ export default function SellScreen() {
   };
 
   const isFormValid = () => {
+    const price = parseFloat(formData.price);
     return (
       selectedEvent &&
       formData.section.trim() &&
       formData.row_number.trim() &&
       formData.seat_number.trim() &&
       formData.price.trim() &&
-      parseFloat(formData.price) > 0
+      price > 0 &&
+      price <= 1000
     );
   };
 
@@ -991,7 +993,7 @@ export default function SellScreen() {
                 <View
                   style={[
                     styles.inputWrapper,
-                    { borderColor: `${theme.primary}30` },
+                    { borderColor: parseFloat(formData.price) > 1000 ? "#ef4444" : `${theme.primary}30` },
                   ]}
                 >
                   <View style={styles.dollarContainer}>
@@ -1008,6 +1010,11 @@ export default function SellScreen() {
                     placeholderTextColor="#9ca3af"
                   />
                 </View>
+                {parseFloat(formData.price) > 1000 && (
+                  <Text style={styles.priceError}>
+                    Maximum listing price is $1,000
+                  </Text>
+                )}
               </View>
             </View>
 
@@ -1474,6 +1481,12 @@ const styles = StyleSheet.create({
   },
   thirdWidth: {
     flex: 1,
+  },
+  priceError: {
+    fontSize: 12,
+    color: "#ef4444",
+    marginTop: 6,
+    fontWeight: "500",
   },
   dollarContainer: {
     marginRight: 8,
