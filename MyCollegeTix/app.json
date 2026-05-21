@@ -104,7 +104,8 @@
         }
       ],
       "@react-native-firebase/app",
-      "./plugins/firebase-modular-headers.js"
+      "./plugins/firebase-modular-headers.js",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

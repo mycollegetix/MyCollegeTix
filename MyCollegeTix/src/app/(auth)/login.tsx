@@ -41,12 +41,16 @@ export default function OAuthLoginScreen() {
 
         // Check if this is a database/email validation error
         const errorMessage = error.message.toLowerCase();
-        if (errorMessage.includes('database error') ||
-            errorMessage.includes('saving new user') ||
-            errorMessage.includes('limited to students') ||
-            errorMessage.includes('college email') ||
-            errorMessage.includes('email domain')) {
-          setLoginError('Access is currently limited to students from Michigan State University and University of Michigan. Please use your college email (.edu) to sign up.');
+        if (
+          errorMessage.includes("database error") ||
+          errorMessage.includes("saving new user") ||
+          errorMessage.includes("limited to students") ||
+          errorMessage.includes("college email") ||
+          errorMessage.includes("email domain")
+        ) {
+          setLoginError(
+            "Access is currently limited to students from Michigan State University and University of Michigan. Please use your college email (.edu) to sign up."
+          );
         } else {
           setLoginError(`Google sign in failed: ${error.message}`);
         }
@@ -191,12 +195,13 @@ export default function OAuthLoginScreen() {
                 color="#6b7280"
               />
               <Text style={styles.infoText}>
-                Sign in with your college email. Your college will be automatically detected.
+                Sign in with your college email. Your college will be
+                automatically detected.
               </Text>
             </View>
 
             {/* Dev/Testing Login Link */}
-            {process.env.EXPO_PUBLIC_SHOW_DEV_LOGIN === 'true' && (
+            {process.env.EXPO_PUBLIC_SHOW_DEV_LOGIN === "true" && (
               <Link href="/(auth)/login-old-backup" asChild>
                 <TouchableOpacity style={styles.devLoginButton}>
                   <Ionicons name="code-outline" size={18} color="#6b7280" />
@@ -363,21 +368,21 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   devLoginButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: "#f9fafb",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: "#e5e7eb",
     marginTop: 16,
   },
   devLoginText: {
     fontSize: 13,
-    color: '#6b7280',
-    fontWeight: '500',
+    color: "#6b7280",
+    fontWeight: "500",
   },
 });

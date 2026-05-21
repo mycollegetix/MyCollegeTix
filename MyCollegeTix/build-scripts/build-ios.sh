@@ -3,6 +3,13 @@
 # Change to project root directory
 cd "$(dirname "$0")/.."
 
+# Force dev login OFF for production iOS builds.
+# OAuth (Google/Microsoft) works in Release builds because the redirect URI
+# resolves to the registered mycollegetix:// scheme — so the dev login UI is
+# never needed in production. This overrides whatever .env has locally; the
+# value is baked into the JS bundle by `npx expo export` below.
+export EXPO_PUBLIC_SHOW_DEV_LOGIN=false
+
 echo "🍎 Starting iOS build process..."
 
 # Get current build number from iOS Info.plist and increment it
