@@ -34,6 +34,7 @@ export default function AdminLayout() {
       <Stack.Screen name="orders" options={{ headerShown: false }} />
       <Stack.Screen name="analytics" options={{ headerShown: false }} />
       <Stack.Screen name="disputes" options={{ headerShown: false }} />
+      <Stack.Screen name="stuck-orders" options={{ headerShown: false }} />
     </Stack>
   );
 }

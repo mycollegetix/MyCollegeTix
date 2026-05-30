@@ -16,6 +16,7 @@ import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { CollegeService } from "@/src/services/collegeService";
 import { AdminService } from "@/src/services/adminService";
+import { OrderService } from "@/src/services/orderService";
 
 const { width } = Dimensions.get("window");
 
@@ -32,6 +33,7 @@ interface AdminStats {
   recentSignups: number;
   totalColleges: number;
   openDisputes: number;
+  stuckPayouts: number;
 }
 
 export default function AdminDashboard() {
@@ -48,6 +50,7 @@ export default function AdminDashboard() {
     recentSignups: 0,
     totalColleges: 0,
     openDisputes: 0,
+    stuckPayouts: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -75,6 +78,7 @@ export default function AdminDashboard() {
         collegesResult,
         recentSignupsResult,
         openDisputesResult,
+        stuckPayoutsResult,
       ] = await Promise.all([
         supabase.from("profiles").select("*", { count: "exact", head: true }),
         supabase.from("tickets").select("*"),
@@ -92,6 +96,7 @@ export default function AdminDashboard() {
           .from("escrow_disputes")
           .select("*", { count: "exact", head: true })
           .in("status", ["open", "under_review"]),
+        OrderService.getStuckPayoutCount(),
       ]);
 
       // Process tickets data
@@ -118,6 +123,7 @@ export default function AdminDashboard() {
         recentSignups: recentSignupsResult.count || 0,
         totalColleges: collegesResult.count || 0,
         openDisputes: openDisputesResult.count || 0,
+        stuckPayouts: stuckPayoutsResult.data || 0,
       });
     } catch (error) {
       console.error("Error fetching admin stats:", error);
@@ -245,6 +251,15 @@ export default function AdminDashboard() {
               onPress={() => router.push("/(admin)/disputes")}
             />
             <StatCard
+              title="Stuck Payouts"
+              value={stats.stuckPayouts}
+              icon="warning"
+              color="#dc2626"
+              onPress={() =>
+                (router.push as any)("/(admin)/stuck-orders")
+              }
+            />
+            <StatCard
               title="Recent Signups"
               value={stats.recentSignups}
               icon="person-add"
@@ -291,6 +306,15 @@ export default function AdminDashboard() {
               icon="alert-circle"
               color="#ef4444"
               onPress={() => router.push("/(admin)/disputes")}
+            />
+            <QuickActionCard
+              title="Stuck Payouts"
+              description="Orders in payout_pending for more than 24 hours"
+              icon="warning"
+              color="#dc2626"
+              onPress={() =>
+                (router.push as any)("/(admin)/stuck-orders")
+              }
             />
             <QuickActionCard
               title="Analytics"

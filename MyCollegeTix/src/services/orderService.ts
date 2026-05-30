@@ -526,6 +526,133 @@ export class OrderService {
     }
   }
 
+  /**
+   * Get orders stuck in escrow_status='payout_pending' for more than 24 hours
+   * with no successful seller_transfer. Admin only. Oldest first.
+   */
+  static async getStuckPayoutOrders(): Promise<
+    ServiceResponse<OrderWithDetails[]>
+  > {
+    try {
+      const isAdmin = await this.verifyAdminPermissions();
+      if (!isAdmin) {
+        return {
+          data: null,
+          error: "Admin privileges required",
+          success: false,
+        };
+      }
+
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select(
+          `
+          *,
+          buyer:profiles!orders_buyer_id_fkey (
+            id,
+            full_name,
+            email,
+            username
+          ),
+          seller:profiles!orders_seller_id_fkey (
+            id,
+            full_name,
+            email,
+            username
+          ),
+          ticket:tickets (
+            id,
+            title,
+            event_date,
+            location
+          ),
+          escrow_payments (
+            id,
+            seller_transfers (
+              id,
+              status,
+              failure_reason,
+              created_at
+            )
+          )
+        `
+        )
+        .eq("escrow_status", "payout_pending")
+        .lt("created_at", cutoff)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("❌ Error loading stuck payout orders:", error);
+        return { data: null, error: error.message, success: false };
+      }
+
+      // Belt-and-suspenders: drop any rows where a successful transfer
+      // somehow exists (escrow_status should already exclude these).
+      const stuck = (data || []).filter((order: any) => {
+        const transfers = (order.escrow_payments || []).flatMap(
+          (ep: any) => ep.seller_transfers || []
+        );
+        return !transfers.some((t: any) => t.status === "paid");
+      });
+
+      return {
+        data: stuck as OrderWithDetails[],
+        error: null,
+        success: true,
+      };
+    } catch (error) {
+      console.error("💥 Unexpected error in getStuckPayoutOrders:", error);
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Lightweight count of orders stuck in payout_pending > 24h.
+   * Admin only. Used for the dashboard stat tile.
+   */
+  static async getStuckPayoutCount(): Promise<ServiceResponse<number>> {
+    try {
+      const isAdmin = await this.verifyAdminPermissions();
+      if (!isAdmin) {
+        return {
+          data: null,
+          error: "Admin privileges required",
+          success: false,
+        };
+      }
+
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const { count, error } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("escrow_status", "payout_pending")
+        .lt("created_at", cutoff);
+
+      if (error) {
+        console.error("❌ Error loading stuck payout count:", error);
+        return { data: null, error: error.message, success: false };
+      }
+
+      return { data: count ?? 0, error: null, success: true };
+    } catch (error) {
+      console.error("💥 Unexpected error in getStuckPayoutCount:", error);
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+        success: false,
+      };
+    }
+  }
+
   // ============================================
   // ORDER MANAGEMENT
   // ============================================
