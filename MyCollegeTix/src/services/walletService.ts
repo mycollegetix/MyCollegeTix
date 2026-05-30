@@ -21,8 +21,9 @@ export interface SellerBalances {
    */
   pendingBalance: number;
   /**
-   * All-time successful sales, including currently-pending. Refunds excluded.
-   * In dollars.
+   * Total money actually deposited via Stripe Transfer over the seller's
+   * lifetime (status='paid_out' only). Orthogonal to pendingBalance — adding
+   * the two gives total gross sales ever. In dollars.
    */
   lifetimeEarnings: number;
 }

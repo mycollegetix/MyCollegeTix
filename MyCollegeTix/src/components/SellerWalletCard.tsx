@@ -52,7 +52,7 @@ const CARDS: CardSpec[] = [
   {
     key: "lifetimeEarnings",
     label: "Lifetime",
-    caption: "Total earned from all sales",
+    caption: "Total deposited to your bank",
     icon: "trophy-outline",
     accent: "#2563eb",
     background: "#eff6ff",
@@ -114,8 +114,8 @@ export function SellerWalletCard({ userId, refreshKey }: SellerWalletCardProps) 
       <Text style={styles.disclaimer}>
         Pending funds are held until the buyer confirms transfer and the
         review window closes. Once released, Stripe auto-deposits to your
-        bank within ~2 business days. No Stripe fees come off — you keep
-        your full listing price.
+        bank within ~2 business days and the amount moves to Lifetime.
+        No Stripe fees come off — you keep your full listing price.
       </Text>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
