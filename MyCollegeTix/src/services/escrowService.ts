@@ -1,7 +1,6 @@
 // src/services/escrowService.ts - Escrow Payment Management Service
 import { supabase } from "@/src/lib/supabase";
 import { Tables, TablesInsert, TablesUpdate } from "@/src/types/database.types";
-import { analyticsService } from "./analyticsService";
 
 // Types
 export interface ServiceResponse<T> {
@@ -421,79 +420,6 @@ export class EscrowService {
   }
 
   // ============================================
-  // CONFIRMATION FLOW
-  // ============================================
-
-  /**
-   * Confirm receipt of ticket (buyer action)
-   * This triggers payout to seller
-   */
-  static async confirmReceipt(orderId: string): Promise<ServiceResponse<{ success: boolean }>> {
-    try {
-      console.log("✅ Confirming ticket receipt for order:", orderId);
-
-      // Verify current user is the buyer
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        return { data: null, error: "User not authenticated", success: false };
-      }
-
-      // Get the ticket transfer
-      const { data: transfer, error: transferError } = await supabase
-        .from("ticket_transfers")
-        .select("*, order:orders (*)")
-        .eq("order_id", orderId)
-        .single();
-
-      if (transferError || !transfer) {
-        return { data: null, error: "Transfer not found", success: false };
-      }
-
-      if (transfer.buyer_id !== user.id) {
-        return { data: null, error: "Only the buyer can confirm receipt", success: false };
-      }
-
-      if (transfer.status === "confirmed" || transfer.status === "auto_confirmed") {
-        return { data: null, error: "Receipt already confirmed", success: false };
-      }
-
-      // Update ticket transfer status
-      const { error: updateTransferError } = await supabase
-        .from("ticket_transfers")
-        .update({
-          status: "confirmed",
-          confirmed_at: new Date().toISOString(),
-          confirmed_by: "buyer",
-        })
-        .eq("id", transfer.id);
-
-      if (updateTransferError) {
-        return { data: null, error: updateTransferError.message, success: false };
-      }
-
-      // Update order escrow status
-      await this.updateOrderEscrowStatus(orderId, "payout_pending");
-
-      // Update escrow payment status
-      const { data: escrowPayment } = await this.getEscrowPaymentByOrderId(orderId);
-      if (escrowPayment) {
-        await this.updateEscrowPaymentStatus(escrowPayment.id, "payout_pending");
-      }
-
-      console.log("✅ Receipt confirmed, payout pending");
-      analyticsService.logReceiptConfirmed(orderId);
-      return { data: { success: true }, error: null, success: true };
-    } catch (error) {
-      console.error("💥 Error confirming receipt:", error);
-      return {
-        data: null,
-        error: error instanceof Error ? error.message : "Unknown error",
-        success: false,
-      };
-    }
-  }
-
-  // ============================================
   // AUTO-CONFIRMATION
   // ============================================
 
@@ -530,56 +456,6 @@ export class EscrowService {
       }
 
       return { data: transfersWithoutDisputes, error: null, success: true };
-    } catch (error) {
-      return {
-        data: null,
-        error: error instanceof Error ? error.message : "Unknown error",
-        success: false,
-      };
-    }
-  }
-
-  /**
-   * Auto-confirm a transfer (called by cron job)
-   */
-  static async autoConfirmTransfer(transferId: string): Promise<ServiceResponse<{ success: boolean }>> {
-    try {
-      console.log("🤖 Auto-confirming transfer:", transferId);
-
-      const { data: transfer, error: getError } = await supabase
-        .from("ticket_transfers")
-        .select("*")
-        .eq("id", transferId)
-        .single();
-
-      if (getError || !transfer) {
-        return { data: null, error: "Transfer not found", success: false };
-      }
-
-      // Update ticket transfer
-      const { error: updateError } = await supabase
-        .from("ticket_transfers")
-        .update({
-          status: "auto_confirmed",
-          confirmed_at: new Date().toISOString(),
-          confirmed_by: "auto",
-        })
-        .eq("id", transferId);
-
-      if (updateError) {
-        return { data: null, error: updateError.message, success: false };
-      }
-
-      // Update order and payment statuses
-      await this.updateOrderEscrowStatus(transfer.order_id, "payout_pending");
-
-      const { data: escrowPayment } = await this.getEscrowPaymentByOrderId(transfer.order_id);
-      if (escrowPayment) {
-        await this.updateEscrowPaymentStatus(escrowPayment.id, "payout_pending");
-      }
-
-      console.log("✅ Transfer auto-confirmed");
-      return { data: { success: true }, error: null, success: true };
     } catch (error) {
       return {
         data: null,
