@@ -18,6 +18,7 @@ import { ActiveDisputesSection } from "./ActiveDisputesSection";
 import { AwaitingConfirmationSection } from "./AwaitingConfirmationSection";
 import { TicketCard } from "./TicketCard";
 import { OrderItem, ThemeColors } from "./types";
+import { SellerWalletCard } from "../SellerWalletCard";
 
 interface SellingTabProps {
   data: {
@@ -100,6 +101,9 @@ export function SellingTab({
 
   return (
     <>
+      {/* Earnings — always at the top so sellers see Pending / Lifetime first */}
+      <SellerWalletCard />
+
       {/* Active Disputes Section */}
       <ActiveDisputesSection
         items={data.disputed}
