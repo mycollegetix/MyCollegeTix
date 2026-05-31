@@ -10,9 +10,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  LayoutAnimation,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
+  UIManager,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +24,15 @@ import {
   SellerBalances,
   formatBalance,
 } from "@/src/services/walletService";
+
+// LayoutAnimation needs this one-time opt-in on Android to animate the
+// expand/collapse. (No-op on iOS, where it's already enabled.)
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface SellerWalletCardProps {
   /** Optional — defaults to current authenticated user. */
@@ -60,7 +72,10 @@ const CARDS: CardSpec[] = [
   },
 ];
 
-export function SellerWalletCard({ userId, refreshKey }: SellerWalletCardProps) {
+export function SellerWalletCard({
+  userId,
+  refreshKey,
+}: SellerWalletCardProps) {
   const [balances, setBalances] = useState<SellerBalances | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +95,14 @@ export function SellerWalletCard({ userId, refreshKey }: SellerWalletCardProps) 
   useEffect(() => {
     load();
   }, [load, refreshKey]);
+
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+
+  const toggleDisclaimer = useCallback(() => {
+    // Animate the height change for a smooth expand/collapse.
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowDisclaimer((prev) => !prev);
+  }, []);
 
   return (
     <View style={styles.section}>
@@ -111,12 +134,31 @@ export function SellerWalletCard({ userId, refreshKey }: SellerWalletCardProps) 
         ))}
       </View>
 
-      <Text style={styles.disclaimer}>
-        Pending funds are held until the buyer confirms transfer and the
-        review window closes. Once released, Stripe auto-deposits to your
-        bank within ~2 business days and the amount moves to Lifetime.
-        No Stripe fees come off — you keep your full listing price.
-      </Text>
+      <TouchableOpacity
+        style={styles.disclosureRow}
+        onPress={toggleDisclaimer}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: showDisclaimer }}
+        accessibilityLabel="How earnings work"
+      >
+        <Ionicons name="information-circle-outline" size={15} color="#475569" />
+        <Text style={styles.disclosureLabel}>How earnings work</Text>
+        <Ionicons
+          name={showDisclaimer ? "chevron-up" : "chevron-down"}
+          size={15}
+          color="#475569"
+        />
+      </TouchableOpacity>
+
+      {showDisclaimer ? (
+        <Text style={styles.disclaimer}>
+          Pending funds are held until the buyer confirms transfer and the
+          review window closes. Once released, Stripe auto-deposits to your bank
+          within ~2 business days and the amount moves to Lifetime. No Stripe
+          fees come off — you keep your full listing price.
+        </Text>
+      ) : null}
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
@@ -224,10 +266,22 @@ const styles = StyleSheet.create({
     color: "#64748b",
     lineHeight: 13,
   },
+  disclosureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 12,
+  },
+  disclosureLabel: {
+    flex: 1, // pushes the chevron to the far right
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#475569",
+  },
   disclaimer: {
     fontSize: 11,
     color: "#64748b",
-    marginTop: 10,
+    marginTop: 8,
     lineHeight: 15,
   },
   errorText: {
