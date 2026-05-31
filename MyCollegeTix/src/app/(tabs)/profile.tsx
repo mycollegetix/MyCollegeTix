@@ -29,6 +29,7 @@ import { AccountService } from "@/src/services/accountService";
 import { StripeConnectService } from "@/src/services/stripeConnectService";
 import { LegalDocumentStatus } from "@/src/components/LegalDocumentStatus";
 import UserProfileCard from "@/src/components/UserProfileCard";
+import { SellerWalletCard } from "@/src/components/SellerWalletCard";
 import Constants from "expo-constants";
 
 const { width, height } = Dimensions.get("window");
@@ -770,6 +771,8 @@ export default function ProfileScreen() {
                           />
                         </View>
                       </TouchableOpacity>
+
+                      <SellerWalletCard />
 
                       <TouchableOpacity
                         style={[
